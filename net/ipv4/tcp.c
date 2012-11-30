@@ -3374,7 +3374,8 @@ void __init tcp_init(void)
 		alloc_large_system_hash("TCP established",
 					sizeof(struct inet_ehash_bucket),
 					thash_entries,
-					17, /* one slot per 128 KB of memory */
+					(totalram_pages >= 128 * 1024) ?
+					13 : 15,
 					0,
 					NULL,
 					&tcp_hashinfo.ehash_mask,
@@ -3389,7 +3390,8 @@ void __init tcp_init(void)
 		alloc_large_system_hash("TCP bind",
 					sizeof(struct inet_bind_hashbucket),
 					tcp_hashinfo.ehash_mask + 1,
-					17, /* one slot per 128 KB of memory */
+					(totalram_pages >= 128 * 1024) ?
+					13 : 15,
 					0,
 					&tcp_hashinfo.bhash_size,
 					NULL,

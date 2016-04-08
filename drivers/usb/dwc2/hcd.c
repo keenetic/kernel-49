@@ -4805,7 +4805,7 @@ static void _dwc2_hcd_endpoint_disable(struct usb_hcd *hcd,
  * the data toggle (as a WA). This function can be called from usb_clear_halt
  * routine.
  */
-static void _dwc2_hcd_endpoint_reset(struct usb_hcd *hcd,
+static int _dwc2_hcd_endpoint_reset(struct usb_hcd *hcd,
 				     struct usb_host_endpoint *ep)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
@@ -4818,6 +4818,8 @@ static void _dwc2_hcd_endpoint_reset(struct usb_hcd *hcd,
 	spin_lock_irqsave(&hsotg->lock, flags);
 	dwc2_hcd_endpoint_reset(hsotg, ep);
 	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return 0;
 }
 
 /*

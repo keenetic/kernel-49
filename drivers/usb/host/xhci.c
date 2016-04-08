@@ -2980,7 +2980,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
  * Context: in_interrupt
  */
 
-void xhci_endpoint_reset(struct usb_hcd *hcd,
+int xhci_endpoint_reset(struct usb_hcd *hcd,
 		struct usb_host_endpoint *ep)
 {
 	struct xhci_hcd *xhci;
@@ -2999,6 +2999,9 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	/* For now just print debug to follow the situation */
 	xhci_dbg(xhci, "Endpoint 0x%x ep reset callback called\n",
 		 ep->desc.bEndpointAddress);
+
+	/* reset not performed */
+	return 1;
 }
 
 static int xhci_check_streams_endpoint(struct xhci_hcd *xhci,

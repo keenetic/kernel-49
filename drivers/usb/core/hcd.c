@@ -2096,13 +2096,14 @@ void usb_hcd_disable_endpoint(struct usb_device *udev,
  * Resets any host endpoint state such as the toggle bit, sequence
  * number and current window.
  */
-void usb_hcd_reset_endpoint(struct usb_device *udev,
+int usb_hcd_reset_endpoint(struct usb_device *udev,
 			    struct usb_host_endpoint *ep)
 {
 	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+	int ret = 0;
 
 	if (hcd->driver->endpoint_reset)
-		hcd->driver->endpoint_reset(hcd, ep);
+		ret = hcd->driver->endpoint_reset(hcd, ep);
 	else {
 		int epnum = usb_endpoint_num(&ep->desc);
 		int is_out = usb_endpoint_dir_out(&ep->desc);
@@ -2112,6 +2113,8 @@ void usb_hcd_reset_endpoint(struct usb_device *udev,
 		if (is_control)
 			usb_settoggle(udev, epnum, !is_out, 0);
 	}
+
+	return ret;
 }
 
 /**

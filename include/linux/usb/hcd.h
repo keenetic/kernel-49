@@ -303,7 +303,7 @@ struct hc_driver {
 
 	/* (optional) reset any endpoint state such as sequence number
 	   and current window */
-	void	(*endpoint_reset)(struct usb_hcd *hcd,
+	int	(*endpoint_reset)(struct usb_hcd *hcd,
 			struct usb_host_endpoint *ep);
 
 	/* root hub support */
@@ -428,7 +428,7 @@ extern void usb_hcd_flush_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
-extern void usb_hcd_reset_endpoint(struct usb_device *udev,
+extern int usb_hcd_reset_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern void usb_hcd_synchronize_unlinks(struct usb_device *udev);
 extern int usb_hcd_alloc_bandwidth(struct usb_device *udev,

@@ -1289,7 +1289,7 @@ static int proc_clearhalt(struct usb_dev_state *ps, void __user *arg)
 	else
 		pipe = usb_sndbulkpipe(ps->dev, ep & 0x7f);
 
-	return usb_clear_halt(ps->dev, pipe);
+	return usb_clear_halt_user(ps->dev, pipe);
 }
 
 static int proc_getdriver(struct usb_dev_state *ps, void __user *arg)

@@ -5465,7 +5465,7 @@ done:
 	spin_unlock_irqrestore(&fotg210->lock, flags);
 }
 
-static void fotg210_endpoint_reset(struct usb_hcd *hcd,
+static int fotg210_endpoint_reset(struct usb_hcd *hcd,
 		struct usb_host_endpoint *ep)
 {
 	struct fotg210_hcd *fotg210 = hcd_to_fotg210(hcd);
@@ -5476,7 +5476,7 @@ static void fotg210_endpoint_reset(struct usb_hcd *hcd,
 	unsigned long flags;
 
 	if (eptype != USB_ENDPOINT_XFER_BULK && eptype != USB_ENDPOINT_XFER_INT)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&fotg210->lock, flags);
 	qh = ep->hcpriv;
@@ -5504,6 +5504,8 @@ static void fotg210_endpoint_reset(struct usb_hcd *hcd,
 		}
 	}
 	spin_unlock_irqrestore(&fotg210->lock, flags);
+
+	return 0;
 }
 
 static int fotg210_get_frame(struct usb_hcd *hcd)

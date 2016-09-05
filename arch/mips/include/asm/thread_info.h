@@ -63,6 +63,9 @@ static inline struct thread_info *current_thread_info(void)
 #endif /* !__ASSEMBLY__ */
 
 /* thread information allocation */
+#if defined(CONFIG_THREAD_STACK_SIZE_ADJUSTMENT)
+#define THREAD_SIZE_ORDER (CONFIG_THREAD_SIZE_ORDER)
+#else
 #if defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_32BIT)
 #define THREAD_SIZE_ORDER (1)
 #endif
@@ -80,6 +83,7 @@ static inline struct thread_info *current_thread_info(void)
 #endif
 #ifdef CONFIG_PAGE_SIZE_64KB
 #define THREAD_SIZE_ORDER (0)
+#endif
 #endif
 
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)

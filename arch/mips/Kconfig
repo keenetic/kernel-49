@@ -2311,6 +2311,22 @@ config FORCE_MAX_ZONEORDER
 	  The page size is not necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
 
+config THREAD_STACK_SIZE_ADJUSTMENT
+	bool "Enable adjustment of a kernel thread stack size"
+
+config THREAD_SIZE_ORDER
+	int "An order of 2 for a multiplier of a thread info structure size"
+	default "2"
+	range 0 3
+	depends on THREAD_STACK_SIZE_ADJUSTMENT
+	help
+	  Set a size of a kernel thread stack to
+
+	  2^(PAGE_SHIFT + THREAD_SIZE_ORDER) - sizeof(struct thread_info)
+
+	  It should be larger for preemptive kernels and systems with
+	  drivers that require deeper stacks.
+
 config BOARD_SCACHE
 	bool
 

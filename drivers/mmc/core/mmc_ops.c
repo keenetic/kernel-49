@@ -58,9 +58,6 @@ static inline int __mmc_send_status(struct mmc_card *card, u32 *status,
 	int err;
 	struct mmc_command cmd = {0};
 
-	BUG_ON(!card);
-	BUG_ON(!card->host);
-
 	cmd.opcode = MMC_SEND_STATUS;
 	if (!mmc_host_is_spi(card->host))
 		cmd.arg = card->rca << 16;
@@ -90,8 +87,6 @@ static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 {
 	struct mmc_command cmd = {0};
 
-	BUG_ON(!host);
-
 	cmd.opcode = MMC_SELECT_CARD;
 
 	if (card) {
@@ -107,7 +102,6 @@ static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 
 int mmc_select_card(struct mmc_card *card)
 {
-	BUG_ON(!card);
 
 	return _mmc_select_card(card->host, card);
 }
@@ -179,8 +173,6 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	struct mmc_command cmd = {0};
 	int i, err = 0;
 
-	BUG_ON(!host);
-
 	cmd.opcode = MMC_SEND_OP_COND;
 	cmd.arg = mmc_host_is_spi(host) ? 0 : ocr;
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
@@ -219,9 +211,6 @@ int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 	int err;
 	struct mmc_command cmd = {0};
 
-	BUG_ON(!host);
-	BUG_ON(!cid);
-
 	cmd.opcode = MMC_ALL_SEND_CID;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
@@ -239,9 +228,6 @@ int mmc_set_relative_addr(struct mmc_card *card)
 {
 	struct mmc_command cmd = {0};
 
-	BUG_ON(!card);
-	BUG_ON(!card->host);
-
 	cmd.opcode = MMC_SET_RELATIVE_ADDR;
 	cmd.arg = card->rca << 16;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -254,9 +240,6 @@ mmc_send_cxd_native(struct mmc_host *host, u32 arg, u32 *cxd, int opcode)
 {
 	int err;
 	struct mmc_command cmd = {0};
-
-	BUG_ON(!host);
-	BUG_ON(!cxd);
 
 	cmd.opcode = opcode;
 	cmd.arg = arg;

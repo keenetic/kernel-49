@@ -338,7 +338,11 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 			if (cpu_online(remote))
 				break;
 		}
-		BUG_ON(remote >= NR_CPUS);
+		if (remote >= NR_CPUS) {
+			pr_crit("No online CPU in core %u to start CPU%d\n",
+				core, cpu);
+			goto out;
+		}
 
 		err = smp_call_function_single(remote, remote_vpe_boot,
 					       NULL, 1);

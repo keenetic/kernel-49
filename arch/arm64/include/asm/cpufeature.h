@@ -250,6 +250,12 @@ void arm64_set_ssbd_mitigation(bool state);
 static inline void arm64_set_ssbd_mitigation(bool state) {}
 #endif
 
+static inline bool system_supports_fpsimd(void)
+{
+	/* fast stub for kernel-4.9 */
+	return true;
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif

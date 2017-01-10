@@ -264,6 +264,7 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 		       const int align_offset)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
+	size_t digest_size = crypto_ahash_digestsize(tfm);
 	unsigned int i, j, k, temp;
 	struct scatterlist sg[8];
 	char *result;
@@ -274,7 +275,7 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 	char *xbuf[XBUFSIZE];
 	int ret = -ENOMEM;
 
-	result = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
+	result = kmalloc(digest_size, GFP_KERNEL);
 	if (!result)
 		return ret;
 	key = kmalloc(MAX_KEYLEN, GFP_KERNEL);
@@ -304,7 +305,7 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 			goto out;
 
 		j++;
-		memset(result, 0, MAX_DIGEST_SIZE);
+		memset(result, 0, digest_size);
 
 		hash_buff = xbuf[0];
 		hash_buff += align_offset;
@@ -379,7 +380,7 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 			continue;
 
 		j++;
-		memset(result, 0, MAX_DIGEST_SIZE);
+		memset(result, 0, digest_size);
 
 		temp = 0;
 		sg_init_table(sg, template[i].np);
@@ -457,7 +458,7 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 			continue;
 
 		j++;
-		memset(result, 0, MAX_DIGEST_SIZE);
+		memset(result, 0, digest_size);
 
 		ret = -EINVAL;
 		hash_buff = xbuf[0];

@@ -769,9 +769,12 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
 	struct nvmem_cell *cell;
 	struct nvmem_device *nvmem;
 	const __be32 *addr;
-	int rval, len, index;
+	int rval, len;
+	int index = 0;
 
-	index = of_property_match_string(np, "nvmem-cell-names", name);
+	/* if cell name exists, find index to the name */
+	if (name)
+		index = of_property_match_string(np, "nvmem-cell-names", name);
 
 	cell_np = of_parse_phandle(np, "nvmem-cells", index);
 	if (!cell_np)

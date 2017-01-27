@@ -137,6 +137,17 @@ static u64 notrace arm64_1188873_read_cntvct_el0(void)
 }
 #endif
 
+#ifdef CONFIG_ARM64_ERRATUM_858921
+static u64 notrace arm64_858921_read_cntvct_el0(void)
+{
+	u64 old, new;
+
+	old = read_sysreg(cntvct_el0);
+	new = read_sysreg(cntvct_el0);
+	return (((old ^ new) >> 32) & 1) ? old : new;
+}
+#endif
+
 #ifdef CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND
 const struct arch_timer_erratum_workaround *timer_unstable_counter_workaround = NULL;
 EXPORT_SYMBOL_GPL(timer_unstable_counter_workaround);
@@ -161,6 +172,14 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.id = (void *)ARM64_WORKAROUND_1188873,
 		.desc = "ARM erratum 1188873",
 		.read_cntvct_el0 = arm64_1188873_read_cntvct_el0,
+	},
+#endif
+#ifdef CONFIG_ARM64_ERRATUM_858921
+	{
+		.match_type = ate_match_local_cap_id,
+		.id = (void *)ARM64_WORKAROUND_858921,
+		.desc = "ARM erratum 858921",
+		.read_cntvct_el0 = arm64_858921_read_cntvct_el0,
 	},
 #endif
 };

@@ -1045,7 +1045,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 
 		data = rb_entry(next, struct page_stat, node);
 		sym = machine__find_kernel_function(machine, data->callsite, &map);
-		if (sym && sym->name)
+		if (sym)
 			caller = sym->name;
 		else
 			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
@@ -1087,7 +1087,7 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 
 		data = rb_entry(next, struct page_stat, node);
 		sym = machine__find_kernel_function(machine, data->callsite, &map);
-		if (sym && sym->name)
+		if (sym)
 			caller = sym->name;
 		else
 			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);

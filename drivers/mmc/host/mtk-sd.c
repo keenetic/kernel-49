@@ -79,6 +79,7 @@
 #define MSDC_PAD_TUNE    0xec
 #define MSDC_PAD_TUNE0   0xf0
 #define PAD_DS_TUNE      0x188
+#define PAD_CMD_TUNE     0x18c
 #define EMMC50_CFG0      0x208
 #define EMMC50_CFG3      0x220
 #define SDC_FIFO_CFG     0x228
@@ -222,6 +223,7 @@
 #define MSDC_PATCH_BIT_SPCPUSH    (0x1 << 29)	/* RW */
 #define MSDC_PATCH_BIT_DECRCTMO   (0x1 << 30)	/* RW */
 
+#define MSDC_PATCH_BIT1_CMDTA     (0x7 << 3)    /* RW */
 #define MSDC_PATCH_BIT1_STOP_DLY  (0xf << 8)    /* RW */
 
 #define MSDC_PATCH_BIT2_CFGRESP   (0x1 << 15)   /* RW */
@@ -234,6 +236,7 @@
 #define MSDC_PAD_TUNE_DATRRDLY	  (0x1f <<  8)	/* RW */
 #define MSDC_PAD_TUNE_CMDRDLY	  (0x1f << 16)  /* RW */
 #define MSDC_PAD_TUNE_CMDRRDLY	  (0x1f << 22)	/* RW */
+#define MSDC_PAD_TUNE_CLKTDLY	  (0x1f << 27)  /* RW */
 #define MSDC_PAD_TUNE_RXDLYSEL	  (0x1 << 15)   /* RW */
 #define MSDC_PAD_TUNE_RD_SEL	  (0x1 << 13)   /* RW */
 #define MSDC_PAD_TUNE_CMD_SEL	  (0x1 << 21)   /* RW */
@@ -241,6 +244,8 @@
 #define PAD_DS_TUNE_DLY1	  (0x1f << 2)   /* RW */
 #define PAD_DS_TUNE_DLY2	  (0x1f << 7)   /* RW */
 #define PAD_DS_TUNE_DLY3	  (0x1f << 12)  /* RW */
+
+#define PAD_CMD_TUNE_RX_DLY3	  (0x1f << 1)  /* RW */
 
 #define EMMC50_CFG_PADCMD_LATCHCK (0x1 << 0)   /* RW */
 #define EMMC50_CFG_CRCSTS_EDGE    (0x1 << 3)   /* RW */
@@ -315,6 +320,7 @@ struct msdc_save_para {
 	u32 patch_bit1;
 	u32 patch_bit2;
 	u32 pad_ds_tune;
+	u32 pad_cmd_tune;
 	u32 emmc50_cfg0;
 	u32 emmc50_cfg3;
 	u32 sdc_fifo_cfg;
@@ -333,6 +339,7 @@ struct mtk_mmc_compatible {
 struct msdc_tune_para {
 	u32 iocon;
 	u32 pad_tune;
+	u32 pad_cmd_tune;
 };
 
 struct msdc_delay_phase {
@@ -378,6 +385,9 @@ struct msdc_host {
 	u32 latch_ck;
 	u32 hs400_ds_delay;
 	u32 hs200_cmd_int_delay; /* cmd internal delay for HS200/SDR104 */
+	u32 hs400_cmd_int_delay; /* cmd internal delay for HS400 */
+	bool hs400_cmd_resp_sel_rising;
+				 /* cmd response sample selection for HS400 */
 	u32 r_smpl; /* response sample slection for init card */
 	bool hs400_mode;	/* current eMMC will run at hs400 mode */
 	struct msdc_save_para save_para; /* used when gate HCLK */
@@ -733,8 +743,14 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 	} else {
 		writel(host->saved_tune_para.iocon, host->base + MSDC_IOCON);
 		writel(host->saved_tune_para.pad_tune, host->base + tune_reg);
+		writel(host->saved_tune_para.pad_cmd_tune,
+		       host->base + PAD_CMD_TUNE);
 	}
 
+	if (timing == MMC_TIMING_MMC_HS400)
+		sdr_set_field(host->base + tune_reg,
+			      MSDC_PAD_TUNE_CMDRRDLY,
+			      host->hs400_cmd_int_delay);
 	dev_dbg(host->dev, "sclk: %d, timing: %d\n", host->sclk, timing);
 }
 
@@ -1618,6 +1634,56 @@ skip_internal:
 	return final_delay == 0xff ? -EIO : 0;
 }
 
+static int hs400_tune_response(struct mmc_host *mmc, u32 opcode)
+{
+	struct msdc_host *host = mmc_priv(mmc);
+	u32 cmd_delay = 0;
+	struct msdc_delay_phase final_cmd_delay = { 0,};
+	u8 final_delay;
+	int cmd_err;
+	int i, j;
+
+	/* select EMMC50 PAD CMD tune */
+	sdr_set_bits(host->base + PAD_CMD_TUNE, BIT(0));
+	sdr_set_field(host->base + MSDC_PATCH_BIT1, MSDC_PATCH_BIT1_CMDTA, 2);
+
+	if (mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
+	    mmc->ios.timing == MMC_TIMING_UHS_SDR104)
+		sdr_set_field(host->base + MSDC_PAD_TUNE,
+			      MSDC_PAD_TUNE_CMDRRDLY,
+			      host->hs200_cmd_int_delay);
+
+	if (host->hs400_cmd_resp_sel_rising)
+		sdr_clr_bits(host->base + MSDC_IOCON, MSDC_IOCON_RSPL);
+	else
+		sdr_set_bits(host->base + MSDC_IOCON, MSDC_IOCON_RSPL);
+	for (i = 0 ; i < PAD_DELAY_MAX; i++) {
+		sdr_set_field(host->base + PAD_CMD_TUNE,
+			      PAD_CMD_TUNE_RX_DLY3, i);
+		/*
+		 * Using the same parameters, it may sometimes pass the test,
+		 * but sometimes it may fail. To make sure the parameters are
+		 * more stable, we test each set of parameters 3 times.
+		 */
+		for (j = 0; j < 3; j++) {
+			mmc_send_tuning(mmc, opcode, &cmd_err);
+			if (!cmd_err) {
+				cmd_delay |= (1 << i);
+			} else {
+				cmd_delay &= ~(1 << i);
+				break;
+			}
+		}
+	}
+	final_cmd_delay = get_best_delay(host, cmd_delay);
+	sdr_set_field(host->base + PAD_CMD_TUNE, PAD_CMD_TUNE_RX_DLY3,
+		      final_cmd_delay.final_phase);
+	final_delay = final_cmd_delay.final_phase;
+
+	dev_dbg(host->dev, "Final cmd pad delay: %x\n", final_delay);
+	return final_delay == 0xff ? -EIO : 0;
+}
+
 static int msdc_tune_data(struct mmc_host *mmc, u32 opcode)
 {
 	struct msdc_host *host = mmc_priv(mmc);
@@ -1696,7 +1762,10 @@ static int msdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	int ret;
 	u32 tune_reg = host->dev_comp->pad_tune_reg;
 
-	ret = msdc_tune_response(mmc, opcode);
+	if (host->hs400_mode)
+		ret = hs400_tune_response(mmc, opcode);
+	else
+		ret = msdc_tune_response(mmc, opcode);
 	if (ret == -EIO) {
 		dev_err(host->dev, "Tune response fail!\n");
 		return ret;
@@ -1710,6 +1779,7 @@ static int msdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	host->saved_tune_para.iocon = readl(host->base + MSDC_IOCON);
 	host->saved_tune_para.pad_tune = readl(host->base + tune_reg);
+	host->saved_tune_para.pad_cmd_tune = readl(host->base + PAD_CMD_TUNE);
 	return ret;
 }
 
@@ -1762,6 +1832,15 @@ static void msdc_of_property_parse(struct platform_device *pdev,
 
 	of_property_read_u32(pdev->dev.of_node, "mediatek,hs200-cmd-int-delay",
 			     &host->hs200_cmd_int_delay);
+
+	of_property_read_u32(pdev->dev.of_node, "mediatek,hs400-cmd-int-delay",
+			     &host->hs400_cmd_int_delay);
+
+	if (of_property_read_bool(pdev->dev.of_node,
+				  "mediatek,hs400-cmd-resp-sel-rising"))
+		host->hs400_cmd_resp_sel_rising = true;
+	else
+		host->hs400_cmd_resp_sel_rising = false;
 
 	of_property_read_u32(pdev->dev.of_node, "r_smpl",
 			     &host->r_smpl);
@@ -1967,6 +2046,7 @@ static void msdc_save_reg(struct msdc_host *host)
 	host->save_para.patch_bit1 = readl(host->base + MSDC_PATCH_BIT1);
 	host->save_para.patch_bit2 = readl(host->base + MSDC_PATCH_BIT2);
 	host->save_para.pad_ds_tune = readl(host->base + PAD_DS_TUNE);
+	host->save_para.pad_cmd_tune = readl(host->base + PAD_CMD_TUNE);
 	host->save_para.emmc50_cfg0 = readl(host->base + EMMC50_CFG0);
 	host->save_para.emmc50_cfg3 = readl(host->base + EMMC50_CFG3);
 	host->save_para.sdc_fifo_cfg = readl(host->base + SDC_FIFO_CFG);
@@ -1984,6 +2064,7 @@ static void msdc_restore_reg(struct msdc_host *host)
 	writel(host->save_para.patch_bit1, host->base + MSDC_PATCH_BIT1);
 	writel(host->save_para.patch_bit2, host->base + MSDC_PATCH_BIT2);
 	writel(host->save_para.pad_ds_tune, host->base + PAD_DS_TUNE);
+	writel(host->save_para.pad_cmd_tune, host->base + PAD_CMD_TUNE);
 	writel(host->save_para.emmc50_cfg0, host->base + EMMC50_CFG0);
 	writel(host->save_para.emmc50_cfg3, host->base + EMMC50_CFG3);
 	writel(host->save_para.sdc_fifo_cfg, host->base + SDC_FIFO_CFG);

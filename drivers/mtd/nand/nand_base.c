@@ -2014,7 +2014,9 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		if (!aligned)
 			use_bufpoi = 1;
 		else if (chip->options & NAND_USE_BOUNCE_BUFFER)
-			use_bufpoi = !virt_addr_valid(buf);
+			use_bufpoi = !virt_addr_valid(buf) ||
+				     !IS_ALIGNED((unsigned long)buf,
+						 chip->buf_align);
 		else
 			use_bufpoi = 0;
 
@@ -2871,7 +2873,9 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		if (part_pagewr)
 			use_bufpoi = 1;
 		else if (chip->options & NAND_USE_BOUNCE_BUFFER)
-			use_bufpoi = !virt_addr_valid(buf);
+			use_bufpoi = !virt_addr_valid(buf) ||
+				     !IS_ALIGNED((unsigned long)buf,
+						 chip->buf_align);
 		else
 			use_bufpoi = 0;
 
@@ -3454,6 +3458,8 @@ static void nand_set_defaults(struct nand_chip *chip, int busw)
 		nand_hw_control_init(chip->controller);
 	}
 
+	if (!chip->buf_align)
+		chip->buf_align = 1;
 }
 
 /* Sanitize ONFI strings so we can safely print them */

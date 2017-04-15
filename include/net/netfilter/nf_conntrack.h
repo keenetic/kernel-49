@@ -66,8 +66,11 @@ struct nf_conn_help {
 	u8 expecting[NF_CT_MAX_EXPECT_CLASSES];
 
 	/* private helper information. */
-	char data[];
+	char data[32] __aligned(8);
 };
+
+#define NF_CT_HELPER_BUILD_BUG_ON(structsize) \
+	BUILD_BUG_ON((structsize) > FIELD_SIZEOF(struct nf_conn_help, data))
 
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>

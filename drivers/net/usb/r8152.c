@@ -4488,11 +4488,8 @@ static int rtl8152_resume(struct usb_interface *intf)
 
 	mutex_lock(&tp->control);
 
-	if (!test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
-		tp->rtl_ops.init(tp);
-		queue_delayed_work(system_long_wq, &tp->hw_phy_work, 0);
+	if (!test_bit(SELECTIVE_SUSPEND, &tp->flags))
 		netif_device_attach(netdev);
-	}
 
 	if (netif_running(netdev) && netdev->flags & IFF_UP) {
 		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
@@ -4540,6 +4537,10 @@ static int rtl8152_reset_resume(struct usb_interface *intf)
 	struct r8152 *tp = usb_get_intfdata(intf);
 
 	clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+	mutex_lock(&tp->control);
+	tp->rtl_ops.init(tp);
+	queue_delayed_work(system_long_wq, &tp->hw_phy_work, 0);
+	mutex_unlock(&tp->control);
 	return rtl8152_resume(intf);
 }
 

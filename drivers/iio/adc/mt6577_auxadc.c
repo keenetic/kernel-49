@@ -271,6 +271,7 @@ static int mt6577_auxadc_remove(struct platform_device *pdev)
 
 static const struct of_device_id mt6577_auxadc_of_match[] = {
 	{ .compatible = "mediatek,mt2701-auxadc", },
+	{ .compatible = "mediatek,mt7622-auxadc", },
 	{ .compatible = "mediatek,mt8173-auxadc", },
 	{ }
 };

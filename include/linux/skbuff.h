@@ -2228,6 +2228,11 @@ static inline void skb_probe_transport_header(struct sk_buff *skb,
 		skb_set_transport_header(skb, offset_hint);
 }
 
+static inline u32 skb_mac_header_len(const struct sk_buff *skb)
+{
+	return skb->network_header - skb->mac_header;
+}
+
 static inline void skb_mac_header_rebuild(struct sk_buff *skb)
 {
 	if (skb_mac_header_was_set(skb)) {

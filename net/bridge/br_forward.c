@@ -141,6 +141,9 @@ static int deliver_clone(const struct net_bridge_port *prev,
 void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb, bool local_rcv, bool local_orig)
 {
+	if (to->flags & BR_ISOLATE_MODE && !local_orig)
+		to = NULL;
+
 	if (to && should_deliver(to, skb)) {
 		if (local_rcv)
 			deliver_clone(to, skb, local_orig);
@@ -183,6 +186,8 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	struct net_bridge_port *p;
 
 	list_for_each_entry_rcu(p, &br->port_list, list) {
+		if (!local_orig && (p->flags & BR_ISOLATE_MODE))
+			continue;
 		/* Do not flood unicast traffic to ports that turn it off */
 		if (pkt_type == BR_PKT_UNICAST && !(p->flags & BR_FLOOD))
 			continue;

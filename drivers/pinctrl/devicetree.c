@@ -172,10 +172,8 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 	struct pinctrl_map *map;
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
-	if (!map) {
-		dev_err(p->dev, "failed to alloc struct pinctrl_map\n");
+	if (!map)
 		return -ENOMEM;
-	}
 
 	/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
 	map->type = PIN_MAP_TYPE_DUMMY_STATE;

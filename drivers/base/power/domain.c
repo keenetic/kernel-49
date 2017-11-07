@@ -36,6 +36,8 @@
 	__ret;							\
 })
 
+#define genpd_is_active_wakeup(genpd)	(genpd->flags & GENPD_FLAG_ACTIVE_WAKEUP)
+
 static LIST_HEAD(gpd_list);
 static DEFINE_MUTEX(gpd_list_lock);
 
@@ -613,6 +615,8 @@ static bool pm_genpd_present(const struct generic_pm_domain *genpd)
 static bool genpd_dev_active_wakeup(struct generic_pm_domain *genpd,
 				    struct device *dev)
 {
+	if (genpd_is_active_wakeup(genpd))
+		return true;
 	return GENPD_DEV_CALLBACK(genpd, bool, active_wakeup, dev);
 }
 

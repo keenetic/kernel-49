@@ -196,7 +196,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	writel(0, versatile_cfg_base[0] + PCI_INTERRUPT_LINE);
 
 	pci_add_flags(PCI_ENABLE_PROC_DOMAINS);
-	pci_add_flags(PCI_REASSIGN_ALL_BUS | PCI_REASSIGN_ALL_RSRC);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	bus = pci_scan_root_bus(&pdev->dev, 0, &pci_versatile_ops, NULL, &pci_res);
 	if (!bus)

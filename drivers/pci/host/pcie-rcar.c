@@ -459,7 +459,7 @@ static int rcar_pcie_enable(struct rcar_pcie *pcie)
 
 	rcar_pcie_setup(&res, pcie);
 
-	pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		bus = pci_scan_root_bus_msi(dev, pcie->root_bus_nr,

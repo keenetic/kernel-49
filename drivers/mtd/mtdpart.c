@@ -114,25 +114,6 @@ static int part_read_oob(struct mtd_info *mtd, loff_t from,
 	struct mtd_ecc_stats stats;
 	int res;
 
-	if (from >= mtd->size)
-		return -EINVAL;
-	if (ops->datbuf && from + ops->len > mtd->size)
-		return -EINVAL;
-
-	/*
-	 * If OOB is also requested, make sure that we do not read past the end
-	 * of this partition.
-	 */
-	if (ops->oobbuf) {
-		size_t len, pages;
-
-		len = mtd_oobavail(mtd, ops);
-		pages = mtd_div_by_ws(mtd->size, mtd);
-		pages -= mtd_div_by_ws(from, mtd);
-		if (ops->ooboffs + ops->ooblen > pages * len)
-			return -EINVAL;
-	}
-
 	stats = part->master->ecc_stats;
 	res = part->master->_read_oob(part->master, from + part->offset, ops);
 	if (unlikely(mtd_is_eccerr(res)))
@@ -197,10 +178,6 @@ static int part_write_oob(struct mtd_info *mtd, loff_t to,
 {
 	struct mtd_part *part = mtd_to_part(mtd);
 
-	if (to >= mtd->size)
-		return -EINVAL;
-	if (ops->datbuf && to + ops->len > mtd->size)
-		return -EINVAL;
 	return part->master->_write_oob(part->master, to + part->offset, ops);
 }
 

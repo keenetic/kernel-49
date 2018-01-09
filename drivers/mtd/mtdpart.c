@@ -111,6 +111,7 @@ static int part_read_oob(struct mtd_info *mtd, loff_t from,
 		struct mtd_oob_ops *ops)
 {
 	struct mtd_part *part = mtd_to_part(mtd);
+	struct mtd_ecc_stats stats;
 	int res;
 
 	if (from >= mtd->size)
@@ -132,13 +133,14 @@ static int part_read_oob(struct mtd_info *mtd, loff_t from,
 			return -EINVAL;
 	}
 
+	stats = part->master->ecc_stats;
 	res = part->master->_read_oob(part->master, from + part->offset, ops);
-	if (unlikely(res)) {
-		if (mtd_is_bitflip(res))
-			mtd->ecc_stats.corrected++;
-		if (mtd_is_eccerr(res))
-			mtd->ecc_stats.failed++;
-	}
+	if (unlikely(mtd_is_eccerr(res)))
+		mtd->ecc_stats.failed +=
+			part->master->ecc_stats.failed - stats.failed;
+	else
+		mtd->ecc_stats.corrected +=
+			part->master->ecc_stats.corrected - stats.corrected;
 	return res;
 }
 

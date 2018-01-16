@@ -285,7 +285,74 @@ response_error:
 	return -EDOM;
 }
 
+/* Fix Media Connect Status for new version RNDIS Miniport, McMCC, 31122017 */
+static void rndis_open_fixup(struct net_device *net)
+{
+	int retval;
+	struct usbnet *dev = netdev_priv(net);
+	union {
+		void			*buf;
+		struct rndis_msg_hdr	*header;
+		struct rndis_query	*set;
+	} u;
+	__le32 *stm, st;
+	int stm_len;
+
+	u.buf = kmalloc(CONTROL_BUFFER_SIZE, GFP_KERNEL);
+	if (!u.buf)
+		return;
+
+	/* Query/Set media connect status */
+	stm = NULL;
+	stm_len = sizeof *stm;
+	retval = rndis_query(dev, dev->intf, u.buf,
+			     RNDIS_OID_GEN_LINK_SPEED,
+			     4, (void **) &stm, &stm_len);
+
+	if (unlikely(retval < 0)) {
+		netif_err(dev, ifup, dev->net, "rndis get link speed status, %d\n", retval);
+		goto failed;
+	}
+
+	st = le32_to_cpup(stm);
+
+	memset(u.set, 0, sizeof *u.set);
+	u.set->msg_type = cpu_to_le32(RNDIS_MSG_QUERY);
+	u.set->msg_len = cpu_to_le32(4 + sizeof *u.set);
+	u.set->oid = cpu_to_le32(RNDIS_OID_GEN_MEDIA_CONNECT_STATUS);
+	u.set->len = cpu_to_le32(4);
+	u.set->offset = cpu_to_le32((sizeof *u.set) - 8);
+	*(__le32 *)(u.buf + sizeof *u.set) = cpu_to_le32(st);
+
+	retval = rndis_command(dev, u.header, CONTROL_BUFFER_SIZE);
+
+	if (unlikely(retval < 0)) {
+		netif_err(dev, ifup, dev->net, "rndis set media connect status, %d\n", retval);
+	}
+
+failed:
+	kfree(u.buf);
+	return;
+}
+
+static int rndis_open (struct net_device *net)
+{
+	int ret = usbnet_open(net);
+	rndis_open_fixup(net);
+	return ret;
+}
+
 /* same as usbnet_netdev_ops but MTU change not allowed */
+static const struct net_device_ops hw_rndis_netdev_ops = {
+	.ndo_open		= rndis_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_get_stats64	= usbnet_get_stats64,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static const struct net_device_ops rndis_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
@@ -296,8 +363,8 @@ static const struct net_device_ops rndis_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-int
-generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
+static int
+__generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags, int hw_fix)
 {
 	int			retval;
 	struct net_device	*net = dev->net;
@@ -353,11 +420,16 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		goto fail_and_release;
 	}
 
-	dev->rx_urb_size = dev->hard_mtu + (dev->maxpacket + 1);
-	dev->rx_urb_size &= ~(dev->maxpacket - 1);
+	if (hw_fix) {
+		dev->rx_urb_size = 0x4000; /* Setting RX URB size in 16K for new version RNDIS Miniport, McMCC, 14012018 */
+		net->netdev_ops = &hw_rndis_netdev_ops;
+		dev_info(&intf->dev, "Huawei RNDIS init started.\n");
+	} else {
+		dev->rx_urb_size = dev->hard_mtu + (dev->maxpacket + 1);
+		dev->rx_urb_size &= ~(dev->maxpacket - 1);
+		net->netdev_ops = &rndis_netdev_ops;
+	}
 	u.init->max_transfer_size = cpu_to_le32(dev->rx_urb_size);
-
-	net->netdev_ops = &rndis_netdev_ops;
 
 	retval = rndis_command(dev, u.header, CONTROL_BUFFER_SIZE);
 	if (unlikely(retval < 0)) {
@@ -468,11 +540,22 @@ fail:
 	kfree(u.buf);
 	return retval;
 }
+
+int
+generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
+{
+	return __generic_rndis_bind(dev, intf, flags, 0);
+}
 EXPORT_SYMBOL_GPL(generic_rndis_bind);
 
 static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	return generic_rndis_bind(dev, intf, FLAG_RNDIS_PHYM_NOT_WIRELESS);
+	return __generic_rndis_bind(dev, intf, FLAG_RNDIS_PHYM_NOT_WIRELESS, 0);
+}
+
+static int hw_rndis_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	return __generic_rndis_bind(dev, intf, FLAG_RNDIS_PHYM_NOT_WIRELESS, 1);
 }
 
 void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
@@ -538,6 +621,12 @@ int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		usbnet_skb_return(dev, skb2);
 	}
 
+	/* if no remaining packet, disable update counters in usbnet, McMCC, 14012018 */
+	if (!skb->len) {
+		dev->driver_info->flags |= FLAG_RX_ASSEMBLE;
+		return 0;
+	}
+
 	/* caller will usbnet_skb_return the remaining packet */
 	return 1;
 }
@@ -601,6 +690,16 @@ static const struct driver_info	rndis_info = {
 	.tx_fixup =	rndis_tx_fixup,
 };
 
+static const struct driver_info	hw_rndis_info = {
+	.description =	"HW RNDIS device",
+	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_NO_SETINT,
+	.bind =		hw_rndis_bind,
+	.unbind =	rndis_unbind,
+	.status =	rndis_status,
+	.rx_fixup =	rndis_rx_fixup,
+	.tx_fixup =	rndis_tx_fixup,
+};
+
 static const struct driver_info	rndis_poll_status_info = {
 	.description =	"RNDIS device (poll status before control)",
 	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_NO_SETINT,
@@ -633,6 +732,11 @@ static const struct usb_device_id	products [] = {
 	/* "ActiveSync" is an undocumented variant of RNDIS, used in WM5 */
 	USB_INTERFACE_INFO(USB_CLASS_MISC, 1, 1),
 	.driver_info = (unsigned long) &rndis_poll_status_info,
+}, {
+	/* HUAWEI RNDIS */
+	USB_DEVICE_AND_INTERFACE_INFO(0x12d1, 0x14db,
+				      USB_CLASS_WIRELESS_CONTROLLER, 1, 3),
+	.driver_info = (unsigned long) &hw_rndis_info,
 }, {
 	/* RNDIS for tethering */
 	USB_INTERFACE_INFO(USB_CLASS_WIRELESS_CONTROLLER, 1, 3),

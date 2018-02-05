@@ -61,3 +61,6 @@ obj-$(CONFIG_MTD_NAND_MTK)		+= mtk_nand.o mtk_ecc.o
 obj-$(CONFIG_MTD_SNAND_MTK)		+= mtk_snand.o mtk_bmt_v2.o
 
 nand-objs := nand_base.o nand_bbt.o nand_timings.o
+
+nandcore-objs := core/core.o core/bbt.o
+obj-$(CONFIG_MTD_NAND_CORE) += nandcore.o

@@ -19,6 +19,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
@@ -1858,7 +1859,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct msdc_host *host;
 	struct resource *res;
-	const struct of_device_id *of_id;
 	int ret;
 
 	if (!pdev->dev.of_node) {
@@ -1866,9 +1866,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	of_id = of_match_node(msdc_of_ids, pdev->dev.of_node);
-	if (!of_id)
-		return -EINVAL;
 	/* Allocate MMC host for this device */
 	mmc = mmc_alloc_host(sizeof(struct msdc_host), &pdev->dev);
 	if (!mmc)
@@ -1937,7 +1934,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	msdc_of_property_parse(pdev, host);
 
 	host->dev = &pdev->dev;
-	host->dev_comp = of_id->data;
+	host->dev_comp = of_device_get_match_data(&pdev->dev);
 	host->mmc = mmc;
 	host->src_clk_freq = clk_get_rate(host->src_clk);
 	/* Set host parameters to mmc */

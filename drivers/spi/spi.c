@@ -2020,10 +2020,14 @@ int spi_register_master(struct spi_master *master)
 	dev_dbg(dev, "registered master %s%s\n", dev_name(&master->dev),
 			dynamic ? " (dynamic)" : "");
 
-	/* If we're using a queued driver, start the queue */
-	if (master->transfer)
+	/*
+	 * If we're using a queued driver, start the queue. Note that we don't
+	 * need the queueing logic if the driver is only supporting high-level
+	 * memory operations.
+	 */
+	if (master->transfer) {
 		dev_info(dev, "master is unqueued, this is deprecated\n");
-	else {
+	} else if (master->transfer_one || master->transfer_one_message) {
 		status = spi_master_initialize_queue(master);
 		if (status) {
 			device_del(&master->dev);
@@ -2746,6 +2750,13 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 static int __spi_async(struct spi_device *spi, struct spi_message *message)
 {
 	struct spi_master *master = spi->master;
+
+	/*
+	 * Some controllers do not support doing regular SPI transfers. Return
+	 * ENOTSUPP when this is the case.
+	 */
+	if (!master->transfer)
+		return -ENOTSUPP;
 
 	message->spi = spi;
 

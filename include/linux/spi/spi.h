@@ -26,6 +26,7 @@ struct dma_chan;
 struct spi_master;
 struct spi_transfer;
 struct spi_flash_read_message;
+struct spi_controller_mem_ops;
 
 /*
  * INTERFACES between SPI master-side drivers and SPI infrastructure.
@@ -372,6 +373,9 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *                    transfer_one callback.
  * @handle_err: the subsystem calls the driver to handle an error that occurs
  *		in the generic implementation of transfer_one_message().
+ * @mem_ops: optimized/dedicated operations for interactions with SPI memory.
+ *	     This field is optional and should only be implemented if the
+ *	     controller has native support for memory like operations.
  * @unprepare_message: undo any work done by prepare_message().
  * @spi_flash_read: to support spi-controller hardwares that provide
  *                  accelerated interface to read from flash devices.
@@ -551,6 +555,9 @@ struct spi_master {
 			    struct spi_transfer *transfer);
 	void (*handle_err)(struct spi_master *master,
 			   struct spi_message *message);
+
+	/* Optimized handlers for SPI memory-like operations. */
+	const struct spi_controller_mem_ops *mem_ops;
 
 	/* gpio chip select */
 	int			*cs_gpios;

@@ -1191,6 +1191,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 	if (!was_busy && master->auto_runtime_pm) {
 		ret = pm_runtime_get_sync(master->dev.parent);
 		if (ret < 0) {
+			pm_runtime_put_noidle(master->dev.parent);
 			dev_err(&master->dev, "Failed to power device: %d\n",
 				ret);
 			mutex_unlock(&master->io_mutex);

@@ -39,6 +39,7 @@
 #include "../core.h"
 #include "../pinconf.h"
 #include "../pinctrl-utils.h"
+#include "mtk-eint.h"
 #include "pinctrl-mtk-common.h"
 
 #define MAX_GPIO_MODE_PER_REG 5
@@ -52,7 +53,6 @@ static const char * const mtk_gpio_functions[] = {
 	"func12", "func13", "func14", "func15",
 };
 
-static int dbg_start;
 static const struct mtk_pin_info *mtk_pinctrl_get_gpio_array(int pin, int size,
 	const struct mtk_pin_info pArray[])
 {
@@ -141,12 +141,6 @@ static int mtk_pinctrl_set_gpio_output(struct mtk_pinctrl *pctl,
 		pctl->devdata->n_pin_dout, pctl->devdata->pin_dout_grps);
 }
 
-static int mtk_pinctrl_get_gpio_output(struct mtk_pinctrl *pctl, int pin)
-{
-	return mtk_pinctrl_get_gpio_value(pctl, pin,
-		pctl->devdata->n_pin_dout, pctl->devdata->pin_dout_grps);
-}
-
 static int mtk_pinctrl_get_gpio_input(struct mtk_pinctrl *pctl, int pin)
 {
 	return mtk_pinctrl_get_gpio_value(pctl, pin,
@@ -173,22 +167,10 @@ static int mtk_pinctrl_set_gpio_mode(struct mtk_pinctrl *pctl,
 		pctl->devdata->n_pin_mode, pctl->devdata->pin_mode_grps);
 }
 
-static int mtk_pinctrl_get_gpio_mode(struct mtk_pinctrl *pctl, int pin)
-{
-	return mtk_pinctrl_get_gpio_value(pctl, pin,
-		pctl->devdata->n_pin_mode, pctl->devdata->pin_mode_grps);
-}
-
 static int mtk_pinctrl_set_gpio_smt(struct mtk_pinctrl *pctl,
 	int pin, bool enable)
 {
 	return mtk_pinctrl_set_gpio_value(pctl, pin, enable,
-		pctl->devdata->n_pin_smt, pctl->devdata->pin_smt_grps);
-}
-
-static int mtk_pinctrl_get_gpio_smt(struct mtk_pinctrl *pctl, int pin)
-{
-	return mtk_pinctrl_get_gpio_value(pctl, pin,
 		pctl->devdata->n_pin_smt, pctl->devdata->pin_smt_grps);
 }
 
@@ -228,7 +210,7 @@ static int mtk_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	bit = BIT(offset & 0xf);
 
 	if (pctl->devdata->spec_dir_set)
-		pctl->devdata->spec_dir_set(pctl, &reg_addr, offset, input);
+		pctl->devdata->spec_dir_set(&reg_addr, offset);
 
 	if (input)
 		/* Different SoC has different alignment offset. */
@@ -974,8 +956,8 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	reg_addr =  mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
 	bit = BIT(offset & 0xf);
 
-	if (pctl->devdata->spec_dir_get)
-		pctl->devdata->spec_dir_get(pctl, &reg_addr, offset, &read_val);
+	if (pctl->devdata->spec_dir_set)
+		pctl->devdata->spec_dir_set(&reg_addr, offset);
 
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
 	return !(read_val & bit);
@@ -1001,591 +983,33 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	const struct mtk_desc_pin *pin;
 	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-	int irq;
+	const struct mtk_desc_pin *pin;
+	unsigned long eint_n;
 
 	pin = pctl->devdata->pins + offset;
 	if (pin->eint.eintnum == NO_EINT_SUPPORT)
 		return -EINVAL;
 
-	irq = irq_find_mapping(pctl->domain, pin->eint.eintnum);
-	if (!irq)
-		return -EINVAL;
+	eint_n = pin->eint.eintnum;
 
-	return irq;
-}
-
-static int mtk_pinctrl_irq_request_resources(struct irq_data *d)
-{
-	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	const struct mtk_desc_pin *pin;
-	int ret;
-
-	pin = mtk_find_pin_by_eint_num(pctl, d->hwirq);
-
-	if (!pin) {
-		dev_err(pctl->dev, "Can not find pin\n");
-		return -EINVAL;
-	}
-
-	ret = gpiochip_lock_as_irq(pctl->chip, pin->pin.number);
-	if (ret) {
-		dev_err(pctl->dev, "unable to lock HW IRQ %lu for IRQ\n",
-			irqd_to_hwirq(d));
-		return ret;
-	}
-
-	/* set mux to INT mode */
-	mtk_pmx_set_mode(pctl->pctl_dev, pin->pin.number, pin->eint.eintmux);
-	/* set gpio direction to input */
-	mtk_pmx_gpio_set_direction(pctl->pctl_dev, NULL, pin->pin.number, true);
-	/* set input-enable */
-	mtk_pconf_set_ies_smt(pctl, pin->pin.number, 1, PIN_CONFIG_INPUT_ENABLE);
-
-	return 0;
-}
-
-static void mtk_pinctrl_irq_release_resources(struct irq_data *d)
-{
-	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	const struct mtk_desc_pin *pin;
-
-	pin = mtk_find_pin_by_eint_num(pctl, d->hwirq);
-
-	if (!pin) {
-		dev_err(pctl->dev, "Can not find pin\n");
-		return;
-	}
-
-	gpiochip_unlock_as_irq(pctl->chip, pin->pin.number);
-}
-
-static void __iomem *mtk_eint_get_offset(struct mtk_pinctrl *pctl,
-	unsigned int eint_num, unsigned int offset)
-{
-	unsigned int eint_base = 0;
-	void __iomem *reg;
-
-	if (eint_num >= pctl->devdata->ap_num)
-		eint_base = pctl->devdata->ap_num;
-
-	reg = pctl->eint_reg_base + offset + ((eint_num - eint_base) / 32) * 4;
-
-	return reg;
-}
-
-/*
- * mtk_can_en_debounce: Check the EINT number is able to enable debounce or not
- * @eint_num: the EINT number to setmtk_pinctrl
- */
-static unsigned int mtk_eint_can_en_debounce(struct mtk_pinctrl *pctl,
-	unsigned int eint_num)
-{
-	unsigned int sens;
-	unsigned int bit = BIT(eint_num % 32);
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-
-	void __iomem *reg = mtk_eint_get_offset(pctl, eint_num,
-			eint_offsets->sens);
-
-	if (readl(reg) & bit)
-		sens = MT_LEVEL_SENSITIVE;
-	else
-		sens = MT_EDGE_SENSITIVE;
-
-	if ((eint_num < pctl->devdata->db_cnt) && (sens != MT_EDGE_SENSITIVE))
-		return 1;
-	else
-		return 0;
-}
-
-/*
- * mtk_eint_get_mask: To get the eint mask
- * @eint_num: the EINT number to get
- */
-static unsigned int mtk_eint_get_mask(struct mtk_pinctrl *pctl,
-	unsigned int eint_num)
-{
-	unsigned int bit = BIT(eint_num % 32);
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-
-	void __iomem *reg = mtk_eint_get_offset(pctl, eint_num,
-			eint_offsets->mask);
-
-	return !!(readl(reg) & bit);
-}
-
-static int mtk_eint_flip_edge(struct mtk_pinctrl *pctl, int hwirq)
-{
-	int start_level, curr_level;
-	unsigned int reg_offset;
-	const struct mtk_eint_offsets *eint_offsets = &(pctl->devdata->eint_offsets);
-	u32 mask = BIT(hwirq & 0x1f);
-	u32 port = (hwirq >> 5) & eint_offsets->port_mask;
-	void __iomem *reg = pctl->eint_reg_base + (port << 2);
-	const struct mtk_desc_pin *pin;
-
-	pin = mtk_find_pin_by_eint_num(pctl, hwirq);
-	curr_level = mtk_gpio_get(pctl->chip, pin->pin.number);
-	do {
-		start_level = curr_level;
-		if (start_level)
-			reg_offset = eint_offsets->pol_clr;
-		else
-			reg_offset = eint_offsets->pol_set;
-		writel(mask, reg + reg_offset);
-
-		curr_level = mtk_gpio_get(pctl->chip, pin->pin.number);
-	} while (start_level != curr_level);
-
-	return start_level;
-}
-
-static void mtk_eint_mask(struct irq_data *d)
-{
-	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	const struct mtk_eint_offsets *eint_offsets =
-			&pctl->devdata->eint_offsets;
-	u32 mask = BIT(d->hwirq & 0x1f);
-	void __iomem *reg = mtk_eint_get_offset(pctl, d->hwirq,
-			eint_offsets->mask_set);
-
-	writel(mask, reg);
-}
-
-static void mtk_eint_unmask(struct irq_data *d)
-{
-	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-	u32 mask = BIT(d->hwirq & 0x1f);
-	void __iomem *reg = mtk_eint_get_offset(pctl, d->hwirq,
-			eint_offsets->mask_clr);
-
-	writel(mask, reg);
-
-	if (pctl->eint_dual_edges[d->hwirq])
-		mtk_eint_flip_edge(pctl, d->hwirq);
-}
-
-unsigned int mtk_gpio_debounce_select(const unsigned int *dbnc_infos,
-	int dbnc_infos_num, unsigned int debounce)
-{
-	unsigned int i;
-	unsigned int dbnc = dbnc_infos_num;
-
-	for (i = 0; i < dbnc_infos_num; i++) {
-		if (debounce <= dbnc_infos[i]) {
-			dbnc = i;
-			break;
-		}
-	}
-	return dbnc;
+	return mtk_eint_find_irq(pctl->eint, eint_n);
 }
 
 static int mtk_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
-	unsigned debounce)
+				 unsigned debounce)
 {
 	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-	int eint_num, virq, eint_offset;
-	unsigned int set_offset, bit, clr_bit, clr_offset, rst, unmask, dbnc;
-	static const unsigned int debounce_time[] = {500, 1000, 16000, 32000, 64000,
-						128000, 256000};
 	const struct mtk_desc_pin *pin;
-	struct irq_data *d;
+	unsigned long eint_n;
 
 	pin = pctl->devdata->pins + offset;
 	if (pin->eint.eintnum == NO_EINT_SUPPORT)
 		return -EINVAL;
 
-	eint_num = pin->eint.eintnum;
-	virq = irq_find_mapping(pctl->domain, eint_num);
-	eint_offset = (eint_num % 4) * 8;
-	d = irq_get_irq_data(virq);
+	eint_n = pin->eint.eintnum;
 
-	set_offset = (eint_num / 4) * 4 + pctl->devdata->eint_offsets.dbnc_set;
-	clr_offset = (eint_num / 4) * 4 + pctl->devdata->eint_offsets.dbnc_clr;
-	if (!mtk_eint_can_en_debounce(pctl, eint_num))
-		return -ENOSYS;
-
-	if (pctl->devdata->spec_debounce_select)
-		dbnc = pctl->devdata->spec_debounce_select(debounce);
-	else
-		dbnc = mtk_gpio_debounce_select(debounce_time,
-			ARRAY_SIZE(debounce_time), debounce);
-
-	if (!mtk_eint_get_mask(pctl, eint_num)) {
-		mtk_eint_mask(d);
-		unmask = 1;
-	} else {
-		unmask = 0;
-	}
-
-	clr_bit = 0xff << eint_offset;
-	writel(clr_bit, pctl->eint_reg_base + clr_offset);
-
-	bit = ((dbnc << EINT_DBNC_SET_DBNC_BITS) | EINT_DBNC_SET_EN) <<
-		eint_offset;
-	rst = EINT_DBNC_RST_BIT << eint_offset;
-	writel(rst | bit, pctl->eint_reg_base + set_offset);
-
-	/* Delay a while (more than 2T) to wait for hw debounce counter reset
-	work correctly */
-	udelay(1);
-	if (unmask == 1)
-		mtk_eint_unmask(d);
-
-	return 0;
-}
-
-static int mtk_pinmux_get(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int reg_addr;
-	unsigned char bit;
-	unsigned int pinmux = 0;
-	unsigned int mask = (1L << GPIO_MODE_BITS) - 1;
-	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-
-	if (pctl->devdata->pin_mode_grps)
-		return mtk_pinctrl_get_gpio_mode(pctl, offset);
-
-	reg_addr = ((offset / MAX_GPIO_MODE_PER_REG) << pctl->devdata->port_shf)
-			+ pctl->devdata->pinmux_offset;
-
-	bit = offset % MAX_GPIO_MODE_PER_REG;
-	mask <<= (GPIO_MODE_BITS * bit);
-	regmap_read(mtk_get_regmap(pctl, offset), reg_addr, &pinmux);
-	return ((pinmux & mask) >> (GPIO_MODE_BITS * bit));
-}
-
-static int mtk_gpio_get_in(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int reg_addr;
-	unsigned int bit;
-	unsigned int read_val = 0;
-	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-
-	if (pctl->devdata->pin_din_grps)
-		return mtk_pinctrl_get_gpio_input(pctl, offset);
-
-	reg_addr = mtk_get_port(pctl, offset) +
-		pctl->devdata->din_offset;
-
-	bit = BIT(offset & 0xf);
-	regmap_read(mtk_get_regmap(pctl, offset), reg_addr, &read_val);
-	return !!(read_val & bit);
-}
-
-static int mtk_gpio_get_out(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int reg_addr;
-	unsigned int bit;
-	unsigned int read_val = 0;
-	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-
-	if (pctl->devdata->pin_dout_grps)
-		return mtk_pinctrl_get_gpio_output(pctl, offset);
-
-	reg_addr = mtk_get_port(pctl, offset) +
-		pctl->devdata->dout_offset;
-
-	bit = BIT(offset & 0xf);
-	regmap_read(mtk_get_regmap(pctl, offset), reg_addr, &read_val);
-	return !!(read_val & bit);
-}
-
-static int mtk_pullen_get(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int reg_addr;
-	unsigned int bit;
-	unsigned int pull_en = 0;
-	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-	int samereg = 0;
-
-	if (!pctl->devdata->spec_pull_get)
-		return -1;
-
-	if (pctl->devdata->spec_pull_get) {
-		samereg = pctl->devdata->spec_pull_get(mtk_get_regmap(pctl, offset), offset);
-
-		if (samereg != -1) {
-			pull_en = (samereg >> 1) & 0x3;
-			return pull_en;
-		}
-	}
-
-	reg_addr = mtk_get_port(pctl, offset) + pctl->devdata->pullen_offset;
-
-	bit =  BIT(offset & 0xf);
-	regmap_read(mtk_get_regmap(pctl, offset), reg_addr, &pull_en);
-	return !!(pull_en & bit);
-}
-
-int mtk_spec_pull_get_samereg(struct regmap *regmap,
-		const struct mtk_pin_spec_pupd_set_samereg *pupd_infos,
-		unsigned int info_num, unsigned int pin)
-{
-	unsigned int i;
-	unsigned int reg_pupd;
-	unsigned int val = 0, bit_pupd, bit_r0, bit_r1;
-	const struct mtk_pin_spec_pupd_set_samereg *spec_pupd_pin;
-	bool find = false;
-
-	for (i = 0; i < info_num; i++) {
-		if (pin == pupd_infos[i].pin) {
-			find = true;
-			break;
-		}
-	}
-
-	if (!find)
-		return -1;
-
-	spec_pupd_pin = pupd_infos + i;
-	reg_pupd = spec_pupd_pin->offset;
-
-	regmap_read(regmap, reg_pupd, &val);
-	bit_pupd = !(val & BIT(spec_pupd_pin->pupd_bit));
-	bit_r0 = !!(val & BIT(spec_pupd_pin->r0_bit));
-	bit_r1 = !!(val & BIT(spec_pupd_pin->r1_bit));
-
-	return (bit_pupd)|(bit_r0<<1)|(bit_r1<<2)|(1<<3);
-}
-
-static int mtk_pullsel_get(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int reg_addr;
-	unsigned int bit;
-	unsigned int pull_sel = 0;
-	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-
-	if (pctl->devdata->mtk_pctl_get_pull_sel)
-		return pctl->devdata->mtk_pctl_get_pull_sel(pctl, offset);
-
-	if (!pctl->devdata->spec_pull_get)
-		return -1;
-
-	if (pctl->devdata->spec_pull_get) {
-		pull_sel = pctl->devdata->spec_pull_get(mtk_get_regmap(pctl, offset), offset);
-		if (pull_sel != -1)
-			return pull_sel;
-	}
-
-	reg_addr = mtk_get_port(pctl, offset) + pctl->devdata->pullsel_offset;
-
-	bit =  BIT(offset & 0xf);
-	regmap_read(mtk_get_regmap(pctl, offset), reg_addr, &pull_sel);
-	return !!(pull_sel & bit);
-}
-
-int mtk_spec_get_ies_smt_range(struct regmap *regmap,
-		const struct mtk_pin_ies_smt_set *ies_smt_infos,
-		unsigned int info_num,
-		unsigned int pin)
-{
-	unsigned int i, reg_addr, bit, val = 0;
-
-	for (i = 0; i < info_num; i++) {
-		if (pin >= ies_smt_infos[i].start &&
-				pin <= ies_smt_infos[i].end) {
-			break;
-		}
-	}
-
-	if (i == info_num)
-		return -1;
-
-	reg_addr = ies_smt_infos[i].offset;
-
-	bit = BIT(ies_smt_infos[i].bit);
-	regmap_read(regmap, reg_addr, &val);
-	return !!(val & bit);
-}
-
-static int mtk_ies_get(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int reg_addr;
-	unsigned char bit;
-	unsigned int ies;
-	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-
-	if (!pctl->devdata->spec_ies_get ||
-		pctl->devdata->ies_offset == MTK_PINCTRL_NOT_SUPPORT)
-		return -1;
-
-	/**
-	 * Due to some soc are not support ies config, add this special
-	 * control to handle it.
-	 */
-	if (pctl->devdata->spec_ies_get) {
-		ies = pctl->devdata->spec_ies_get(mtk_get_regmap(pctl, offset), offset);
-		if (ies != -1)
-			return ies;
-	}
-
-	reg_addr = mtk_get_port(pctl, offset) + pctl->devdata->ies_offset;
-
-	bit =  BIT(offset & 0xf);
-	regmap_read(mtk_get_regmap(pctl, offset), reg_addr, &ies);
-	return !!(ies & bit);
-}
-
-static int mtk_smt_get(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int reg_addr;
-	unsigned char bit;
-	unsigned int smt;
-	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-
-	if (pctl->devdata->pin_smt_grps)
-		return mtk_pinctrl_get_gpio_smt(pctl, offset);
-
-	if (!pctl->devdata->spec_smt_get ||
-		pctl->devdata->smt_offset == MTK_PINCTRL_NOT_SUPPORT)
-		return -1;
-
-	/**
-	 * Due to some soc are not support smt config, add this special
-	 * control to handle it.
-	 */
-	if (pctl->devdata->spec_smt_get) {
-		smt = pctl->devdata->spec_smt_get(mtk_get_regmap(pctl, offset), offset);
-		if (smt != -1)
-			return smt;
-	}
-
-	reg_addr = mtk_get_port(pctl, offset) + pctl->devdata->smt_offset;
-
-	bit =  BIT(offset & 0xf);
-	regmap_read(mtk_get_regmap(pctl, offset), reg_addr, &smt);
-	return !!(smt & bit);
-}
-
-static int mtk_driving_get(struct gpio_chip *chip, unsigned offset)
-{
-	const struct mtk_pin_drv_grp *pin_drv;
-	unsigned int val = 0;
-	unsigned int bits, mask, shift;
-	const struct mtk_drv_group_desc *drv_grp;
-	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
-
-	if (offset >= pctl->devdata->npins)
-		return -1;
-
-	if (pctl->devdata->mtk_pctl_get_gpio_drv)
-		return pctl->devdata->mtk_pctl_get_gpio_drv(pctl, offset);
-
-	pin_drv = mtk_find_pin_drv_grp_by_pin(pctl, offset);
-	if (!pin_drv || pin_drv->grp > pctl->devdata->n_grp_cls)
-		return -1;
-
-	drv_grp = pctl->devdata->grp_desc + pin_drv->grp;
-	bits = drv_grp->high_bit - drv_grp->low_bit + 1;
-	mask = BIT(bits) - 1;
-	shift = pin_drv->bit + drv_grp->low_bit;
-	mask <<= shift;
-	regmap_read(mtk_get_regmap(pctl, offset), pin_drv->offset, &val);
-	return ((val & mask) >> shift);
-}
-
-static ssize_t mt_gpio_show_pin(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	int len = 0;
-	int bufLen = PAGE_SIZE;
-	struct mtk_pinctrl *pctl = dev_get_drvdata(dev);
-	struct gpio_chip *chip = pctl->chip;
-	unsigned		i;
-	int			pull_val;
-
-	len += snprintf(buf+len, bufLen-len,
-		"gpio base is %d, total num is %d\n", chip->base, pctl->chip->ngpio);
-
-	len += snprintf(buf+len, bufLen-len,
-		"PIN: [MODE] [DIR] [DOUT] [DIN] [PULL_EN] [PULL_SEL] [IES] [SMT] [DRIVE] ( [R1] [R0] )\n");
-
-	if (dbg_start >= pctl->chip->ngpio) {
-		len += snprintf(buf+len, bufLen-len,
-		"wrong gpio-range: start should less than %d!\n", pctl->chip->ngpio);
-		return len;
-	}
-
-	for (i = dbg_start; i < pctl->chip->ngpio; i++) {
-		pull_val = mtk_pullsel_get(chip, i);
-		if ((len+32) >= bufLen)
-			break;
-
-		len += snprintf(buf+len, bufLen-len, "%4d:% d% d% d% d% d% d% d% d% d",
-				i,
-				mtk_pinmux_get(chip, i),
-				mtk_gpio_get_direction(chip, i),
-				mtk_gpio_get_out(chip, i),
-				mtk_gpio_get_in(chip, i),
-				mtk_pullen_get(chip, i),
-				(pull_val >= 0) ? (pull_val&1) : -1,
-				mtk_ies_get(chip, i),
-				mtk_smt_get(chip, i),
-				mtk_driving_get(chip, i));
-		if ((pull_val & 8) && (pull_val >= 0))
-			len += snprintf(buf+len, bufLen-len, " %d %d", !!(pull_val&4), !!(pull_val&2));
-		len += snprintf(buf+len, bufLen-len, "\n");
-	}
-	return len;
-}
-
-static ssize_t mt_gpio_store_pin(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
-	int pin, val;
-	int val_set;
-	struct mtk_pinctrl *pctl = dev_get_drvdata(dev);
-	struct pinctrl_dev *pctldev = pctl->pctl_dev;
-
-	if (!strncmp(buf, "mode", 4) && (sscanf(buf+4, "%d %d", &pin, &val) == 2)) {
-		val_set = mtk_pmx_set_mode(pctldev, pin, val);
-	} else if (!strncmp(buf, "dir", 3) && (sscanf(buf+3, "%d %d", &pin, &val) == 2)) {
-		val_set  = mtk_pmx_gpio_set_direction(pctldev, NULL, pin, !val);
-	} else if (!strncmp(buf, "out", 3) && (sscanf(buf+3, "%d %d", &pin, &val) == 2)) {
-		mtk_pmx_gpio_set_direction(pctldev, NULL, pin, false);
-		mtk_gpio_set(pctl->chip, pin, val);
-	} else if (!strncmp(buf, "pullen", 6) && (sscanf(buf+6, "%d %d", &pin, &val) == 2)) {
-		val_set = mtk_pconf_set_pull_select(pctl, pin, !!val,
-			false, MTK_PUPD_SET_R1R0_00 + val);
-	} else if (!strncmp(buf, "pullsel", 7) && (sscanf(buf+7, "%d %d", &pin, &val) == 2)) {
-		val_set = mtk_pconf_set_pull_select(pctl, pin, true, !!val, 0);
-	} else if (!strncmp(buf, "ies", 3) && (sscanf(buf+3, "%d %d", &pin, &val) == 2)) {
-		val_set = mtk_pconf_set_ies_smt(pctl, pin, val, PIN_CONFIG_INPUT_ENABLE);
-	} else if (!strncmp(buf, "smt", 3) && (sscanf(buf+3, "%d %d", &pin, &val) == 2)) {
-		val_set = mtk_pconf_set_ies_smt(pctl, pin, val, PIN_CONFIG_INPUT_SCHMITT_ENABLE);
-	} else if (!strncmp(buf, "start", 5) && (sscanf(buf+5, "%d", &val) == 1)) {
-		dbg_start = val;
-	}
-
-	return count;
-}
-
-static DEVICE_ATTR(mt_gpio, 0664, mt_gpio_show_pin, mt_gpio_store_pin);
-
-static struct device_attribute *gpio_attr_list[] = {
-	&dev_attr_mt_gpio,
-};
-
-static int mt_gpio_create_attr(struct device *dev)
-{
-	int idx, err = 0;
-	int num = ARRAY_SIZE(gpio_attr_list);
-
-	if (!dev)
-		return -EINVAL;
-
-	for (idx = 0; idx < num; idx++) {
-		err = device_create_file(dev, gpio_attr_list[idx]);
-		if (err)
-			break;
-	}
-
-	return err;
+	return mtk_eint_set_debounce(pctl->eint, eint_n, debounce);
 }
 
 static const struct gpio_chip mtk_gpio_chip = {
@@ -1602,358 +1026,24 @@ static const struct gpio_chip mtk_gpio_chip = {
 	.of_gpio_n_cells	= 2,
 };
 
-static int mtk_eint_set_type(struct irq_data *d,
-				      unsigned int type)
-{
-	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-	u32 mask = BIT(d->hwirq & 0x1f);
-	void __iomem *reg;
-
-	if (((type & IRQ_TYPE_EDGE_BOTH) && (type & IRQ_TYPE_LEVEL_MASK)) ||
-		((type & IRQ_TYPE_LEVEL_MASK) == IRQ_TYPE_LEVEL_MASK)) {
-		dev_err(pctl->dev, "Can't configure IRQ%d (EINT%lu) for type 0x%X\n",
-			d->irq, d->hwirq, type);
-		return -EINVAL;
-	}
-
-	if ((type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH)
-		pctl->eint_dual_edges[d->hwirq] = 1;
-	else
-		pctl->eint_dual_edges[d->hwirq] = 0;
-
-	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_EDGE_FALLING)) {
-		reg = mtk_eint_get_offset(pctl, d->hwirq,
-			eint_offsets->pol_clr);
-		writel(mask, reg);
-	} else {
-		reg = mtk_eint_get_offset(pctl, d->hwirq,
-			eint_offsets->pol_set);
-		writel(mask, reg);
-	}
-
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-		reg = mtk_eint_get_offset(pctl, d->hwirq,
-			eint_offsets->sens_clr);
-		writel(mask, reg);
-	} else {
-		reg = mtk_eint_get_offset(pctl, d->hwirq,
-			eint_offsets->sens_set);
-		writel(mask, reg);
-	}
-
-	if (pctl->eint_dual_edges[d->hwirq])
-		mtk_eint_flip_edge(pctl, d->hwirq);
-
-	return 0;
-}
-
-static int mtk_eint_irq_set_wake(struct irq_data *d, unsigned int on)
-{
-	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	int shift = d->hwirq & 0x1f;
-	int reg = d->hwirq >> 5;
-
-	if (on)
-		pctl->wake_mask[reg] |= BIT(shift);
-	else
-		pctl->wake_mask[reg] &= ~BIT(shift);
-
-	return 0;
-}
-
-static void mtk_eint_chip_write_mask(const struct mtk_eint_offsets *chip,
-		void __iomem *eint_reg_base, u32 *buf)
-{
-	int port;
-	void __iomem *reg;
-
-	for (port = 0; port < chip->ports; port++) {
-		reg = eint_reg_base + (port << 2);
-		writel_relaxed(~buf[port], reg + chip->mask_set);
-		writel_relaxed(buf[port], reg + chip->mask_clr);
-	}
-}
-
-static void mtk_eint_chip_read_mask(const struct mtk_eint_offsets *chip,
-		void __iomem *eint_reg_base, u32 *buf)
-{
-	int port;
-	void __iomem *reg;
-
-	for (port = 0; port < chip->ports; port++) {
-		reg = eint_reg_base + chip->mask + (port << 2);
-		buf[port] = ~readl_relaxed(reg);
-		/* Mask is 0 when irq is enabled, and 1 when disabled. */
-	}
-}
-
 static int mtk_eint_suspend(struct device *device)
 {
-	void __iomem *reg;
 	struct mtk_pinctrl *pctl = dev_get_drvdata(device);
-	const struct mtk_eint_offsets *eint_offsets =
-			&pctl->devdata->eint_offsets;
 
-	reg = pctl->eint_reg_base;
-	mtk_eint_chip_read_mask(eint_offsets, reg, pctl->cur_mask);
-	mtk_eint_chip_write_mask(eint_offsets, reg, pctl->wake_mask);
-
-	return 0;
+	return mtk_eint_do_suspend(pctl->eint);
 }
 
 static int mtk_eint_resume(struct device *device)
 {
 	struct mtk_pinctrl *pctl = dev_get_drvdata(device);
-	const struct mtk_eint_offsets *eint_offsets =
-			&pctl->devdata->eint_offsets;
 
-	mtk_eint_chip_write_mask(eint_offsets,
-			pctl->eint_reg_base, pctl->cur_mask);
-
-	return 0;
+	return mtk_eint_do_resume(pctl->eint);
 }
 
 const struct dev_pm_ops mtk_eint_pm_ops = {
 	.suspend_noirq = mtk_eint_suspend,
 	.resume_noirq = mtk_eint_resume,
 };
-
-static void mtk_eint_ack(struct irq_data *d)
-{
-	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-	u32 mask = BIT(d->hwirq & 0x1f);
-	void __iomem *reg = mtk_eint_get_offset(pctl, d->hwirq,
-			eint_offsets->ack);
-
-	writel(mask, reg);
-}
-
-static struct irq_chip mtk_pinctrl_irq_chip = {
-	.name = "mt-eint",
-	.irq_disable = mtk_eint_mask,
-	.irq_mask = mtk_eint_mask,
-	.irq_unmask = mtk_eint_unmask,
-	.irq_ack = mtk_eint_ack,
-	.irq_set_type = mtk_eint_set_type,
-	.irq_set_wake = mtk_eint_irq_set_wake,
-	.irq_request_resources = mtk_pinctrl_irq_request_resources,
-	.irq_release_resources = mtk_pinctrl_irq_release_resources,
-};
-
-static ssize_t mtk_eint_show(struct device *dev, struct device_attribute *attr,
-	char *buf)
-{
-	int i, j, irq, len, bufLen;
-	u32 mask, msk, sen, pol, val;
-	void __iomem *reg;
-	struct irq_desc *desc;
-	struct irqaction	*action;
-	const struct mtk_desc_pin *pin;
-	char * const irq_type[] = {"NONE", "R", "F", "RF", "H", "RH", "FH",
-		"RFH", "L", "RL", "FL", "RFL", "HL", "RHL", "FHL", "RFHL"};
-	struct mtk_pinctrl *pctl = dev_get_drvdata(dev);
-	const struct mtk_eint_offsets *eint_offsets =
-			&pctl->devdata->eint_offsets;
-
-	len = 0;
-	bufLen = PAGE_SIZE;
-
-	len += snprintf(buf+len, bufLen-len,
-		"eint \tpin \tirq \tdis \tdep \ttrig \twake \tmask \tsen \tpol \tisr\n");
-	for (i = 0; i < pctl->devdata->ap_num; i++) {
-		int shift = i & 0x1f;
-		int offset = i >> 5;
-
-		irq = irq_find_mapping(pctl->domain, i);
-		if (!irq)
-			continue;
-
-		desc = irq_to_desc(irq);
-		if (!desc || !irqd_get_trigger_type(&desc->irq_data))
-			continue;
-		action = desc->action;
-
-		mask = BIT(i & 0x1f);
-		reg = mtk_eint_get_offset(pctl, i, eint_offsets->mask);
-		val = readl(reg);
-		msk = val & mask;
-
-		reg = mtk_eint_get_offset(pctl, i, eint_offsets->sens);
-		val = readl(reg);
-		sen = val & mask;
-
-		reg = mtk_eint_get_offset(pctl, i, eint_offsets->pol);
-		val = readl(reg);
-		pol = val & mask;
-
-		for (j = 0; j < pctl->devdata->npins; j++) {
-			pin = pctl->devdata->pins + j;
-			if (pin->eint.eintnum == i)
-				break;
-		}
-		len += snprintf(buf+len, bufLen-len,
-			"%3d \t%3d \t%3d \t%3d \t%3d \t%4s \t%4d \t%4d \t%3d \t%3d \t%s\n",
-			i, j, irq,
-			irqd_irq_disabled(&desc->irq_data) ? 1 : 0,
-			desc->depth,
-			irq_type[irqd_get_trigger_type(&desc->irq_data)],
-			(pctl->wake_mask[offset] & BIT(shift)) ? 1 : 0,
-			msk ? 1 : 0,
-			sen ? 1 : 0,
-			pol ? 1 : 0,
-			action ? (action->name ? action->name : "NONE") : "NONE");
-	}
-
-	return len;
-}
-
-static ssize_t mtk_eint_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
-{
-	int eint, irq;
-	struct irq_desc *desc;
-	struct mtk_pinctrl *pctl = dev_get_drvdata(dev);
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-	u32 mask;
-	void __iomem *reg;
-
-	if (!strncmp(buf, "mask", 4) && (sscanf(buf+4, "%d", &eint) == 1)) {
-		irq = irq_find_mapping(pctl->domain, eint);
-		desc = irq_to_desc(irq);
-		if (!desc)
-			return count;
-		mtk_eint_mask(&desc->irq_data);
-	} else if (!strncmp(buf, "unmask", 6) && (sscanf(buf + 6, "%d", &eint) == 1)) {
-		irq = irq_find_mapping(pctl->domain, eint);
-		desc = irq_to_desc(irq);
-		if (!desc)
-			return count;
-		mtk_eint_unmask(&desc->irq_data);
-	} else if (!strncmp(buf, "trigger", 7) && (sscanf(buf + 7, "%d", &eint) == 1)) {
-		if (eint >= pctl->devdata->ap_num)
-			return count;
-
-		mask = BIT(eint & 0x1f);
-		reg = mtk_eint_get_offset(pctl, eint, eint_offsets->soft_set);
-		writel(mask, reg);
-	}
-	return count;
-}
-
-static DEVICE_ATTR(mtk_eint, 0664, mtk_eint_show, mtk_eint_store);
-
-static struct device_attribute *eint_attr_list[] = {
-	&dev_attr_mtk_eint,
-};
-
-static int mtk_eint_create_attr(struct device *dev)
-{
-	int idx, err = 0;
-	int num = ARRAY_SIZE(eint_attr_list);
-
-	if (!dev)
-		return -EINVAL;
-
-	for (idx = 0; idx < num; idx++) {
-		err = device_create_file(dev, eint_attr_list[idx]);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-
-static unsigned int mtk_eint_init(struct mtk_pinctrl *pctl)
-{
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-	void __iomem *reg = pctl->eint_reg_base + eint_offsets->dom_en;
-	unsigned int i;
-
-	for (i = 0; i < pctl->devdata->ap_num; i += 32) {
-		writel(0xffffffff, reg);
-		reg += 4;
-	}
-	return 0;
-}
-
-static inline void
-mtk_eint_debounce_process(struct mtk_pinctrl *pctl, int index)
-{
-	unsigned int rst, ctrl_offset;
-	unsigned int bit, dbnc;
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-
-	ctrl_offset = (index / 4) * 4 + eint_offsets->dbnc_ctrl;
-	dbnc = readl(pctl->eint_reg_base + ctrl_offset);
-	bit = EINT_DBNC_SET_EN << ((index % 4) * 8);
-	if ((bit & dbnc) > 0) {
-		ctrl_offset = (index / 4) * 4 + eint_offsets->dbnc_set;
-		rst = EINT_DBNC_RST_BIT << ((index % 4) * 8);
-		writel(rst, pctl->eint_reg_base + ctrl_offset);
-	}
-}
-
-static void mtk_eint_irq_handler(struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct mtk_pinctrl *pctl = irq_desc_get_handler_data(desc);
-	unsigned int status, eint_num;
-	int offset, index, virq;
-	const struct mtk_eint_offsets *eint_offsets =
-		&pctl->devdata->eint_offsets;
-	void __iomem *reg =  mtk_eint_get_offset(pctl, 0, eint_offsets->stat);
-	int dual_edges, start_level, curr_level;
-	const struct mtk_desc_pin *pin;
-
-	chained_irq_enter(chip, desc);
-	for (eint_num = 0;
-	     eint_num < pctl->devdata->ap_num;
-	     eint_num += 32, reg += 4) {
-		status = readl(reg);
-		while (status) {
-			offset = __ffs(status);
-			index = eint_num + offset;
-			virq = irq_find_mapping(pctl->domain, index);
-			status &= ~BIT(offset);
-
-			dual_edges = pctl->eint_dual_edges[index];
-			if (dual_edges) {
-				/* Clear soft-irq in case we raised it
-				   last time */
-				writel(BIT(offset), reg - eint_offsets->stat +
-					eint_offsets->soft_clr);
-
-				pin = mtk_find_pin_by_eint_num(pctl, index);
-				start_level = mtk_gpio_get(pctl->chip,
-							   pin->pin.number);
-			}
-
-			generic_handle_irq(virq);
-
-			if (dual_edges) {
-				curr_level = mtk_eint_flip_edge(pctl, index);
-
-				/* If level changed, we might lost one edge
-				   interrupt, raised it through soft-irq */
-				if (start_level != curr_level)
-					writel(BIT(offset), reg -
-						eint_offsets->stat +
-						eint_offsets->soft_set);
-			}
-
-			if (index < pctl->devdata->db_cnt)
-				mtk_eint_debounce_process(pctl , index);
-		}
-	}
-	chained_irq_exit(chip, desc);
-}
 
 static int mtk_pctrl_build_state(struct platform_device *pdev)
 {
@@ -1987,6 +1077,97 @@ static int mtk_pctrl_build_state(struct platform_device *pdev)
 	return 0;
 }
 
+static int
+mtk_xt_get_gpio_n(void *data, unsigned long eint_n, unsigned int *gpio_n,
+		  struct gpio_chip **gpio_chip)
+{
+	struct mtk_pinctrl *pctl = (struct mtk_pinctrl *)data;
+	const struct mtk_desc_pin *pin;
+
+	pin = mtk_find_pin_by_eint_num(pctl, eint_n);
+	if (!pin)
+		return -EINVAL;
+
+	*gpio_chip = pctl->chip;
+	*gpio_n = pin->pin.number;
+
+	return 0;
+}
+
+static int mtk_xt_get_gpio_state(void *data, unsigned long eint_n)
+{
+	struct mtk_pinctrl *pctl = (struct mtk_pinctrl *)data;
+	const struct mtk_desc_pin *pin;
+
+	pin = mtk_find_pin_by_eint_num(pctl, eint_n);
+	if (!pin)
+		return -EINVAL;
+
+	return mtk_gpio_get(pctl->chip, pin->pin.number);
+}
+
+static int mtk_xt_set_gpio_as_eint(void *data, unsigned long eint_n)
+{
+	struct mtk_pinctrl *pctl = (struct mtk_pinctrl *)data;
+	const struct mtk_desc_pin *pin;
+
+	pin = mtk_find_pin_by_eint_num(pctl, eint_n);
+	if (!pin)
+		return -EINVAL;
+
+	/* set mux to INT mode */
+	mtk_pmx_set_mode(pctl->pctl_dev, pin->pin.number, pin->eint.eintmux);
+	/* set gpio direction to input */
+	mtk_pmx_gpio_set_direction(pctl->pctl_dev, NULL, pin->pin.number,
+				   true);
+	/* set input-enable */
+	mtk_pconf_set_ies_smt(pctl, pin->pin.number, 1,
+			      PIN_CONFIG_INPUT_ENABLE);
+
+	return 0;
+}
+
+static const struct mtk_eint_xt mtk_eint_xt = {
+	.get_gpio_n = mtk_xt_get_gpio_n,
+	.get_gpio_state = mtk_xt_get_gpio_state,
+	.set_gpio_as_eint = mtk_xt_set_gpio_as_eint,
+};
+
+static int mtk_eint_init(struct mtk_pinctrl *pctl, struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct resource *res;
+
+	if (!of_property_read_bool(np, "interrupt-controller"))
+		return -ENODEV;
+
+	pctl->eint = devm_kzalloc(pctl->dev, sizeof(*pctl->eint), GFP_KERNEL);
+	if (!pctl->eint)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "Unable to get eint resource\n");
+		return -ENODEV;
+	}
+
+	pctl->eint->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pctl->eint->base))
+		return PTR_ERR(pctl->eint->base);
+
+	pctl->eint->irq = irq_of_parse_and_map(np, 0);
+	if (!pctl->eint->irq)
+		return -EINVAL;
+
+	pctl->eint->dev = &pdev->dev;
+	pctl->eint->regs = &pctl->devdata->eint_regs;
+	pctl->eint->hw = &pctl->devdata->eint_hw;
+	pctl->eint->pctl = pctl;
+	pctl->eint->gpio_xlate = &mtk_eint_xt;
+
+	return mtk_eint_do_init(pctl->eint);
+}
+
 int mtk_pctrl_init(struct platform_device *pdev,
 		const struct mtk_pinctrl_devdata *data,
 		struct regmap *regmap)
@@ -1995,8 +1176,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	struct mtk_pinctrl *pctl;
 	struct device_node *np = pdev->dev.of_node, *node;
 	struct property *prop;
-	struct resource *res;
-	int i, ret, irq, ports_buf;
+	int ret, i;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
@@ -2085,76 +1265,9 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		goto chip_error;
 	}
 
-	if (mt_gpio_create_attr(&pdev->dev))
-		pr_warn("mt_gpio create attribute error\n");
-
-	if (!of_property_read_bool(np, "interrupt-controller"))
-		return 0;
-
-	/* Get EINT register base from dts. */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Unable to get Pinctrl resource\n");
-		ret = -EINVAL;
+	ret = mtk_eint_init(pctl, pdev);
+	if (ret)
 		goto chip_error;
-	}
-
-	pctl->eint_reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pctl->eint_reg_base)) {
-		ret = -EINVAL;
-		goto chip_error;
-	}
-
-	ports_buf = pctl->devdata->eint_offsets.ports;
-	pctl->wake_mask = devm_kcalloc(&pdev->dev, ports_buf,
-					sizeof(*pctl->wake_mask), GFP_KERNEL);
-	if (!pctl->wake_mask) {
-		ret = -ENOMEM;
-		goto chip_error;
-	}
-
-	pctl->cur_mask = devm_kcalloc(&pdev->dev, ports_buf,
-					sizeof(*pctl->cur_mask), GFP_KERNEL);
-	if (!pctl->cur_mask) {
-		ret = -ENOMEM;
-		goto chip_error;
-	}
-
-	pctl->eint_dual_edges = devm_kcalloc(&pdev->dev, pctl->devdata->ap_num,
-					     sizeof(int), GFP_KERNEL);
-	if (!pctl->eint_dual_edges) {
-		ret = -ENOMEM;
-		goto chip_error;
-	}
-
-	irq = irq_of_parse_and_map(np, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "couldn't parse and map irq\n");
-		ret = -EINVAL;
-		goto chip_error;
-	}
-
-	pctl->domain = irq_domain_add_linear(np,
-		pctl->devdata->ap_num, &irq_domain_simple_ops, NULL);
-	if (!pctl->domain) {
-		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
-		ret = -ENOMEM;
-		goto chip_error;
-	}
-
-	mtk_eint_init(pctl);
-	for (i = 0; i < pctl->devdata->ap_num; i++) {
-		int virq = irq_create_mapping(pctl->domain, i);
-
-		irq_set_chip_and_handler(virq, &mtk_pinctrl_irq_chip,
-			handle_level_irq);
-		irq_set_chip_data(virq, pctl);
-	}
-
-	irq_set_chained_handler_and_data(irq, mtk_eint_irq_handler, pctl);
-
-	if (mtk_eint_create_attr(&pdev->dev))
-		pr_warn("mtk_eint create attribute error\n");
 
 	mtk_pinctrl_regmap = pctl->regmap1;
 

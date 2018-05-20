@@ -120,17 +120,6 @@ static int mtk_pinctrl_get_gpio_pullsel(struct mtk_pinctrl *pctl, unsigned int p
 	return pull_sel;
 }
 
-static const unsigned int mt7622_debounce_data[] = {
-	128, 256, 500, 1000, 16000,
-	32000, 64000, 128000, 256000, 512000
-};
-
-static unsigned int mt7622_spec_debounce_select(unsigned debounce)
-{
-	return mtk_gpio_debounce_select(mt7622_debounce_data,
-		ARRAY_SIZE(mt7622_debounce_data), debounce);
-}
-
 static const struct mtk_pinctrl_devdata mt7622_pinctrl_data = {
 	.pins = mtk_pins_mt7622,
 	.npins = ARRAY_SIZE(mtk_pins_mt7622),
@@ -156,15 +145,20 @@ static const struct mtk_pinctrl_devdata mt7622_pinctrl_data = {
 	.mtk_pctl_get_pull_sel = mtk_pinctrl_get_gpio_pullsel,
 	.mtk_pctl_set_gpio_drv = mtk_pinctrl_set_gpio_drv,
 	.mtk_pctl_get_gpio_drv = mtk_pinctrl_get_gpio_drv,
-	.spec_debounce_select = mt7622_spec_debounce_select,
+	.ies_offset = MTK_PINCTRL_NOT_SUPPORT,
 	.type1_start = 103,
 	.type1_end = 103,
-	.regmap_num = 0,
 	.port_shf = 4,
 	.port_mask = 0xf,
 	.port_align = 4,
-	.eint_offsets = {
+	.eint_hw = {
 		.name = "mt7622_eint",
+		.port_mask = 7,
+		.ports     = 7,
+		.ap_num    = 213,
+		.db_cnt    = 20,
+	},
+	.eint_regs = {
 		.stat      = 0x000,
 		.ack       = 0x040,
 		.mask      = 0x080,
@@ -183,12 +177,7 @@ static const struct mtk_pinctrl_devdata mt7622_pinctrl_data = {
 		.dbnc_ctrl = 0x500,
 		.dbnc_set  = 0x600,
 		.dbnc_clr  = 0x700,
-		.port_mask = 7,
-		.ports     = 7,
 	},
-	.ies_offset = MTK_PINCTRL_NOT_SUPPORT,
-	.ap_num = 213,
-	.db_cnt = 20,
 };
 
 static int mt7622_pinctrl_probe(struct platform_device *pdev)

@@ -521,8 +521,7 @@ static void mt2701_spec_pinmux_set(struct regmap *reg, unsigned int pin,
 	regmap_update_bits(reg, mt2701_spec_pinmux[i].offset, mask, value);
 }
 
-static void mt2701_spec_dir_set(struct mtk_pinctrl *pctl,
-			unsigned int *reg_addr, unsigned int pin, bool input)
+static void mt2701_spec_dir_set(unsigned int *reg_addr, unsigned int pin)
 {
 	if (pin > 175)
 		*reg_addr += 0x10;
@@ -553,8 +552,14 @@ static const struct mtk_pinctrl_devdata mt2701_pinctrl_data = {
 	.port_shf = 4,
 	.port_mask = 0x1f,
 	.port_align = 4,
-	.eint_offsets = {
+	.eint_hw = {
 		.name = "mt2701_eint",
+		.port_mask = 6,
+		.ports     = 6,
+		.ap_num    = 169,
+		.db_cnt    = 16,
+	},
+	.eint_regs = {
 		.stat      = 0x000,
 		.ack       = 0x040,
 		.mask      = 0x080,
@@ -573,11 +578,7 @@ static const struct mtk_pinctrl_devdata mt2701_pinctrl_data = {
 		.dbnc_ctrl = 0x500,
 		.dbnc_set  = 0x600,
 		.dbnc_clr  = 0x700,
-		.port_mask = 6,
-		.ports     = 6,
 	},
-	.ap_num = 169,
-	.db_cnt = 16,
 };
 
 static int mt2701_pinctrl_probe(struct platform_device *pdev)

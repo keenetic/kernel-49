@@ -31,7 +31,6 @@ struct nvmem_device {
 	struct device		dev;
 	int			stride;
 	int			word_size;
-	int			ncells;
 	int			id;
 	int			users;
 	size_t			size;
@@ -380,7 +379,6 @@ static int nvmem_add_cells(struct nvmem_device *nvmem,
 		nvmem_cell_add(cells[i]);
 	}
 
-	nvmem->ncells = cfg->ncells;
 	/* remove tmp array */
 	kfree(cells);
 

@@ -1585,6 +1585,7 @@ static void usbnet_bh (unsigned long param)
 			continue;
 		case tx_done:
 			kfree(entry->urb->sg);
+			/* fall through */
 		case rx_cleanup:
 			usb_free_urb (entry->urb);
 			dev_kfree_skb (skb);

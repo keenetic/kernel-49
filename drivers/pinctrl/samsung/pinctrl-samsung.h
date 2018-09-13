@@ -23,7 +23,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 /* pinmux function number for pin as gpio output line */
 #define FUNC_INPUT	0x0

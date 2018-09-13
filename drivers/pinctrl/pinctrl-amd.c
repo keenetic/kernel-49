@@ -20,7 +20,7 @@
 #include <linux/errno.h>
 #include <linux/log2.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>

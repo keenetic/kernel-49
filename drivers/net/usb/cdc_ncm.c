@@ -1608,10 +1608,7 @@ cdc_ncm_speed_change(struct usbnet *dev,
 
 static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 {
-	struct cdc_ncm_ctx *ctx;
 	struct usb_cdc_notification *event;
-
-	ctx = (struct cdc_ncm_ctx *)dev->data[0];
 
 	if (urb->actual_length < sizeof(*event))
 		return;

@@ -414,86 +414,6 @@ static struct pci_ops mtk_pcie_ops_v2 = {
 	.write = mtk_pcie_config_write,
 };
 
-static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
-{
-	struct mtk_pcie *pcie = port->pcie;
-	struct resource *mem = &pcie->mem;
-	u32 val;
-	size_t size;
-	int err;
-
-	/* MT7622 platforms need to enable LTSSM and ASPM from PCIe subsys */
-	if (pcie->base) {
-		val = readl(pcie->base + PCIE_SYS_CFG_V2);
-		val |= PCIE_CSR_LTSSM_EN(port->slot) |
-		       PCIE_CSR_ASPM_L1_EN(port->slot) |
-		       PCI_CSR_ASPM_L0S_EN(port->slot);
-		writel(val, pcie->base + PCIE_SYS_CFG_V2);
-
-		/* correct the class ID for mt7622 */
-		val = readl(port->base + K_GBL_1);
-		val |= MTK_ROOT_PORT;
-		writel(val, port->base + K_GBL_1);
-
-		val = K_CONF_IDS(MTK_VEND_ID, MTK_DEV_ID);
-		writel(val, port->base + K_CONF_FUNC0_0);
-
-		val = (PCI_CLASS_BRIDGE_PCI << 16) & 0xffffff00;
-		writel(val, port->base + K_CONF_FUNC0_1);
-
-		val = K_CONF_IDS(MTK_SS_VEND_ID, MTK_SS_DEV_ID);
-		writel(val, port->base + K_CONF_FUNC0_2);
-	}
-
-	/* set l1_entry_latency and l0s entry latency to 4us */
-	val = readl(port->base + PCIE_KCNT_2);
-	val &= ~(PCIE_L1_ENTRY_LAT | PCIE_L0S_ENTRY_LAT);
-	val |= 0x00088000;
-	writel(val, port->base + PCIE_KCNT_2);
-
-	/* Assert all reset signals */
-	writel(0, port->base + PCIE_RST_CTRL);
-
-	/*
-	 * Enable PCIe link down reset, if link status changed from link up to
-	 * link down, this will reset MAC control registers and configuration
-	 * space.
-	 */
-	writel(PCIE_LINKDOWN_RST_EN, port->base + PCIE_RST_CTRL);
-
-	/* De-assert PHY, PE, PIPE, MAC and configuration reset	*/
-	val = readl(port->base + PCIE_RST_CTRL);
-	val |= PCIE_PHY_RSTB | PCIE_PERSTB | PCIE_PIPE_SRSTB |
-	       PCIE_MAC_SRSTB | PCIE_CRSTB;
-	writel(val, port->base + PCIE_RST_CTRL);
-
-	/* 100ms timeout value should be enough for Gen1/2 training */
-	err = readl_poll_timeout(port->base + PCIE_LINK_STATUS_V2, val,
-				 !!(val & PCIE_PORT_LINKUP_V2), 20,
-				 100 * USEC_PER_MSEC);
-	if (err)
-		return -ETIMEDOUT;
-
-	/* Set INTx mask */
-	val = readl(port->base + PCIE_INT_MASK);
-	val &= ~INTX_MASK;
-	writel(val, port->base + PCIE_INT_MASK);
-
-	/* Set AHB to PCIe translation windows */
-	size = mem->end - mem->start;
-	val = lower_32_bits(mem->start) | AHB2PCIE_SIZE(fls(size));
-	writel(val, port->base + PCIE_AHB_TRANS_BASE0_L);
-
-	val = upper_32_bits(mem->start);
-	writel(val, port->base + PCIE_AHB_TRANS_BASE0_H);
-
-	/* Set PCIe to AXI translation memory space.*/
-	val = fls(0xffffffff) | WIN_ENABLE;
-	writel(val, port->base + PCIE_AXI_WINDOW0);
-
-	return 0;
-}
-
 static int mtk_pcie_msi_alloc(struct mtk_pcie_port *port)
 {
 	int msi;
@@ -646,7 +566,6 @@ static int mtk_pcie_init_irq_domain(struct mtk_pcie_port *port,
 			dev_err(dev, "failed to create MSI IRQ domain\n");
 			return -ENODEV;
 		}
-		mtk_pcie_enable_msi(port);
 	}
 
 	return 0;
@@ -711,6 +630,89 @@ static int mtk_pcie_setup_irq(struct mtk_pcie_port *port,
 		dev_err(dev, "failed to init PCIe IRQ domain\n");
 		return err;
 	}
+
+	return 0;
+}
+
+static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
+{
+	struct mtk_pcie *pcie = port->pcie;
+	struct resource *mem = &pcie->mem;
+	u32 val;
+	size_t size;
+	int err;
+
+	/* MT7622 platforms need to enable LTSSM and ASPM from PCIe subsys */
+	if (pcie->base) {
+		val = readl(pcie->base + PCIE_SYS_CFG_V2);
+		val |= PCIE_CSR_LTSSM_EN(port->slot) |
+		       PCIE_CSR_ASPM_L1_EN(port->slot) |
+		       PCI_CSR_ASPM_L0S_EN(port->slot);
+		writel(val, pcie->base + PCIE_SYS_CFG_V2);
+
+		/* correct the class ID for mt7622 */
+		val = readl(port->base + K_GBL_1);
+		val |= MTK_ROOT_PORT;
+		writel(val, port->base + K_GBL_1);
+
+		val = K_CONF_IDS(MTK_VEND_ID, MTK_DEV_ID);
+		writel(val, port->base + K_CONF_FUNC0_0);
+
+		val = (PCI_CLASS_BRIDGE_PCI << 16) & 0xffffff00;
+		writel(val, port->base + K_CONF_FUNC0_1);
+
+		val = K_CONF_IDS(MTK_SS_VEND_ID, MTK_SS_DEV_ID);
+		writel(val, port->base + K_CONF_FUNC0_2);
+	}
+
+	/* set l1_entry_latency and l0s entry latency to 4us */
+	val = readl(port->base + PCIE_KCNT_2);
+	val &= ~(PCIE_L1_ENTRY_LAT | PCIE_L0S_ENTRY_LAT);
+	val |= 0x00088000;
+	writel(val, port->base + PCIE_KCNT_2);
+
+	/* Assert all reset signals */
+	writel(0, port->base + PCIE_RST_CTRL);
+
+	/*
+	 * Enable PCIe link down reset, if link status changed from link up to
+	 * link down, this will reset MAC control registers and configuration
+	 * space.
+	 */
+	writel(PCIE_LINKDOWN_RST_EN, port->base + PCIE_RST_CTRL);
+
+	/* De-assert PHY, PE, PIPE, MAC and configuration reset	*/
+	val = readl(port->base + PCIE_RST_CTRL);
+	val |= PCIE_PHY_RSTB | PCIE_PERSTB | PCIE_PIPE_SRSTB |
+	       PCIE_MAC_SRSTB | PCIE_CRSTB;
+	writel(val, port->base + PCIE_RST_CTRL);
+
+	/* 100ms timeout value should be enough for Gen1/2 training */
+	err = readl_poll_timeout(port->base + PCIE_LINK_STATUS_V2, val,
+				 !!(val & PCIE_PORT_LINKUP_V2), 20,
+				 100 * USEC_PER_MSEC);
+	if (err)
+		return -ETIMEDOUT;
+
+	/* Set INTx mask */
+	val = readl(port->base + PCIE_INT_MASK);
+	val &= ~INTX_MASK;
+	writel(val, port->base + PCIE_INT_MASK);
+
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		mtk_pcie_enable_msi(port);
+
+	/* Set AHB to PCIe translation windows */
+	size = mem->end - mem->start;
+	val = lower_32_bits(mem->start) | AHB2PCIE_SIZE(fls(size));
+	writel(val, port->base + PCIE_AHB_TRANS_BASE0_L);
+
+	val = upper_32_bits(mem->start);
+	writel(val, port->base + PCIE_AHB_TRANS_BASE0_H);
+
+	/* Set PCIe to AXI translation memory space.*/
+	val = fls(0xffffffff) | WIN_ENABLE;
+	writel(val, port->base + PCIE_AXI_WINDOW0);
 
 	return 0;
 }

@@ -716,6 +716,9 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 		if (err)
 			return err;
 
+		if (d->fwnode == NULL)
+			irq_set_handler(virq, handle_level_irq);
+
 		return gic_shared_irq_domain_map(d, virq, hwirq, 0);
 	}
 
@@ -976,6 +979,21 @@ static void __init __gic_init(unsigned long gic_base_addr,
 
 	bitmap_copy(ipi_available, ipi_resrv, GIC_MAX_INTRS);
 	gic_basic_init();
+
+	/* create static mappings for non-DT */
+	if (!node && irqbase == 0) {
+		int intr;
+
+		for (intr = 0; intr < GIC_NUM_LOCAL_INTRS; intr++) {
+			if (!gic_local_irq_is_routable(intr))
+				continue;
+
+			irq_create_mapping(gic_irq_domain, GIC_LOCAL_TO_HWIRQ(intr));
+		}
+
+		for (intr = 0; intr < gic_shared_intrs - num_ipis; intr++)
+			irq_create_mapping(gic_irq_domain, GIC_SHARED_TO_HWIRQ(intr));
+	}
 }
 
 void __init gic_init(unsigned long gic_base_addr,

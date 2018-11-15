@@ -48,6 +48,7 @@
 #include <asm/smp-ops.h>
 #include <asm/mips-cm.h>
 #include <asm/mips-cpc.h>
+#include <asm/mips-boards/launch.h>
 #endif
 
 #include <asm/rt2880/prom.h>
@@ -169,6 +170,23 @@ static inline void prom_init_cm(void)
 		return;
 	if (register_vsmp_smp_ops() == 0)
 		return;
+}
+
+bool plat_cpu_core_present(int core)
+{
+	struct cpulaunch *launch = (struct cpulaunch *)CKSEG0ADDR(CPULAUNCH);
+
+	if (!core)
+		return true;
+
+	launch += core * 2; /* 2 VPEs per core */
+	if (!(launch->flags & LAUNCH_FREADY))
+		return false;
+
+	if (launch->flags & (LAUNCH_FGO | LAUNCH_FGONE))
+		return false;
+
+	return true;
 }
 #endif
 

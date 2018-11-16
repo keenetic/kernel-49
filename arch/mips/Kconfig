@@ -2613,6 +2613,11 @@ config MIPS_ASID_BITS
 config MIPS_ASID_BITS_VARIABLE
 	bool
 
+config LONG_CALLS
+	bool "gcc must use -mlong-calls (RAM > 256MB)"
+	depends on 32BIT
+	default y if DYNAMIC_FTRACE
+
 #
 # - Highmem only makes sense for the 32-bit kernel.
 # - The current highmem code will only work properly on physically indexed
@@ -2629,6 +2634,7 @@ config MIPS_ASID_BITS_VARIABLE
 config HIGHMEM
 	bool "High Memory Support"
 	depends on 32BIT && CPU_SUPPORTS_HIGHMEM && SYS_SUPPORTS_HIGHMEM && !CPU_MIPS32_3_5_EVA
+	select LONG_CALLS
 
 config CPU_SUPPORTS_HIGHMEM
 	bool

@@ -155,6 +155,36 @@ config MTD_BCM47XX_PARTS
 	  This provides partitions parser for devices based on BCM47xx
 	  boards.
 
+config MTD_NDM_PARTS
+	bool "NDM partitions parser"
+	default y
+
+config MTD_NDM_DUAL_IMAGE
+	bool "Dual image"
+	default y
+	depends on MTD_NDM_PARTS
+
+config MTD_NDM_BOOT_UPDATE
+	bool "Update bootloader"
+	default n
+	depends on MTD_NDM_PARTS
+	select XZ_DEC
+
+config MTD_NDM_DUMP_SIZE
+	hex "Dump partition size"
+	default 0x0
+	depends on MTD_NDM_PARTS
+
+config MTD_NDM_STORAGE_SIZE
+	hex "Storage partition size"
+	default 0x100000
+	depends on MTD_NDM_PARTS
+
+config MTD_NDM_FLASH_SIZE_LIMIT
+	hex "Limit of flash size"
+	default 0x0
+	depends on MTD_NDM_PARTS
+
 comment "User Modules And Translation Layers"
 
 #

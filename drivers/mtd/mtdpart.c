@@ -783,8 +783,15 @@ EXPORT_SYMBOL_GPL(deregister_mtd_parser);
  * are changing this array!
  */
 static const char * const default_mtd_part_types[] = {
+#ifdef CONFIG_MTD_NDM_PARTS
+	"ndmpart",
+#endif
+#if IS_ENABLED(CONFIG_MTD_CMDLINE_PARTS)
 	"cmdlinepart",
+#endif
+#if IS_ENABLED(CONFIG_MTD_OF_PARTS)
 	"ofpart",
+#endif
 	NULL
 };
 

@@ -830,6 +830,9 @@ struct nand_chip {
 	int (*setup_data_interface)(struct mtd_info *mtd, int chipnr,
 				    const struct nand_data_interface *conf);
 
+#if defined(CONFIG_MTD_NAND_MT7621)
+	int (*read_page)(struct mtd_info *mtd, struct nand_chip *chip, u8 *buf, int page);
+#endif
 
 	int chip_delay;
 	unsigned int options;

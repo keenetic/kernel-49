@@ -1411,9 +1411,22 @@ int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
 {
 	struct nand_chip *this = mtd_to_nand(mtd);
 	int block, res;
+#if defined(CONFIG_MTD_NAND_MT7621)
+	int mapped_block;
+	extern int check_block_remap(struct mtd_info *mtd, int block);
+#endif
 
 	block = (int)(offs >> this->bbt_erase_shift);
+
+#if defined(CONFIG_MTD_NAND_MT7621)
+	mapped_block = check_block_remap(mtd, block);
+	if (mapped_block < 0)
+		return 1;
+
+	res = bbt_get_entry(this, mapped_block);
+#else
 	res = bbt_get_entry(this, block);
+#endif
 
 	pr_debug("nand_isbad_bbt(): bbt info for offs 0x%08x: (block %d) 0x%02x\n",
 		 (unsigned int)offs, block, res);
@@ -1449,4 +1462,22 @@ int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs)
 		ret = nand_update_bbt(mtd, offs);
 
 	return ret;
+}
+
+void nand_bbt_set_bad(struct mtd_info *mtd, int page)
+{
+	struct nand_chip *this = mtd_to_nand(mtd);
+	int block;
+
+	block = (int)(page >> (this->bbt_erase_shift - this->page_shift));
+	bbt_mark_entry(this, block, BBT_BLOCK_FACTORY_BAD);
+}
+
+int nand_bbt_get(struct mtd_info *mtd, int page)
+{
+	struct nand_chip *this = mtd_to_nand(mtd);
+	int block;
+
+	block = (int)(page >> (this->bbt_erase_shift - this->page_shift));
+	return bbt_get_entry(this, block);
 }

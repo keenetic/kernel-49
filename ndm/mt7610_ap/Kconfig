@@ -1,0 +1,137 @@
+config MT7610_AP
+	tristate "MT7610E 802.11ac AP support"
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+
+if MT7610_AP
+
+config MT7610_MBSS_SUPPORT
+	bool "MBSSID support"
+	default y
+
+config MT7610_NEW_MBSSID_MODE
+	bool "New MBSSID Mode"
+	depends on MT7610_MBSS_SUPPORT
+	default y
+
+config MT7610_ENHANCE_NEW_MBSSID_MODE
+	bool "Enhanced MBSSID Mode"
+	depends on MT7610_NEW_MBSSID_MODE
+	default y
+
+config MT7610_WDS_SUPPORT
+	bool "WDS support"
+	default n
+
+config MT7610_APCLI_SUPPORT
+	bool "AP-Client support"
+	default y
+
+config MT7610_MAC_REPEATER_SUPPORT
+	bool "MAC Repeater support"
+	depends on MT7610_APCLI_SUPPORT
+	default n
+
+config MT7610_CON_WPS_SUPPORT
+	bool "Concurrent WPS support"
+	depends on MT7610_APCLI_SUPPORT
+	depends on MT7610_WSC_INCLUDED
+	depends on MT7610_WSC_V2_SUPPORT
+	default n
+
+config MT7610_BAND_STEERING
+	bool "Band Steering"
+	default n
+
+config MT7610_LLTD_SUPPORT
+	bool "LLTD (Link Layer Topology Discovery Protocol)"
+	default n
+
+#config MT7610_IDS_SUPPORT
+#	bool "IDS (Intrusion Detection System)"
+#	default n
+
+config MT7610_IGMP_SNOOP_SUPPORT
+	bool "IGMP snooping"
+	default y
+
+#config MT7610_MCAST_RATE_SPECIFIC
+#	bool "User specific tx rate of mcast pkt"
+#	default n
+
+#-------------------------------------------------
+
+config MT7610_LED_CONTROL_SUPPORT
+	bool "LED support"
+	default y
+
+config MT7610_LED_PHR_CONTROL_SUPPORT
+	bool "Soft-LED control support (NDM phr)"
+	depends on MT7610_LED_CONTROL_SUPPORT
+	default y
+
+config MT7610_WSC_INCLUDED
+	bool "WSC (WiFi Simple Config)"
+	default y
+
+config MT7610_WSC_V2_SUPPORT
+	bool "WSC 2.0 (WiFi Simple Config 2.0)"
+	depends on MT7610_WSC_INCLUDED
+	default y
+
+config MT7610_DOT11_VHT_AC
+	bool "802.11ac support"
+	default y
+
+config MT7610_DOT11N_DRAFT3
+	bool "802.11n Draft3 support"
+	default n
+
+#config MT7610_QOS_DLS_SUPPORT
+#	bool "802.11e DLS (Direct-Link Setup)"
+#	default n
+
+config MT7610_DFS_SUPPORT
+	bool "802.11h DFS support"
+	default n
+
+config MT7610_DOT11R_FT_SUPPORT
+	bool "802.11r Fast BSS Transition"
+	default n
+
+config MT7610_DOT11K_RRM_SUPPORT
+	bool "802.11k Radio Resource Management"
+	default n
+
+config MT7610_DOT11V_WNM_SUPPORT
+	bool "802.11v Wireless Network Management"
+	default n
+
+config MT7610_CARRIER_DETECTION_SUPPORT
+	bool "Carrier detect support"
+	default n
+
+config MT7610_ED_MONITOR_SUPPORT
+	bool "ED-CCA Monitor support"
+	default y
+
+choice
+	prompt "Tx Power Compensation"
+	default MT7610_TEMPERATURE_COMPENSATION
+
+	config MT7610_TSSI_COMPENSATION
+		bool "TSSI DC Calibration & TSSI compensation"
+	config MT7610_TEMPERATURE_COMPENSATION
+		bool "Tx Power temperature compensation"
+endchoice
+
+config MT7610_SINGLE_SKU
+	bool "SingleSKU V2 support"
+	default n
+
+config MT7610_CFG80211_SUPPORT
+	bool "CFG80211 support"
+	default n
+
+endif # MT7610_AP

@@ -1,0 +1,303 @@
+config  RA_HW_NAT
+	tristate "Ralink/MTK HW NAT (** Work At Module Mode ONLY **)"
+	depends on !(RALINK_MT7628)
+
+if RA_HW_NAT
+
+config  HNAT_V2
+	bool
+	default y
+
+config  HNAT_ENHANCED
+	bool
+	default y
+
+config  RA_HW_NAT_BINDING_THRESHOLD
+	int "Binding Threshold (Unit:Packet Per Second)"
+	default 30
+	help
+	  When flow rate > Binding Threshold  (# Packets Per Second),
+	  the state will change to bind state
+
+choice
+	prompt "Foe Table Size"
+	default RA_HW_NAT_TBL_16K
+	help
+	  Number of entries in FoE Table
+
+	config  RA_HW_NAT_TBL_1K
+		bool "1K"
+	config  RA_HW_NAT_TBL_2K
+		bool "2K"
+	config  RA_HW_NAT_TBL_4K
+		bool "4K"
+	config  RA_HW_NAT_TBL_8K
+		bool "8K"
+	config  RA_HW_NAT_TBL_16K
+		bool "16K"
+endchoice
+
+choice
+	prompt "Hash Algorithm"
+	default RA_HW_NAT_HASH1
+
+	config  RA_HW_NAT_HASH0
+		bool "Hash0-Simple"
+	config  RA_HW_NAT_HASH1
+		bool "Hash1-Complex"
+	config  RA_HW_NAT_HASH2
+		bool "Hash2-Complex"
+	depends on HNAT_V2
+	config  RA_HW_NAT_HASH3
+		bool "Hash3-Complex"
+	depends on HNAT_V2
+	config  RA_HW_NAT_HASH_DBG
+		bool "Hash-Debug"
+	depends on (MACH_MT7623 || MACH_MT7622)
+endchoice
+
+choice
+	prompt "Hash DBG Mode"
+	depends on RA_HW_NAT_HASH_DBG
+	default RA_HW_NAT_HASH_DBG_SPORT
+
+	config  RA_HW_NAT_HASH_DBG_IPV6_SIP
+		bool "IPv6 source IP[15:0]"
+	config  RA_HW_NAT_HASH_DBG_IPV4_SIP
+		bool "IPv4 source IP[15:0]"
+	config  RA_HW_NAT_HASH_DBG_SPORT
+		bool "source port[15:0]"
+endchoice
+
+config  RA_HW_NAT_TCP_KA
+	int "TCP KeepAlive Interval(Unit:1Sec)"
+	depends on RA_HW_NAT_TBL_1K
+	default 5
+	help
+	  HW will duplicate one TCP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_UDP_KA
+	int "UDP KeepAlive Interval(Unit:1Sec)"
+	depends on RA_HW_NAT_TBL_1K
+	default 5
+	help
+	  HW will duplicate one UDP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_NTU_KA
+	int "Non-TCP/UDP KeepAlive Interval(Unit:1Sec)"
+	depends on RA_HW_NAT_TBL_1K && HNAT_V2
+	default 5
+	help
+	  HW will duplicate one packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_TCP_KA
+	int "TCP KeepAlive Interval(Unit:2Sec)"
+	depends on RA_HW_NAT_TBL_2K
+	default 3
+	help
+	  HW will duplicate one TCP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_UDP_KA
+	int "UDP KeepAlive Interval(Unit:2Sec)"
+	depends on RA_HW_NAT_TBL_2K
+	default 3
+	help
+	  HW will duplicate one UDP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_NTU_KA
+	int "Non-TCP/UDP KeepAlive Interval(Unit:2Sec)"
+	depends on RA_HW_NAT_TBL_2K && HNAT_V2
+	default 3
+	help
+	  HW will duplicate one packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_TCP_KA
+	int "TCP KeepAlive Interval(Unit:4Sec)"
+	depends on RA_HW_NAT_TBL_4K
+	default 1
+	help
+	  HW will duplicate one TCP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_UDP_KA
+	int "UDP KeepAlive Interval(Unit:4Sec)"
+	depends on RA_HW_NAT_TBL_4K
+	default 1
+	help
+	  HW will duplicate one UDP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_NTU_KA
+	int "Non-TCP/UDP KeepAlive Interval(Unit:4Sec)"
+	depends on RA_HW_NAT_TBL_4K && HNAT_V2
+	default 1
+	help
+	  HW will duplicate one packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_TCP_KA
+	int "TCP KeepAlive Interval(Unit:8Sec)"
+	depends on RA_HW_NAT_TBL_8K
+	default 1
+	help
+	  HW will duplicate one TCP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_UDP_KA
+	int "UDP KeepAlive Interval(Unit:8Sec)"
+	depends on RA_HW_NAT_TBL_8K
+	default 1
+	help
+	  HW will duplicate one UDP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_NTU_KA
+	int "Non-TCP/UDP KeepAlive Interval(Unit:8Sec)"
+	depends on RA_HW_NAT_TBL_8K && HNAT_V2
+	default 1
+	help
+	  HW will duplicate one packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_TCP_KA
+	int "TCP KeepAlive Interval(Unit:16Sec)"
+	depends on RA_HW_NAT_TBL_16K
+	default 1
+	help
+	  HW will duplicate one TCP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_UDP_KA
+	int "UDP KeepAlive Interval(Unit:16Sec)"
+	depends on RA_HW_NAT_TBL_16K
+	default 1
+	help
+	  HW will duplicate one UDP packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_NTU_KA
+	int "Non-TCP/UDP KeepAlive Interval(Unit:16Sec)"
+	depends on RA_HW_NAT_TBL_16K && HNAT_V2
+	default 1
+	help
+	  HW will duplicate one packet from tcp bind flow to CPU
+	  in order to refresh Linux conntrack table.
+
+config  RA_HW_NAT_UNB_DLTA
+	int "Life time of Unbind entry (Unit:1Sec)"
+	default 3
+	help
+	  Set ageout time for bind Unbind entry
+
+config  RA_HW_NAT_UNB_MNP
+	int "Min threshold for unbind state(Pkt count)"
+	default 1000
+	help
+	  An unbind flow whose pkt counts < Min threshold and idle time > Life time 
+	  => This unbind entry would be aged out
+	  [Notes: Idle time = current time - last packet receive time]
+
+config  RA_HW_NAT_UDP_DLTA
+	int "Life time of Bind UDP entry (Unit:1Sec)"
+	default 5
+	help
+	  Set ageout time for bind UDP entry
+
+config  RA_HW_NAT_TCP_DLTA
+	int "Life time of Bind TCP entry (Unit:1Sec)"
+	default 5
+	help
+	  Set ageout time for bind TCP entry
+
+config  RA_HW_NAT_FIN_DLTA
+	int "Life time of Bind FIN entry (Unit:1Sec)"
+	default 5
+	help
+	  Set ageout time for FIN entry
+
+config  RA_HW_NAT_NTU_DLTA
+	int "Life time of Non-TCP/UDP entry (Unit:1Sec)"
+	depends on HNAT_V2
+	default 5
+	help
+	  Set ageout time for Non-TCP/UDP entry
+
+config  RA_HW_NAT_PREBIND
+	bool "Pre-bind support"
+	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7623 || MACH_MT7622)
+
+config  RA_HW_NAT_PBND_RD_PRD
+	int "Check interval in pause state (us) Max:65535"
+	depends on RA_HW_NAT_PREBIND
+	default 1000
+
+config  RA_HW_NAT_PBND_RD_LMT
+	int "Max retry count"
+	depends on RA_HW_NAT_PREBIND
+	default 10
+
+config  RA_HW_NAT_PACKET_SAMPLING
+	bool "Packet Sampling to CPU"
+	depends on (MACH_MT7623 || MACH_MT7622)
+
+config  RA_HW_NAT_L2B
+	bool "L2 Bridge Acceleration"
+	depends on ECONET_EN75XX_MP
+	default n
+	help
+	  L2 bridge forwards accelerated by HNAT
+
+config  RA_HW_NAT_IPV6
+	bool "IPv6 Acceleration"
+	depends on HNAT_V2 && IPV6
+	default n
+	help
+	  IPv6 routing accelerated by HNAT
+
+config  RA_HW_NAT_ADSL
+	bool "ADSL/ADSL2 Acceleration"
+	depends on ECONET_EN75XX_MP && TC3162_ADSL
+	default n
+	help
+	  ADSL/ADSL2 accelerated by HNAT
+
+config  RA_HW_NAT_VDSL
+	bool "VDSL/VDSL2 Acceleration"
+	depends on ECONET_EN75XX_MP && RALINK_VDSL
+	default y
+	help
+	  VDSL/VDSL2 accelerated by HNAT
+
+config  RA_HW_NAT_QDMA
+	bool "Flow out to QDMA (HW QoS)"
+	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7623 || MACH_MT7622)
+	default n
+	help
+	  HW QoS concurrent with HNAT
+
+config  RA_HW_NAT_MCAST
+	bool "Multicast Acceleration"
+	depends on HNAT_V2
+	default n
+	help
+	  Multicast flow accelerated by HNAT
+
+config  RA_HW_NAT_WIFI
+	bool "WiFi Acceleration"
+	default n
+
+config  RA_HW_NAT_WHNAT
+	bool "MT7622 WiFi Warp Acceleration"
+	depends on RA_HW_NAT_WIFI && MACH_MT7622
+
+config  RA_HW_NAT_NIC_USB
+	bool "USBNET Acceleration"
+	depends on USB_USBNET
+
+endif

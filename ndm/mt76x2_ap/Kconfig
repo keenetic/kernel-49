@@ -1,0 +1,103 @@
+config MT76X2_AP
+	tristate "MT7620/MT7602E/MT7612E AP Support"
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+
+if MT76X2_AP
+
+config MBSS_SUPPORT
+	bool "MBSSID Support"
+	default y
+
+config NEW_MBSSID_MODE
+	bool "New MBSSID Mode"
+	depends on MBSS_SUPPORT
+	default y
+
+config ENHANCE_NEW_MBSSID_MODE
+	bool "Enhanced MBSSID Mode"
+	depends on NEW_MBSSID_MODE
+	default y
+
+config WDS_SUPPORT
+	bool "WDS Support"
+	default n
+
+config APCLI_SUPPORT
+	bool "AP-Client Support"
+	default y
+
+config APCLI_CERT_SUPPORT
+	bool "AP-Client TGn Cert Support"
+	depends on APCLI_SUPPORT
+	default n
+
+config APCLI_AUTO_BW_SUPPORT
+	bool "AP-Client Auto Bandwidth Support"
+	depends on APCLI_SUPPORT
+	default n
+
+config MAC_REPEATER_SUPPORT
+	bool "MAC Repeater Support"
+	depends on APCLI_SUPPORT
+	default n
+
+config CON_WPS_SUPPORT
+	bool "Concurrent WPS Support"
+	depends on APCLI_SUPPORT
+	depends on WSC_INCLUDED
+	depends on WSC_V2_SUPPORT
+	default n
+
+config MWDS
+	bool "Wireless Mixed Bridge Mode (MWDS) Support"
+	select APCLI_SUPPORT
+	default n
+
+config SMART_MESH
+	bool "Smart Mesh Support"
+	select MWDS
+	default n
+
+config NINTENDO_AP
+	bool "Nintendo AP"
+	default n
+
+config PASSPOINT_R2
+	bool "Passpoint Release-2"
+	select DOT11W_PMF_SUPPORT
+	default n
+
+config AIRPLAY_SUPPORT
+	bool "AirPlay Support"
+	default n
+
+config BAND_STEERING
+	bool "Band Steering"
+	default n
+
+config LLTD_SUPPORT
+	bool "LLTD (Link Layer Topology Discovery Protocol) Support"
+	default n
+
+config IDS_SUPPORT
+	bool "IDS (Intrusion Detection System) Support"
+	default n
+
+config COC_SUPPORT
+	bool "GreenAP Support"
+	default n
+
+config DELAYED_TCP_ACK_SUPPORT
+	bool "Delayed TCP ACK Support"
+	default n
+
+config IGMP_SNOOP_SUPPORT
+	bool "IGMP Snooping Support"
+	default y
+
+#config MCAST_RATE_SPECIFIC
+#	bool "User Specific Tx Rate of MCAST Packet"
+
+endif # MT76X2_AP

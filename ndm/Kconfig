@@ -1,0 +1,18 @@
+menu "NDM Systems options"
+
+comment "Network options"
+source "ndm/Kconfig.net"
+
+if !(RALINK_MT7628)
+comment "HW NAT options"
+menu "Ralink/MTK HW NAT"
+source "ndm/Kconfig.ppe"
+endmenu
+endif
+
+comment "Wireless options"
+source "ndm/Kconfig.wifi"
+
+comment "HW crypto options"
+source "ndm/Kconfig.crypto"
+endmenu

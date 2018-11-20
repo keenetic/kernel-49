@@ -1,0 +1,63 @@
+if (MT7603_AP || MT7603_STA)
+
+comment "MT7603E/MT7592N common settings"
+
+config MT7603_LED_CONTROL_SUPPORT
+	bool "LED Support"
+	default y
+
+config MT7603_LED_PHR_CONTROL_SUPPORT
+	bool "Soft-LED Control Support (NDM phr)"
+	depends on MT7603_LED_CONTROL_SUPPORT
+	default y
+
+config MT7603_GPIO_SUPPORT
+	bool "GPIO Pins Control Support"
+	default n
+
+config MT7603_AGS_SUPPORT
+	bool "Adaptive Group Switching Support"
+	default n
+
+config MT7603_WSC_INCLUDED
+	bool "WSC (WiFi Simple Config) Support"
+	default y
+
+config MT7603_WSC_V2_SUPPORT
+	bool "WSC V2 (WiFi Simple Config v2.0)"
+	depends on MT7603_WSC_INCLUDED
+	default y
+
+config MT7603_DOT11W_PMF_SUPPORT
+	bool "802.11w PMF (Protected Management Frames)"
+	default y
+
+config MT7603_DOT11R_FT_SUPPORT
+	bool "802.11r Fast BSS Transition"
+	default n
+
+config MT7603_DOT11K_RRM_SUPPORT
+	bool "802.11k Radio Resource Management"
+	default n
+
+config MT7603_DOT11V_WNM_SUPPORT
+	bool "802.11v Wireless Network Management"
+	default n
+
+config MT7603_QOS_DLS_SUPPORT
+	bool "802.11e DLS (Direct-Link Setup)"
+	default n
+
+config MT7603_SMART_CARRIER_SENSE_SUPPORT
+	bool "Smart Carrier Sense Support"
+	default y
+
+config MT7603_SINGLE_SKU
+	bool "Single SKU Support"
+	default n
+
+config MT7603_SNIFFER_SUPPORT
+	bool "SNIFFER Support"
+	default n
+
+endif # (MT7603_AP || MT7603_STA)

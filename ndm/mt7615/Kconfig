@@ -1,0 +1,135 @@
+if (MT7615_AP || MT7615_STA)
+
+comment "MT7622/MT7615E common settings"
+
+config MT7615_DBDC_MODE
+	bool "DBDC mode support"
+	default y
+
+config MT7615_MULTI_PROFILE_SUPPORT
+	bool "Multi Profile Support"
+	depends on MT7615_DBDC_MODE
+	default n
+
+config MT7615_DEFAULT_5G_PROFILE
+	bool "5G default profile for DBDC"
+	depends on MT7615_DBDC_MODE
+	default n
+
+config MT7615_LED_CONTROL_SUPPORT
+	bool "LED support"
+	default y
+
+config MT7615_LED_PHR_CONTROL_SUPPORT
+	bool "Soft-LED control support (NDM phr)"
+	depends on MT7615_LED_CONTROL_SUPPORT
+	default y
+
+config MT7615_WSC_INCLUDED
+	bool "WSC (WiFi Simple Config) support"
+	default y
+
+config MT7615_WSC_V2_SUPPORT
+	bool "WSC V2 (WiFi Simple Config v2.0)"
+	depends on MT7615_WSC_INCLUDED
+	default y
+
+config MT7615_DOT11_VHT_AC
+	bool "802.11ac support"
+	default y
+
+config MT7615_G_BAND_256QAM_SUPPORT
+	bool "2.4G 256QAM support"
+	depends on MT7615_DOT11_VHT_AC
+	default y
+
+config MT7615_MUMIMO_SUPPORT
+	bool "MU-MIMO support"
+	default n
+
+config MT7615_MU_RA_SUPPORT
+	bool "MU-RGA support"
+	depends on MT7615_MUMIMO_SUPPORT
+	default n
+
+config MT7615_DOT11W_PMF_SUPPORT
+	bool "802.11w PMF (Protected Management Frames)"
+	default y
+
+config MT7615_DOT11R_FT_SUPPORT
+	bool "802.11r Fast BSS Transition"
+	default n
+
+config MT7615_DOT11K_RRM_SUPPORT
+	bool "802.11k Radio Resource Management"
+	default n
+
+config MT7615_DOT11V_WNM_SUPPORT
+	bool "802.11v Wireless Network Management"
+	default n
+
+config MT7615_DOT11U_GAS_SUPPORT
+	bool "802.11u Interworking/Gas Support"
+	default n
+
+config MT7615_TPC_SUPPORT
+	bool "802.11h TPC support"
+	default n
+
+config MT7615_DFS_SUPPORT
+	bool "802.11h DFS support"
+	default n
+
+config MT7615_BACKGROUND_SCAN_SUPPORT
+	bool "Background Channels Scan support"
+	default y
+
+config MT7615_TXBF_SUPPORT
+	bool "Tx Beam Forming support"
+	default n
+
+config MT7615_SMART_CARRIER_SENSE_SUPPORT
+	bool "Smart Carrier Sense support"
+	default y
+
+config MT7615_TCP_RACK_SUPPORT
+	bool "TCP Reduced ACK support"
+	default n
+
+config MT7615_SINGLE_SKU
+	bool "Single SKU V2 support"
+	default n
+
+config MT7615_RF_LOCKDOWN_SUPPORT
+	bool "Single SKU RF lockdown support"
+	depends on MT7615_SINGLE_SKU
+	default n
+
+config MT7615_WHNAT_SUPPORT
+	tristate "Wifi Warp Hardware NAT support"
+	depends on CHIP_MT7622
+	depends on CHIP_MT7615E
+	default m
+
+config MT7615_PCIE_ASPM_DYM_CTRL_SUPPORT
+	bool "PCIe ASPM Dynamic Control Support"
+	depends on CHIP_MT7615E
+	default y
+
+config MT7615_PCIE_MSI_SUPPORT
+	bool "MSI interrupts support"
+	depends on PCI_MSI
+	depends on CHIP_MT7615E
+	default n
+
+config MT7615_CFG80211_SUPPORT
+	bool "CFG80211"
+	default n
+
+config MT7615_CUSTOMIZED_HOSTAPD
+	bool "Customized Hostapd Support"
+	depends on MT7615_CFG80211_SUPPORT
+	default n
+
+endif # (MT7615_AP || MT7615_STA)
+

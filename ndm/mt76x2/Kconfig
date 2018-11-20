@@ -1,0 +1,142 @@
+if (MT76X2_AP || MT76X2_STA)
+
+comment "MT7620/MT7602E/MT7612E common settings"
+
+config LED_CONTROL_SUPPORT
+	bool "LED Control Support"
+	default y
+
+config LED_PHR_CONTROL_SUPPORT
+	bool "Soft-LED Control Support (NDM phr)"
+	depends on LED_CONTROL_SUPPORT
+	default y
+
+config RATE_ADAPTION
+	bool "Rate Adaptation Support"
+	default y
+
+config NEW_RATE_ADAPT_SUPPORT
+	bool "Intelligent Rate Adaption"
+	depends on RATE_ADAPTION
+	default y
+
+config AGS_SUPPORT
+	bool "Adaptive Group Switching"
+	depends on RATE_ADAPTION
+	default n
+
+config WSC_INCLUDED
+	bool "WSC (WiFi Simple Config) Support"
+	default y
+
+config WSC_V2_SUPPORT
+	bool "WSC V2 (WiFi Simple Config v2.0)"
+	depends on WSC_INCLUDED
+	default y
+
+config WSC_NFC_SUPPORT
+	bool "WSC out-of-band (NFC)"
+	depends on WSC_INCLUDED
+	default n
+
+config DOT11N_DRAFT3
+	bool "802.11n Draft3"
+	default n
+
+config DOT11_VHT_AC
+	bool "802.11ac"
+	default y
+
+config DOT11W_PMF_SUPPORT
+	bool "802.11w PMF (Protected Management Frames)"
+	default y
+
+config DOT11R_FT_SUPPORT
+	bool "802.11r Fast BSS Transition"
+	default n
+
+config DOT11K_RRM_SUPPORT
+	bool "802.11k Radio Resource Management"
+	default n
+
+config DOT11V_WNM_SUPPORT
+	bool "802.11v Wireless Network Management"
+	default n
+
+config QOS_DLS_SUPPORT
+	bool "802.11e DLS (Direct-Link Setup)"
+	default n
+
+config WAPI_SUPPORT
+	bool "WAPI support"
+	default n
+
+config TXBF_SUPPORT
+	bool "Tx Beam Forming Support"
+	default n
+
+config DFS_SUPPORT
+	bool "DFS Support"
+#	select RALINK_TIMER_DFS
+	default n
+
+config CARRIER_DETECTION_SUPPORT
+	bool "Carrier Detect"
+	default n
+
+config ED_MONITOR_SUPPORT
+	bool "ED-CCA Monitor Support"
+	default n
+
+config SINGLE_SKU_V2
+	bool "Single SKU V2"
+	default n
+
+config NDM_POWER
+	bool "NDM TxPower Adjustment"
+	default y
+
+config CFG80211_SUPPORT
+	bool "CFG80211"
+	default n
+
+config SNIFFER_SUPPORT
+	bool "SNIFFER"
+	default n
+
+config SNIFFER_PPI_SUPPORT
+	bool "SNIFFER omnipeek 8.1above support"
+	depends on SNIFFER_SUPPORT
+	default n
+
+config RTMP_FLASH_SUPPORT
+	bool "Flash Support"
+	default y
+
+config RTMP_INTERNAL_TX_ALC
+	bool "TSSI Compensation (Internal TX ALC)"
+	depends on RALINK_RT6352
+	default n
+
+config RTMP_TEMPERATURE_COMPENSATION
+	bool "Temperature Compensation (External TX ALC)"
+	depends on (RALINK_RT6352 || RALINK_MT7610E)
+	default n
+
+config RTMP_THERMAL_PROTECT
+	bool "Thermal Protect Support"
+	depends on RALINK_RT6352
+	default n
+
+config FIRST_CARD_EXTERNAL_PA
+	bool "External Power Amplifier (ePA)"
+	depends on RALINK_RT6352
+	default n
+
+config FIRST_CARD_EXTERNAL_LNA
+	bool "External Low-Noise Amplifier (eLNA)"
+	depends on RALINK_RT6352
+	default n
+
+endif # (MT76X2_AP || MT76X2_STA)
+

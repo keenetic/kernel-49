@@ -1,0 +1,15 @@
+config  RALINK_HWCRYPTO
+	tristate "HW Crypto Engine (EIP9x) support"
+	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7623)
+	default m
+
+config RALINK_HWCRYPTO_ESP6
+	bool "Offload ESP6 via Crypto Engine"
+	depends on RALINK_HWCRYPTO
+	depends on IPV6
+	default n
+
+config CRYPTO_DEV_MTK_AES
+	tristate "MT7628 AES Engine support"
+	depends on RALINK_MT7628
+	default m

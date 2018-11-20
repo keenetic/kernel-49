@@ -24,6 +24,7 @@
  * extended chip ID.
  */
 struct nand_flash_dev nand_flash_ids[] = {
+#ifdef ENABLE_OLD_NAND_CHIPS
 	/*
 	 * Some incompatible NAND chips share device ID's and so must be
 	 * listed by full ID. We list them first so that we can easily identify
@@ -83,6 +84,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 	LEGACY_ID_NAND("NAND 128MiB 3,3V 16-bit", 0x59, 128, SZ_16K, SP_OPTIONS16),
 
 	LEGACY_ID_NAND("NAND 256MiB 3,3V 8-bit", 0x71, 256, SZ_16K, SP_OPTIONS),
+#endif
 
 	/*
 	 * These are the new chips with large page size. Their page size and
@@ -168,7 +170,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 /* Manufacturer IDs */
 struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_TOSHIBA, "Toshiba"},
-	{NAND_MFR_ESMT, "ESMT"},
+	{NAND_MFR_ESMT, "ESMT/GD"},
 	{NAND_MFR_SAMSUNG, "Samsung"},
 	{NAND_MFR_FUJITSU, "Fujitsu"},
 	{NAND_MFR_NATIONAL, "National"},
@@ -178,10 +180,12 @@ struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_MICRON, "Micron"},
 	{NAND_MFR_AMD, "AMD/Spansion"},
 	{NAND_MFR_MACRONIX, "Macronix"},
-	{NAND_MFR_EON, "Eon"},
+	{NAND_MFR_EON, "Eon/Zentel/ESMT"},
 	{NAND_MFR_SANDISK, "SanDisk"},
 	{NAND_MFR_INTEL, "Intel"},
 	{NAND_MFR_ATO, "ATO"},
+	{NAND_MFR_WINBOND, "Winbond"},
+	{NAND_MFR_ETRON, "Etron"},
 	{0x0, "Unknown"}
 };
 

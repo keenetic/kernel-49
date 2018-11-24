@@ -438,7 +438,7 @@ static bool is_valid_mdb_entry(struct br_mdb_entry *entry)
 	if (entry->addr.proto == htons(ETH_P_IP)) {
 		if (!ipv4_is_multicast(entry->addr.u.ip4))
 			return false;
-		if (ipv4_is_local_multicast(entry->addr.u.ip4))
+		if (ipv4_is_flooded_multicast(entry->addr.u.ip4))
 			return false;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (entry->addr.proto == htons(ETH_P_IPV6)) {

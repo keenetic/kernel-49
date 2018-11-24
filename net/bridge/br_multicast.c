@@ -734,7 +734,7 @@ static int br_ip4_multicast_add_group(struct net_bridge *br,
 {
 	struct br_ip br_group;
 
-	if (ipv4_is_local_multicast(group))
+	if (ipv4_is_flooded_multicast(group))
 		return 0;
 
 	br_group.u.ip4 = group;
@@ -1569,7 +1569,7 @@ static void br_ip4_multicast_leave_group(struct net_bridge *br,
 	struct br_ip br_group;
 	struct bridge_mcast_own_query *own_query;
 
-	if (ipv4_is_local_multicast(group))
+	if (ipv4_is_flooded_multicast(group))
 		return;
 
 	own_query = port ? &port->ip4_own_query : &br->ip4_own_query;
@@ -1650,7 +1650,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	err = ip_mc_check_igmp(skb, &skb_trimmed);
 
 	if (err == -ENOMSG) {
-		if (!ipv4_is_local_multicast(ip_hdr(skb)->daddr))
+		if (!ipv4_is_flooded_multicast(ip_hdr(skb)->daddr))
 			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		return 0;
 	} else if (err < 0) {

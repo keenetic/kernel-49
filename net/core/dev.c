@@ -4278,6 +4278,28 @@ ncls:
 
 	type = skb->protocol;
 
+	if (type == htons(ETH_P_IPV6)) {
+		extern int (*ipv6_pthrough)(struct sk_buff *skb);
+		typeof(ipv6_pthrough) ipv6_pt;
+
+		ipv6_pt = rcu_dereference(ipv6_pthrough);
+		if (ipv6_pt && ipv6_pt(skb)) {
+			ret = NET_RX_SUCCESS;
+			goto out;
+		}
+	}
+
+	if (type == htons(ETH_P_PPP_SES) || type == htons(ETH_P_PPP_DISC)) {
+		extern int (*pppoe_pthrough)(struct sk_buff *skb);
+		typeof(pppoe_pthrough) pppoe_pt;
+
+		pppoe_pt = rcu_dereference(pppoe_pthrough);
+		if (pppoe_pt && pppoe_pt(skb)) {
+			ret = NET_RX_SUCCESS;
+			goto out;
+		}
+	}
+
 	/* deliver only exact match when indicated */
 	if (likely(!deliver_exact)) {
 		deliver_ptype_list_skb(skb, &pt_prev, orig_dev, type,

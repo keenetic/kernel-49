@@ -686,6 +686,7 @@ static ssize_t nf_call_ip6tables_store(
 }
 static DEVICE_ATTR_RW(nf_call_ip6tables);
 
+#if IS_ENABLED(CONFIG_IP_NF_ARPTABLES)
 static ssize_t nf_call_arptables_show(
 	struct device *d, struct device_attribute *attr, char *buf)
 {
@@ -706,6 +707,7 @@ static ssize_t nf_call_arptables_store(
 	return store_bridge_parm(d, buf, len, set_nf_call_arptables);
 }
 static DEVICE_ATTR_RW(nf_call_arptables);
+#endif
 #endif
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 static ssize_t vlan_filtering_show(struct device *d,
@@ -813,7 +815,9 @@ static struct attribute *bridge_attrs[] = {
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	&dev_attr_nf_call_iptables.attr,
 	&dev_attr_nf_call_ip6tables.attr,
+#if IS_ENABLED(CONFIG_IP_NF_ARPTABLES)
 	&dev_attr_nf_call_arptables.attr,
+#endif
 #endif
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	&dev_attr_vlan_filtering.attr,

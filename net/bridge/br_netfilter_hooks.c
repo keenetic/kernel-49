@@ -54,9 +54,11 @@ struct brnf_net {
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *brnf_sysctl_header;
-static int brnf_call_iptables __read_mostly = 1;
-static int brnf_call_ip6tables __read_mostly = 1;
-static int brnf_call_arptables __read_mostly = 1;
+static int brnf_call_iptables __read_mostly;
+static int brnf_call_ip6tables __read_mostly;
+#if IS_ENABLED(CONFIG_IP_NF_ARPTABLES)
+static int brnf_call_arptables __read_mostly;
+#endif
 static int brnf_filter_vlan_tagged __read_mostly;
 static int brnf_filter_pppoe_tagged __read_mostly;
 static int brnf_pass_vlan_indev __read_mostly;
@@ -620,6 +622,7 @@ static unsigned int br_nf_forward_ip(void *priv,
 	return NF_STOLEN;
 }
 
+#if IS_ENABLED(CONFIG_IP_NF_ARPTABLES)
 static unsigned int br_nf_forward_arp(void *priv,
 				      struct sk_buff *skb,
 				      const struct nf_hook_state *state)
@@ -653,6 +656,7 @@ static unsigned int br_nf_forward_arp(void *priv,
 
 	return NF_STOLEN;
 }
+#endif
 
 static int br_nf_push_frag_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -898,12 +902,14 @@ static struct nf_hook_ops br_nf_ops[] __read_mostly = {
 		.hooknum = NF_BR_FORWARD,
 		.priority = NF_BR_PRI_BRNF - 1,
 	},
+#if IS_ENABLED(CONFIG_IP_NF_ARPTABLES)
 	{
 		.hook = br_nf_forward_arp,
 		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_FORWARD,
 		.priority = NF_BR_PRI_BRNF,
 	},
+#endif
 	{
 		.hook = br_nf_post_routing,
 		.pf = NFPROTO_BRIDGE,
@@ -1023,6 +1029,7 @@ int brnf_sysctl_call_tables(struct ctl_table *ctl, int write,
 }
 
 static struct ctl_table brnf_table[] = {
+#if IS_ENABLED(CONFIG_IP_NF_ARPTABLES)
 	{
 		.procname	= "bridge-nf-call-arptables",
 		.data		= &brnf_call_arptables,
@@ -1030,6 +1037,7 @@ static struct ctl_table brnf_table[] = {
 		.mode		= 0644,
 		.proc_handler	= brnf_sysctl_call_tables,
 	},
+#endif
 	{
 		.procname	= "bridge-nf-call-iptables",
 		.data		= &brnf_call_iptables,

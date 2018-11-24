@@ -4255,6 +4255,17 @@ ncls:
 		}
 	}
 
+	/* exclude bridge interface, second call in br_pass_frame_up() */
+	if (skb->pkt_type == PACKET_MULTICAST &&
+	    !netif_is_bridge_master(skb->dev)) {
+		extern int (*igmpsn_hook)(struct sk_buff *skb);
+		typeof(igmpsn_hook) igmpsn;
+
+		igmpsn = rcu_dereference(igmpsn_hook);
+		if (igmpsn)
+			igmpsn(skb);
+	}
+
 	if (unlikely(skb_vlan_tag_present(skb))) {
 		if (skb_vlan_tag_get_id(skb))
 			skb->pkt_type = PACKET_OTHERHOST;

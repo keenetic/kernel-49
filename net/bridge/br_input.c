@@ -179,6 +179,19 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 	switch (pkt_type) {
 	case BR_PKT_MULTICAST:
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+		/* pass IGMP/MLD (or all mcast) to igmpsn */
+		if (br->multicast_disabled || br_multicast_igmp_type(skb))
+#endif
+		{
+			extern int (*igmpsn_hook)(struct sk_buff *skb);
+			typeof(igmpsn_hook) igmpsn;
+
+			igmpsn = rcu_dereference(igmpsn_hook);
+			if (igmpsn)
+				igmpsn(skb);
+		}
+
 		mdst = br_mdb_get(br, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
 		    br_multicast_querier_exists(br, eth_hdr(skb))) {

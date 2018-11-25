@@ -19,6 +19,10 @@
 #include <net/dst.h>
 #include <net/xfrm.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 static int xfrm_output2(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 static int xfrm_skb_check_space(struct sk_buff *skb)
@@ -104,6 +108,9 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		/* Inner headers are invalid now. */
 		skb->encapsulation = 0;
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		FOE_ALG_MARK(skb);
+#endif
 		err = x->type->output(x, skb);
 		if (err == -EINPROGRESS)
 			goto out;

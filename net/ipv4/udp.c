@@ -116,6 +116,10 @@
 #include <net/sock_reuseport.h>
 #include <net/addrconf.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 struct udp_table udp_table __read_mostly;
 EXPORT_SYMBOL(udp_table);
 
@@ -1972,6 +1976,9 @@ void udp_v4_early_demux(struct sk_buff *skb)
 
 int udp_rcv(struct sk_buff *skb)
 {
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	FOE_ALG_MARK(skb);
+#endif
 	return __udp4_lib_rcv(skb, &udp_table, IPPROTO_UDP);
 }
 

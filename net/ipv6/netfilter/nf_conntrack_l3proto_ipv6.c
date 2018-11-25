@@ -34,6 +34,10 @@
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/netfilter/nf_log.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 static bool ipv6_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			      struct nf_conntrack_tuple *tuple)
 {
@@ -128,6 +132,9 @@ static unsigned int ipv6_helper(void *priv,
 		return NF_ACCEPT;
 	}
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	FOE_ALG_MARK(skb);
+#endif
 	return helper->help(skb, protoff, ct, ctinfo);
 }
 

@@ -20,6 +20,10 @@
 #include <linux/netfilter_ipv4/ipt_TTL.h>
 #include <linux/netfilter_ipv6/ip6t_HL.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
 MODULE_DESCRIPTION("Xtables: Hoplimit/TTL Limit field modification target");
@@ -56,6 +60,9 @@ ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		break;
 	}
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	FOE_ALG_MARK(skb);
+#endif
 	if (new_ttl != iph->ttl) {
 		csum_replace2(&iph->check, htons(iph->ttl << 8),
 					   htons(new_ttl << 8));
@@ -98,6 +105,11 @@ hl_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 
 	ip6h->hop_limit = new_hl;
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#ifdef CONFIG_RA_HW_NAT_IPV6
+	FOE_ALG_MARK(skb);
+#endif
+#endif
 	return XT_CONTINUE;
 }
 

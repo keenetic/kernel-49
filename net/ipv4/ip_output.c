@@ -81,6 +81,10 @@
 #include <linux/netlink.h>
 #include <linux/tcp.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 static int
 ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	    unsigned int mtu,
@@ -497,6 +501,9 @@ packet_routed:
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	FOE_AI_UNHIT(skb);
+#endif
 	res = ip_local_out(net, sk, skb);
 	rcu_read_unlock();
 	return res;

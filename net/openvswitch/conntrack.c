@@ -30,6 +30,10 @@
 #include <net/netfilter/nf_nat_l3proto.h>
 #endif
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 #include "datapath.h"
 #include "conntrack.h"
 #include "flow.h"
@@ -331,6 +335,9 @@ static int ovs_ct_helper(struct sk_buff *skb, u16 proto)
 		return NF_DROP;
 	}
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	FOE_ALG_MARK(skb);
+#endif
 	err = helper->help(skb, protoff, ct, ctinfo);
 	if (err != NF_ACCEPT)
 		return err;

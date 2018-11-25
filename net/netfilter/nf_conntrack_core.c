@@ -57,6 +57,10 @@
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netns/hash.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
 int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
@@ -1263,6 +1267,10 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	hash = hash_conntrack_raw(&tuple, net);
 	h = __nf_conntrack_find_get(net, zone, &tuple, hash);
 	if (!h) {
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		if (unlikely(FOE_SKB_IS_KEEPALIVE(skb)))
+			return NULL;
+#endif
 		h = init_conntrack(net, tmpl, &tuple, l3proto, l4proto,
 				   skb, dataoff, hash);
 		if (!h)
@@ -1304,6 +1312,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
+	struct nf_conn_help *help;
 	unsigned int *timeouts;
 	unsigned int dataoff;
 	u_int8_t protonum;
@@ -1384,6 +1393,13 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			NF_CT_STAT_INC_ATOMIC(net, drop);
 		ret = -ret;
 		goto out;
+	}
+
+	help = nfct_help(ct);
+	if ((help && help->helper) || skb_sec_path(skb)) {
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		FOE_ALG_MARK(skb);
+#endif
 	}
 
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))

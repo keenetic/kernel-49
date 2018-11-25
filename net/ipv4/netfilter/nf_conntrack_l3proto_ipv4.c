@@ -31,6 +31,10 @@
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/netfilter/nf_log.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 static bool ipv4_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			      struct nf_conntrack_tuple *tuple)
 {
@@ -115,6 +119,9 @@ static unsigned int ipv4_helper(void *priv,
 	if (!helper)
 		return NF_ACCEPT;
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	FOE_ALG_MARK(skb);
+#endif
 	return helper->help(skb, skb_network_offset(skb) + ip_hdrlen(skb),
 			    ct, ctinfo);
 }

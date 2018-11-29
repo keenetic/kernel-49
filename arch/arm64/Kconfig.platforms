@@ -91,6 +91,14 @@ config ARCH_MEDIATEK
 	help
 	  Support for Mediatek MT65xx & MT81xx ARMv8 SoCs
 
+if ARCH_MEDIATEK
+
+config MACH_MT7622
+	bool "MediaTek MT7622 SoCs support"
+	default ARCH_MEDIATEK
+
+endif
+
 config ARCH_MESON
 	bool "Amlogic Platforms"
 	select PINCTRL

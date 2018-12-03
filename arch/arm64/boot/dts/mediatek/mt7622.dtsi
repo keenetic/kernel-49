@@ -813,15 +813,17 @@
 	};
 
 	usb1: usb@1a0c0000 {
-		compatible = "mediatek,mt7622-xhci", "mediatek,mt2701-xhci";
+		compatible = "mediatek,mt7622-xhci", "mediatek,mtk-xhci";
 		reg = <0 0x1a0c0000 0 0x01000>,
 		      <0 0x1a0c4700 0 0x0100>;
 		reg-names = "mac", "ippc";
 		interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_LOW>;
 		power-domains = <&scpsys MT7622_POWER_DOMAIN_HIF1>;
-		clocks = <&ssusbsys CLK_SSUSB_SYS_EN>, <&ssusbsys CLK_SSUSB_REF_EN>,
-			 <&ssusbsys CLK_SSUSB_MCU_EN>, <&ssusbsys CLK_SSUSB_DMA_EN>;
-		clock-names = "sys_ck", "free_ck", "ahb_ck", "dma_ck";
+		clocks = <&ssusbsys CLK_SSUSB_SYS_EN>,
+			 <&ssusbsys CLK_SSUSB_REF_EN>,
+			 <&ssusbsys CLK_SSUSB_MCU_EN>,
+			 <&ssusbsys CLK_SSUSB_DMA_EN>;
+		clock-names = "sys_ck", "ref_ck", "mcu_ck", "dma_ck";
 		phys = <&u2port0 PHY_TYPE_USB2>,
 			<&u3port0 PHY_TYPE_USB3>,
 			<&u2port1 PHY_TYPE_USB2>;
@@ -829,7 +831,7 @@
 	};
 
 	u3phy1: usb-phy@1a0c4000 {
-		compatible = "mediatek,mt7622-u3phy", "mediatek,mt2701-u3phy";
+		compatible = "mediatek,mt7622-u3phy", "mediatek,generic-tphy-v1";
 		reg = <0 0x1a0c4000 0 0x700>;
 		#address-cells = <2>;
 		#size-cells = <2>;

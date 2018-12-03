@@ -21,6 +21,18 @@
 #include "xhci.h"
 
 /**
+ * XHCI MTK should disable UPDATE_XACT_NUMP_INTIME
+ *   and enable SCH_IN_ACK_RTY_EN
+ * UPDATE_XACT_NUMP_INTIME means scheduler 3 Bulk IN transaction
+ *   update NumP in time
+ * SCH_IN_ACK_RTY_EN means scheduler send ACK with retry set in 2nd Ack
+ *   for IN transfer
+ */
+#define XHCI_MTK_HSCH_CFG1 0x960
+#define XHCI_MTK_SCH_IN_ACK_RTY_EN (1 << 7)
+#define XHCI_MTK_UPDATE_XACT_NUMP_INTIME (1 << 15)
+
+/**
  * To simplify scheduler algorithm, set a upper limit for ESIT,
  * if a synchromous ep's ESIT is larger than @XHCI_MTK_MAX_ESIT,
  * round down to the limit value, that means allocating more

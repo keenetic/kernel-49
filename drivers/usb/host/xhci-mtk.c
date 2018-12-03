@@ -506,6 +506,7 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
 	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
+	u32 value;
 
 	/*
 	 * As of now platform drivers don't provide MSI support so we ensure
@@ -521,6 +522,12 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 	xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
 	if (mtk->lpm_support)
 		xhci->quirks |= XHCI_LPM_SUPPORT;
+
+	/* Disable nump and enable retry behavior */
+	value = readl(hcd->regs + XHCI_MTK_HSCH_CFG1);
+	value &= ~XHCI_MTK_UPDATE_XACT_NUMP_INTIME;
+	value |=  XHCI_MTK_SCH_IN_ACK_RTY_EN;
+	writel(value, hcd->regs + XHCI_MTK_HSCH_CFG1);
 }
 
 /* called during probe() after chip reset completes */

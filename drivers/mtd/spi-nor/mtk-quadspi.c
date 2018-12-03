@@ -452,7 +452,7 @@ static int mtk_nor_init(struct mt8173_nor *mt8173_nor,
 	if (ret)
 		return ret;
 
-	return mtd_device_register(&nor->mtd, NULL, 0);
+	return mtd_device_parse_register(&nor->mtd, NULL, NULL, NULL, 0);
 }
 
 static int mtk_nor_drv_probe(struct platform_device *pdev)

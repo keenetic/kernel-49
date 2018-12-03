@@ -35,6 +35,17 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/cpufreq_interactive.h>
 
+#ifdef CONFIG_MACH_MT7622
+#define DEFAULT_GO_HISPEED_LOAD 20
+#define DEFAULT_TARGET_LOAD 10
+#define NUM_OF_PREV_FREQ 8
+static unsigned int max_freq;
+static unsigned int prev_freq[NUM_OF_PREV_FREQ];
+#else
+#define DEFAULT_GO_HISPEED_LOAD 99
+#define DEFAULT_TARGET_LOAD 90
+#endif
+
 #define gov_attr_ro(_name)						\
 static struct governor_attr _name =					\
 __ATTR(_name, 0444, show_##_name, NULL)
@@ -55,7 +66,6 @@ struct interactive_tunables {
 	unsigned int hispeed_freq;
 
 	/* Go to hi speed when CPU load at or above this value. */
-#define DEFAULT_GO_HISPEED_LOAD 99
 	unsigned long go_hispeed_load;
 
 	/* Target load. Lower values result in higher CPU speeds. */
@@ -143,7 +153,6 @@ static cpumask_t speedchange_cpumask;
 static spinlock_t speedchange_cpumask_lock;
 
 /* Target load. Lower values result in higher CPU speeds. */
-#define DEFAULT_TARGET_LOAD 90
 static unsigned int default_target_loads[] = {DEFAULT_TARGET_LOAD};
 
 #define DEFAULT_SAMPLING_RATE (20 * USEC_PER_MSEC)
@@ -409,6 +418,17 @@ static void eval_target_freq(struct interactive_cpu *icpu)
 	}
 
 	icpu->loc_hispeed_val_time = now;
+
+#ifdef CONFIG_MACH_MT7622
+	max_freq = new_freq;
+	for (index = 0; index < NUM_OF_PREV_FREQ - 1; index++) {
+		prev_freq[index] = prev_freq[index + 1];
+		max_freq = max(max_freq, prev_freq[index]);
+		/* pr_info("%d:%d,", index, prev_freq[index]); */
+	}
+	prev_freq[NUM_OF_PREV_FREQ - 1] = new_freq;
+	new_freq = max_freq;
+#endif
 
 	index = cpufreq_frequency_table_target(policy, new_freq,
 					       CPUFREQ_RELATION_L);

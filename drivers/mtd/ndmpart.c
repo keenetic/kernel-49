@@ -73,6 +73,10 @@
 
 enum part {
 	/* Image 1 */
+#if defined(CONFIG_MACH_MT7622)
+	PART_PRELOADER,
+	PART_ATF,		/* ARM Trusted Firmware */
+#endif
 	PART_U_BOOT,
 	PART_U_CONFIG,
 	PART_RF_EEPROM,
@@ -128,6 +132,16 @@ static bool ndmpart_di_is_enabled;
 
 static struct part_dsc parts[PART_MAX] = {
 	/* Image 1 */
+#if defined(CONFIG_MACH_MT7622)
+	[PART_PRELOADER] = {
+		name: "Preloader",
+		read_only: true
+	},
+	[PART_ATF] = {
+		name: "ATF",
+		read_only: true
+	},
+#endif
 	[PART_U_BOOT] = {
 		name: "U-Boot"
 	},
@@ -223,8 +237,42 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 {
 	uint32_t size = PART_SIZE_UNKNOWN;
 
+#if defined(CONFIG_MACH_MT7622)
+	/*
+	 * Partitions size hardcoded in MTK uboot, see "mt7622_evb.h".
+	 * We now support NOR and SLC NAND layouts.
+	 * Todo: eMMC & SD layouts (with GPT) support.
+	 * Todo: MLC NAND layout support.
+	 */
+	switch (part) {
+	case PART_PRELOADER:
+		size = (master->type == MTD_NORFLASH) ? 0x40000 : 0x80000;
+		break;
+	case PART_ATF:
+		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x40000;
+		break;
+	case PART_U_BOOT:
+		size = (master->type == MTD_NORFLASH) ? 0x40000 : 0x80000;
+		break;
+	case PART_U_CONFIG:
+		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x80000;
+		break;
+	case PART_RF_EEPROM:
+		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x40000;
+		break;
+	case PART_CONFIG_1:
+		size = master->erasesize * 4;
+		break;
+	case PART_U_STATE:
+		size = master->erasesize;
+		break;
+	default:
+		break;
+	}
+#else
 	switch (part) {
 	case PART_U_BOOT:
+	case PART_U_STATE:
 		if (master->type == MTD_NANDFLASH)
 #ifdef NAND_BB_MODE_SKIP
 			size = master->erasesize << 2;
@@ -243,11 +291,11 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 		else
 #endif
 		size = master->erasesize;
-
 		break;
 	default:
 		break;
 	}
+#endif
 
 	return size;
 }
@@ -445,10 +493,16 @@ static uint32_t part_rootfs_offset(struct mtd_info *master,
 				   uint32_t begin, uint32_t size)
 {
 	size_t len;
-	uint32_t off, magic;
+	uint32_t off, magic, kernel_min_size;
 
-	/* Skip first block to speedup */
-	for (off = begin + master->erasesize;
+	/* kernel min size ~1MB */
+	if (master->type == MTD_NORFLASH)
+		kernel_min_size = master->erasesize * 10;	/* 64K * 10 */
+	else
+		kernel_min_size = master->erasesize * 5;	/* 128K * 5 */
+
+	/* Skip kernel first blocks to speedup */
+	for (off = begin + kernel_min_size;
 	     off < begin + size;
 	     off += master->erasesize) {
 		mtd_read(master, off, sizeof(magic), &len,
@@ -472,6 +526,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 {
 	bool use_dump, use_storage;
 	int i, j, ret;
+	uint32_t offs_uboot = 0;
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 	int boot_active = 0, boot_backup = 0;
 	uint32_t off_si = 0;
@@ -492,11 +547,22 @@ static int create_mtd_partitions(struct mtd_info *m,
 	if (!flash_size_lim)
 		flash_size_lim = flash_size;
 
+#if defined(CONFIG_MACH_MT7622)
+	/* Fill known fields */
+	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
+
+	parts[PART_ATF].offset = parts_offset_end(PART_PRELOADER);
+	parts[PART_ATF].size = parts_size_default_get(PART_ATF, m);
+
+	offs_uboot = parts_offset_end(PART_ATF);
+#endif
+
 #ifdef CONFIG_MTD_NDM_BOOT_UPDATE
 	/* early fill partition info for NAND */
+	parts[PART_U_BOOT].offset = offs_uboot;
 	parts[PART_U_BOOT].size = parts_size_default_get(PART_U_BOOT, m);
 
-	ndm_flash_boot(m, 0, (uint32_t)parts[PART_U_BOOT].size);
+	ndm_flash_boot(m, offs_uboot, (uint32_t)parts[PART_U_BOOT].size);
 #endif
 
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
@@ -515,7 +581,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 		/* early fill partition info for NAND */
 		parts[PART_U_STATE].offset = off_si;
-		parts[PART_U_STATE].size = parts_size_default_get(PART_U_BOOT, m);
+		parts[PART_U_STATE].size = parts_size_default_get(PART_U_STATE, m);
 		parts[PART_U_STATE].skip = false;
 
 		ret = u_state_init(m, off_si, (uint32_t)parts[PART_U_STATE].size);
@@ -536,6 +602,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 #endif
 
 	/* Fill known fields */
+	parts[PART_U_BOOT].offset = offs_uboot;
 	parts[PART_U_BOOT].size = parts_size_default_get(PART_U_BOOT, m);
 
 	parts[PART_U_CONFIG].offset = parts_offset_end(PART_U_BOOT);
@@ -619,9 +686,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 		parts[PART_ROOTFS_1].name = "RootFS_1";
 		parts[PART_CONFIG_1].name = "Config_1";
 
-		parts[PART_U_STATE].skip = false;
-		parts[PART_U_STATE].offset = off_si;
-		parts[PART_U_STATE].size = parts[PART_U_BOOT].size;
+		/* U_STATE parts already calculated at this place */
 
 		parts[PART_U_CONFIG_RES].skip = false;
 		parts[PART_U_CONFIG_RES].offset = parts_offset_end(PART_U_STATE);

@@ -574,4 +574,12 @@ config MTD_NAND_MTK
 	  Enables support for NAND controller on MTK SoCs.
 	  This controller is found on mt27xx, mt81xx, mt65xx SoCs.
 
+config MTD_SNAND_MTK
+	tristate "Support for Serial NAND controller on MTK SoCs"
+	depends on HAS_DMA
+	depends on ARCH_MEDIATEK
+	help
+	  Enables support for Serial NAND controller on MTK SoCs.
+	  This controller is found on mt7622 SoCs.
+
 endif # MTD_NAND

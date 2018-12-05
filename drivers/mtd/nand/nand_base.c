@@ -3861,6 +3861,20 @@ static void nand_decode_ext_id(struct mtd_info *mtd, struct nand_chip *chip,
 	int extid, id_len;
 	/* The 3rd id byte holds MLC / multichip data */
 	chip->bits_per_cell = nand_get_bits_per_cell(id_data[2]);
+
+#if IS_ENABLED(CONFIG_MTD_SNAND_MTK)
+	/* FIXME: Workaround for SLC NAND not compatible "extended ID" decoding */
+	if (nand_is_slc(chip)) {
+		switch (id_data[0]) {
+			case NAND_MFR_ETRON:
+			case NAND_MFR_ESMT:
+			case NAND_MFR_WINBOND:
+			case NAND_MFR_MACRONIX:
+				return;
+		}
+	}
+#endif
+
 	/* The 4th id byte is the important one */
 	extid = id_data[3];
 
@@ -4161,6 +4175,18 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		mtd->name = type->name;
 
 	chip->chipsize = (uint64_t)type->chipsize << 20;
+
+#if IS_ENABLED(CONFIG_MTD_SNAND_MTK)
+	/*
+	 * Check if write size or oob size is initialized, do not get
+	 * parameters from decode their IDs
+	 */
+	if (mtd->writesize && mtd->oobsize && mtd->erasesize) {
+		chip->bits_per_cell = 1;
+		busw = 0;
+		goto ident_done;
+	}
+#endif
 
 	if (!type->pagesize) {
 		/* Decode parameters from extended ID */

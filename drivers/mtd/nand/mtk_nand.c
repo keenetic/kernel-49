@@ -110,6 +110,8 @@ struct mtk_nfc_caps {
 	u8 nfi_clk_div;
 	u8 max_sector;
 	u32 max_sector_size;
+	u32 no_bm_swap;
+	u32 fdm_ecc_size;
 };
 
 struct mtk_nfc_bad_mark_ctl {
@@ -837,6 +839,7 @@ static int mtk_nfc_write_subpage_hwecc(struct mtd_info *mtd,
 static int mtk_nfc_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
 				 int page)
 {
+#ifndef CONFIG_MACH_MT7623
 	int ret;
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
@@ -849,6 +852,9 @@ static int mtk_nfc_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
 	ret = chip->waitfunc(mtd, chip);
 
 	return ret & NAND_STATUS_FAIL ? -EIO : 0;
+#else
+	return 0;
+#endif
 }
 
 static int mtk_nfc_update_ecc_stats(struct mtd_info *mtd, u8 *buf, u32 sectors)
@@ -1099,8 +1105,8 @@ static int mtk_nfc_ooblayout_free(struct mtd_info *mtd, int section,
 	if (section >= eccsteps)
 		return -ERANGE;
 
-	oob_region->length = fdm->reg_size - fdm->ecc_size;
-	oob_region->offset = section * fdm->reg_size + fdm->ecc_size;
+	oob_region->length = fdm->reg_size - 1;
+	oob_region->offset = section * fdm->reg_size + 1;
 
 	return 0;
 }
@@ -1142,15 +1148,16 @@ static void mtk_nfc_set_fdm(struct mtk_nfc_fdm *fdm, struct mtd_info *mtd)
 		fdm->reg_size = NFI_FDM_MAX_SIZE;
 
 	/* bad block mark storage */
-	fdm->ecc_size = 1;
+	fdm->ecc_size = nfc->caps->fdm_ecc_size;
 }
 
 static void mtk_nfc_set_bad_mark_ctl(struct mtk_nfc_bad_mark_ctl *bm_ctl,
 				     struct mtd_info *mtd)
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtk_nfc *nfc = nand_get_controller_data(nand);
 
-	if (mtd->writesize == 512) {
+	if (mtd->writesize == 512 || nfc->caps->no_bm_swap) {
 		bm_ctl->bm_swap = mtk_nfc_no_bad_mark_swap;
 	} else {
 		bm_ctl->bm_swap = mtk_nfc_bad_mark_swap;
@@ -1402,6 +1409,8 @@ static const struct mtk_nfc_caps mtk_nfc_caps_mt2701 = {
 	.nfi_clk_div = 1,
 	.max_sector = 16,
 	.max_sector_size = 1024,
+	.no_bm_swap = 1,
+	.fdm_ecc_size = 8,
 };
 
 static const struct mtk_nfc_caps mtk_nfc_caps_mt2712 = {
@@ -1411,6 +1420,8 @@ static const struct mtk_nfc_caps mtk_nfc_caps_mt2712 = {
 	.nfi_clk_div = 2,
 	.max_sector = 16,
 	.max_sector_size = 1024,
+	.no_bm_swap = 0,
+	.fdm_ecc_size = 1,
 };
 
 static const struct mtk_nfc_caps mtk_nfc_caps_mt7622 = {
@@ -1420,6 +1431,8 @@ static const struct mtk_nfc_caps mtk_nfc_caps_mt7622 = {
 	.nfi_clk_div = 1,
 	.max_sector = 8,
 	.max_sector_size = 512,
+	.no_bm_swap = 0,
+	.fdm_ecc_size = 1,
 };
 
 static const struct of_device_id mtk_nfc_id_table[] = {

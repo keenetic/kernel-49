@@ -58,7 +58,7 @@ endchoice
 
 choice
 	prompt "PA & LNA type of 1st card"
-	depends on FIRST_IF_MT7615E
+	depends on (FIRST_IF_MT7615E || FIRST_IF_MT7622)
 
 	config FIRST_IF_EPAELNA
 	bool "ePA/eLNA"

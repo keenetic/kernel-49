@@ -121,7 +121,7 @@ struct sixpack {
 	struct timer_list	tx_t;
 	struct timer_list	resync_t;
 	atomic_t		refcnt;
-	struct semaphore	dead_sem;
+	struct completion	dead;
 	spinlock_t		lock;
 };
 
@@ -390,7 +390,7 @@ static struct sixpack *sp_get(struct tty_struct *tty)
 static void sp_put(struct sixpack *sp)
 {
 	if (atomic_dec_and_test(&sp->refcnt))
-		up(&sp->dead_sem);
+		complete(&sp->dead);
 }
 
 /*
@@ -581,7 +581,7 @@ static int sixpack_open(struct tty_struct *tty)
 
 	spin_lock_init(&sp->lock);
 	atomic_set(&sp->refcnt, 1);
-	sema_init(&sp->dead_sem, 0);
+	init_completion(&sp->dead);
 
 	/* !!! length of the buffers. MTU is IP MTU, not PACLEN!  */
 
@@ -677,10 +677,10 @@ static void sixpack_close(struct tty_struct *tty)
 	 * we have to wait for all existing users to finish.
 	 */
 	if (!atomic_dec_and_test(&sp->refcnt))
-		down(&sp->dead_sem);
+		wait_for_completion(&sp->dead);
 
 	/* We must stop the queue to avoid potentially scribbling
-	 * on the free buffers. The sp->dead_sem is not sufficient
+	 * on the free buffers. The sp->dead completion is not sufficient
 	 * to protect us from sp->xbuff access.
 	 */
 	netif_stop_queue(sp->dev);

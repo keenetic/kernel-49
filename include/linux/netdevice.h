@@ -1398,6 +1398,8 @@ enum netdev_priv_flags {
 	IFF_RXFH_CONFIGURED		= 1<<25,
 	IFF_PHONY_HEADROOM		= 1<<26,
 	IFF_MACSEC			= 1<<27,
+	IFF_UBRIDGE			= 1<<28,
+	IFF_UBRIDGE_PORT		= 1<<29,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -1427,6 +1429,8 @@ enum netdev_priv_flags {
 #define IFF_TEAM			IFF_TEAM
 #define IFF_RXFH_CONFIGURED		IFF_RXFH_CONFIGURED
 #define IFF_MACSEC			IFF_MACSEC
+#define IFF_UBRIDGE			IFF_UBRIDGE
+#define IFF_UBRIDGE_PORT		IFF_UBRIDGE_PORT
 
 /**
  *	struct net_device - The DEVICE structure.

@@ -51,6 +51,9 @@ struct br_ip_list {
 #define BR_DEFAULT_AGEING_TIME	(300 * HZ)
 
 extern void brioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
+#if IS_ENABLED(CONFIG_UBRIDGE)
+extern void ubrioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
+#endif
 
 typedef int br_should_route_hook_t(struct sk_buff *skb);
 extern br_should_route_hook_t __rcu *br_should_route_hook;

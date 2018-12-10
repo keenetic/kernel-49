@@ -123,6 +123,9 @@
 #define SIOCBRDELBR     0x89a1		/* remove bridge device         */
 #define SIOCBRADDIF	0x89a2		/* add interface to bridge      */
 #define SIOCBRDELIF	0x89a3		/* remove interface from bridge */
+#define SIOCUBRADDBR	0x89a8		/* create new ubridge device    */
+#define SIOCUBRDELBR	0x89a9		/* remove ubridge device        */
+#define SIOCUBRSHOW	0x89aa		/* show ubridge device          */
 
 /* hardware time stamping: parameters in linux/net_tstamp.h */
 #define SIOCSHWTSTAMP	0x89b0		/* set and get config		*/

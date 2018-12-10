@@ -23,3 +23,6 @@ bridge-$(CONFIG_BRIDGE_VLAN_FILTERING) += br_vlan.o
 bridge-$(CONFIG_NET_SWITCHDEV) += br_switchdev.o
 
 obj-$(CONFIG_NETFILTER) += netfilter/
+
+obj-$(CONFIG_UBRIDGE) += ubridge.o
+ubridge-y	:= ubr.o

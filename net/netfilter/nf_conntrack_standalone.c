@@ -32,6 +32,7 @@
 #include <net/netfilter/nf_conntrack_acct.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_timestamp.h>
+#include <net/netfilter/nf_conntrack_ext_mark.h>
 #include <linux/rculist_nulls.h>
 
 MODULE_LICENSE("GPL");
@@ -208,6 +209,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	const struct nf_conntrack_l4proto *l4proto;
 	struct net *net = seq_file_net(s);
 	int ret = 0;
+	uint16_t nf_mark;
 
 	NF_CT_ASSERT(ct);
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
@@ -274,6 +276,9 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	ct_show_secctx(s, ct);
 	ct_show_zone(s, ct, NF_CT_DEFAULT_ZONE_DIR);
 	ct_show_delta_time(s, ct);
+
+	nf_mark = nf_ct_mark(ct);
+	seq_printf(s, "nfm_marker = %d ", nf_mark);
 
 	seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use));
 

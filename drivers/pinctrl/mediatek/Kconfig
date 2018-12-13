@@ -17,7 +17,7 @@ config PINCTRL_MTK
 	select OF_GPIO
 
 config PINCTRL_MTK_MOORE
-	bool "MediaTek Moore Core that implements generic binding"
+	bool
 	depends on OF
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS

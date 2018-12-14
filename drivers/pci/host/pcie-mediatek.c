@@ -182,7 +182,6 @@ struct mtk_pcie_soc {
  * @obff_ck: pointer to OBFF functional block operating clock
  * @pipe_ck: pointer to LTSSM and PHY/MAC layer operating clock
  * @phy: pointer to PHY control block
- * @lane: lane count
  * @slot: port slot
  * @irq_domain: legacy INTx IRQ domain
  * @msi_domain: MSI IRQ domain
@@ -200,7 +199,6 @@ struct mtk_pcie_port {
 	struct clk *obff_ck;
 	struct clk *pipe_ck;
 	struct phy *phy;
-	u32 lane;
 	u32 slot;
 	struct irq_domain *irq_domain;
 	struct irq_domain *msi_domain;
@@ -896,12 +894,6 @@ static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
-
-	err = of_property_read_u32(node, "num-lanes", &port->lane);
-	if (err) {
-		dev_err(dev, "missing num-lanes property\n");
-		return err;
-	}
 
 	snprintf(name, sizeof(name), "port%d", slot);
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);

@@ -1856,6 +1856,7 @@ int nf_conntrack_init_start(void)
 	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_conntrack_locks[i]);
 
+#ifdef CONFIG_X86_64
 	if (!nf_conntrack_htable_size) {
 		/* Idea from tcp.c: use 1/16384 of memory.
 		 * On i386: 32MB machine has 512 buckets.
@@ -1878,6 +1879,31 @@ int nf_conntrack_init_start(void)
 		 * entries. */
 		max_factor = 4;
 	}
+#else
+	/* MIPS/ARM routers with 32..512 MB RAM */
+	if (!nf_conntrack_htable_size) {
+		unsigned int nfct_htable_size;
+
+		nfct_htable_size = (((totalram_pages << PAGE_SHIFT) / 2048) /
+				    sizeof(struct hlist_head));
+
+		nfct_htable_size = roundup(nfct_htable_size, 1024);
+
+		if (nfct_htable_size < 4096)
+			nfct_htable_size = 4096;
+		else if (nf_conntrack_htable_size > 32768)
+			nfct_htable_size = 32768;
+
+		if (nfct_htable_size >= 20000)
+			max_factor = 2;
+		else if (nfct_htable_size >= 10000)
+			max_factor = 3;
+		else
+			max_factor = 4;
+
+		nf_conntrack_htable_size = nfct_htable_size;
+	}
+#endif
 
 	nf_conntrack_hash = nf_ct_alloc_hashtable(&nf_conntrack_htable_size, 1);
 	if (!nf_conntrack_hash)

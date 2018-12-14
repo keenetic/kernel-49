@@ -34,6 +34,7 @@
 #include <linux/filter.h>
 #include <linux/ppp-ioctl.h>
 #include <linux/ppp_channel.h>
+#include <linux/ppp_hook.h>
 #include <linux/ppp-comp.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
@@ -54,6 +55,10 @@
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/fast_vpn.h>
@@ -103,7 +108,8 @@ struct ppp_file {
  * we want to use 64 bit storage.  Other network stats
  * are stored in dev->stats of the ppp strucute.
  */
-struct ppp_link_stats {
+struct ppp_link_pcpu_stats {
+	struct u64_stats_sync syncp;
 	u64 rx_packets;
 	u64 tx_packets;
 	u64 rx_bytes;
@@ -153,7 +159,7 @@ struct ppp {
 	struct bpf_prog *active_filter; /* filter for pkts to reset idle */
 #endif /* CONFIG_PPP_FILTER */
 	struct net	*ppp_net;	/* the net we belong to */
-	struct ppp_link_stats stats64;	/* 64 bit network stats */
+	struct ppp_link_pcpu_stats __percpu *stats64;	/* 64 bit network stats */
 };
 
 /*
@@ -257,6 +263,19 @@ struct ppp_net {
 #define seq_after(a, b)		((s32)((a) - (b)) > 0)
 
 /* Prototypes. */
+#if IS_MODULE(CONFIG_PPP)
+#define STATIC static
+static void ppp_stat_add_tx(struct ppp_channel *pch, u32 add_pkts, u32 add_bytes);
+static void ppp_stat_add_rx(struct ppp_channel *pch, u32 add_pkts, u32 add_bytes);
+static void ppp_stats_reset(struct net_device *dev);
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+static void ppp_stats_update(struct net_device *dev,
+			     u32 rx_bytes, u32 rx_packets,
+			     u32 tx_bytes, u32 tx_packets);
+#endif
+#else
+#define STATIC
+#endif /* IS_MODULE(CONFIG_PPP) */
 static int ppp_unattached_ioctl(struct net *net, struct ppp_file *pf,
 			struct file *file, unsigned int cmd, unsigned long arg);
 static void ppp_xmit_process(struct ppp *ppp, struct sk_buff *skb);
@@ -1215,6 +1234,15 @@ static int __init ppp_init(void)
 	/* not a big deal if we fail here :-) */
 	device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
 
+#if IS_MODULE(CONFIG_PPP)
+	rcu_assign_pointer(ppp_stat_add_tx_hook, ppp_stat_add_tx);
+	rcu_assign_pointer(ppp_stat_add_rx_hook, ppp_stat_add_rx);
+	rcu_assign_pointer(ppp_stat_reset_hook, ppp_stats_reset);
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	rcu_assign_pointer(ppp_stats_update_hook, ppp_stats_update);
+#endif
+#endif
+
 	return 0;
 
 out_class:
@@ -1321,16 +1349,33 @@ static struct rtnl_link_stats64*
 ppp_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats64)
 {
 	struct ppp *ppp = netdev_priv(dev);
+	int cpu;
 
-	ppp_recv_lock(ppp);
-	stats64->rx_packets = ppp->stats64.rx_packets;
-	stats64->rx_bytes   = ppp->stats64.rx_bytes;
-	ppp_recv_unlock(ppp);
+	if (!ppp->stats64)
+		goto skip_u64_stat;
 
-	ppp_xmit_lock(ppp);
-	stats64->tx_packets = ppp->stats64.tx_packets;
-	stats64->tx_bytes   = ppp->stats64.tx_bytes;
-	ppp_xmit_unlock(ppp);
+	for_each_possible_cpu(cpu) {
+		struct ppp_link_pcpu_stats *stats;
+		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
+		unsigned int start;
+
+		stats = per_cpu_ptr(ppp->stats64, cpu);
+
+		do {
+			start = u64_stats_fetch_begin_irq(&stats->syncp);
+			rx_packets = stats->rx_packets;
+			rx_bytes   = stats->rx_bytes;
+			tx_packets = stats->tx_packets;
+			tx_bytes   = stats->tx_bytes;
+		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+
+		stats64->rx_packets += rx_packets;
+		stats64->rx_bytes   += rx_bytes;
+		stats64->tx_packets += tx_packets;
+		stats64->tx_bytes   += tx_bytes;
+	}
+
+skip_u64_stat:
 
 	stats64->rx_errors        = dev->stats.rx_errors;
 	stats64->tx_errors        = dev->stats.tx_errors;
@@ -1523,6 +1568,7 @@ static void
 ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 {
 	int proto = PPP_PROTO(skb);
+	struct ppp_link_pcpu_stats *stats;
 	struct sk_buff *new_skb;
 	int len;
 	unsigned char *cp;
@@ -1553,8 +1599,21 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 #endif /* CONFIG_PPP_FILTER */
 	}
 
-	++ppp->stats64.tx_packets;
-	ppp->stats64.tx_bytes += skb->len - 2;
+	if ( 1
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		&& !FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		&& !SWNAT_KA_CHECK_MARK(skb)
+#endif
+		) {
+		stats = this_cpu_ptr(ppp->stats64);
+
+		u64_stats_update_begin(&stats->syncp);
+		stats->tx_packets++;
+		stats->tx_bytes += skb->len - 2;
+		u64_stats_update_end(&stats->syncp);
+	}
 
 	switch (proto) {
 	case PPP_IP:
@@ -2150,8 +2209,21 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 		break;
 	}
 
-	++ppp->stats64.rx_packets;
-	ppp->stats64.rx_bytes += skb->len - 2;
+	if ( 1
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		&& !FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		&& !SWNAT_KA_CHECK_MARK(skb)
+#endif
+		) {
+		struct ppp_link_pcpu_stats *stats = this_cpu_ptr(ppp->stats64);
+
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_packets++;
+		stats->rx_bytes += skb->len - 2;
+		u64_stats_update_end(&stats->syncp);
+	}
 
 	npi = proto_to_npindex(proto);
 	if (npi < 0) {
@@ -2975,15 +3047,35 @@ find_compressor(int type)
 static void
 ppp_get_stats(struct ppp *ppp, struct ppp_stats *st)
 {
+	int cpu;
 	struct slcompress *vj = ppp->vj;
 
 	memset(st, 0, sizeof(*st));
-	st->p.ppp_ipackets = ppp->stats64.rx_packets;
+
+	for_each_possible_cpu(cpu) {
+		struct ppp_link_pcpu_stats *stats;
+		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
+		unsigned int start;
+
+		stats = per_cpu_ptr(ppp->stats64, cpu);
+
+		do {
+			start = u64_stats_fetch_begin_irq(&stats->syncp);
+			rx_packets = stats->rx_packets;
+			rx_bytes   = stats->rx_bytes;
+			tx_packets = stats->tx_packets;
+			tx_bytes   = stats->tx_bytes;
+		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+
+		st->p.ppp_ipackets += (u32)rx_packets;
+		st->p.ppp_ibytes   += (u32)rx_bytes;
+		st->p.ppp_opackets += (u32)tx_packets;
+		st->p.ppp_obytes   += (u32)tx_bytes;
+	}
+
 	st->p.ppp_ierrors = ppp->dev->stats.rx_errors;
-	st->p.ppp_ibytes = ppp->stats64.rx_bytes;
-	st->p.ppp_opackets = ppp->stats64.tx_packets;
 	st->p.ppp_oerrors = ppp->dev->stats.tx_errors;
-	st->p.ppp_obytes = ppp->stats64.tx_bytes;
+
 	if (!vj)
 		return;
 	st->vj.vjs_packets = vj->sls_o_compressed + vj->sls_o_uncompressed;
@@ -2994,6 +3086,122 @@ ppp_get_stats(struct ppp *ppp, struct ppp_stats *st)
 	st->vj.vjs_tossed = vj->sls_i_tossed;
 	st->vj.vjs_uncompressedin = vj->sls_i_uncompressed;
 	st->vj.vjs_compressedin = vj->sls_i_compressed;
+}
+
+/*
+ * must be called from non-preemptable context
+ * used in fastvpn driver
+ */
+STATIC
+void ppp_stat_add_tx(struct ppp_channel *pch, u32 add_pkts, u32 add_bytes)
+{
+	struct channel *ch = pch->ppp;
+	struct ppp *ppp;
+	struct ppp_link_pcpu_stats *stats;
+
+	if (ch == NULL)
+		return;
+
+	ppp = ch->ppp;
+	if (ppp == NULL)
+		return;
+
+	stats = this_cpu_ptr(ppp->stats64);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->tx_bytes += add_bytes;
+	stats->tx_packets += add_pkts;
+	u64_stats_update_end(&stats->syncp);
+}
+
+/*
+ * must be called from non-preemptable context
+ * used in fastvpn driver
+ */
+STATIC
+void ppp_stat_add_rx(struct ppp_channel *pch, u32 add_pkts, u32 add_bytes)
+{
+	struct channel *ch = pch->ppp;
+	struct ppp_link_pcpu_stats *stats;
+	struct ppp *ppp;
+
+	if (ch == NULL)
+		return;
+
+	ppp = ch->ppp;
+	if (ppp == NULL)
+		return;
+
+	stats = this_cpu_ptr(ppp->stats64);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_bytes += add_bytes;
+	stats->rx_packets += add_pkts;
+	u64_stats_update_end(&stats->syncp);
+}
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+/*
+ * must be called from non-preemptable context
+ */
+STATIC
+void ppp_stats_update(struct net_device *dev,
+			u32 rx_bytes, u32 rx_packets,
+			u32 tx_bytes, u32 tx_packets)
+{
+	struct ppp *ppp;
+	struct ppp_link_pcpu_stats *stats;
+
+	if (dev == NULL)
+		return;
+
+	ppp = netdev_priv(dev);
+
+	if (!ppp->stats64)
+		return;
+
+	stats = this_cpu_ptr(ppp->stats64);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_bytes += rx_bytes;
+	stats->rx_packets += rx_packets;
+	stats->tx_bytes += tx_bytes;
+	stats->tx_packets += tx_packets;
+	u64_stats_update_end(&stats->syncp);
+}
+#endif
+
+/*
+ * used by resetnds driver in userspace context
+ */
+STATIC
+void ppp_stats_reset(struct net_device *dev)
+{
+	struct ppp *ppp;
+	int cpu;
+
+	if (dev == NULL)
+		return;
+
+	ppp = netdev_priv(dev);
+
+	if (!ppp->stats64)
+		return;
+
+	ppp_lock(ppp);
+	for_each_possible_cpu(cpu) {
+		struct ppp_link_pcpu_stats *stats;
+
+		stats = per_cpu_ptr(ppp->stats64, cpu);
+
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_bytes = 0;
+		stats->rx_packets = 0;
+		stats->tx_bytes = 0;
+		stats->tx_packets = 0;
+		u64_stats_update_end(&stats->syncp);
+	}
+	ppp_unlock(ppp);
 }
 
 /*
@@ -3032,6 +3240,10 @@ static int ppp_create_interface(struct net *net, struct file *file, int *unit)
 		goto err_dev;
 	ppp = netdev_priv(dev);
 	*unit = ppp->file.index;
+
+	ppp->stats64 = netdev_alloc_pcpu_stats(struct ppp_link_pcpu_stats);
+	if (!ppp->stats64)
+		goto err_dev;
 
 	rtnl_unlock();
 
@@ -3095,6 +3307,9 @@ static void ppp_destroy_interface(struct ppp *ppp)
 		ppp->active_filter = NULL;
 	}
 #endif /* CONFIG_PPP_FILTER */
+
+	free_percpu(ppp->stats64);
+	ppp->stats64 = NULL;
 
 	kfree_skb(ppp->xmit_pending);
 	free_percpu(ppp->xmit_recursion);
@@ -3240,6 +3455,16 @@ static void ppp_destroy_channel(struct channel *pch)
 
 static void __exit ppp_cleanup(void)
 {
+#if IS_MODULE(CONFIG_PPP)
+	RCU_INIT_POINTER(ppp_stat_add_tx_hook, NULL);
+	RCU_INIT_POINTER(ppp_stat_add_rx_hook, NULL);
+	RCU_INIT_POINTER(ppp_stats_reset_hook, NULL);
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	RCU_INIT_POINTER(ppp_stats_update_hook, NULL);
+#endif
+	synchronize_net();
+#endif /* IS_MODULE(CONFIG_PPP) */
+
 	/* should never happen */
 	if (atomic_read(&ppp_unit_count) || atomic_read(&channel_count))
 		pr_err("PPP: removing module but units remain!\n");
@@ -3300,6 +3525,15 @@ EXPORT_SYMBOL(ppp_input_error);
 EXPORT_SYMBOL(ppp_output_wakeup);
 EXPORT_SYMBOL(ppp_register_compressor);
 EXPORT_SYMBOL(ppp_unregister_compressor);
+#if !IS_MODULE(CONFIG_PPP)
+EXPORT_SYMBOL(ppp_stat_add_tx);
+EXPORT_SYMBOL(ppp_stat_add_rx);
+EXPORT_SYMBOL(ppp_stats_reset);
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+EXPORT_SYMBOL(ppp_stats_update);
+#endif
+#endif
+
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV(PPP_MAJOR, 0);
 MODULE_ALIAS_RTNL_LINK("ppp");

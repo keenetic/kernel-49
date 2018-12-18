@@ -35,6 +35,7 @@
 #include <linux/mm.h>
 #include <linux/nsproxy.h>
 #include <linux/rculist_nulls.h>
+#include <linux/nf_conntrack_hooks.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
@@ -1099,6 +1100,13 @@ EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 void nf_conntrack_free(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
+	typeof(nacct_conntrack_free) pfunc;
+
+	rcu_read_lock();
+	pfunc = rcu_dereference(nacct_conntrack_free);
+	if (pfunc)
+		pfunc(ct);
+	rcu_read_unlock();
 
 	/* A freed object has refcnt == 0, that's
 	 * the golden rule for SLAB_DESTROY_BY_RCU

@@ -5,3 +5,4 @@ obj-y += ppp_stats_hooks.o
 obj-y += dev_igmpsn_hooks.o
 obj-y += dev_pthrough_hooks.o
 obj-y += nat_offload_hooks.o
+obj-y += nf_conntrack_hooks.o

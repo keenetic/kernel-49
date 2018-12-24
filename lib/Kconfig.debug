@@ -1996,6 +1996,8 @@ config BUG_ON_DATA_CORRUPTION
 
 	  If unsure, say N.
 
+source "drivers/net/rt_rdm/Kconfig"
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"

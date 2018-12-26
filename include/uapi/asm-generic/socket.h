@@ -94,4 +94,6 @@
 
 #define SO_COOKIE		57
 
+#define SO_NDMMARK		127
+
 #endif /* __ASM_GENERIC_SOCKET_H */

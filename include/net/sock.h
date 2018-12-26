@@ -428,6 +428,7 @@ struct sock {
 	ktime_t			sk_stamp;
 	u16			sk_tsflags;
 	u8			sk_shutdown;
+	__u8			sk_ndm_mark;
 	u32			sk_tskey;
 	struct socket		*sk_socket;
 	void			*sk_user_data;

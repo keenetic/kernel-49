@@ -110,4 +110,6 @@
 
 #define SO_COOKIE		57
 
+#define SO_NDMMARK		127
+
 #endif /* _UAPI_ASM_SOCKET_H */

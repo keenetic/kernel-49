@@ -178,6 +178,9 @@ int ip_build_and_send_pkt(struct sk_buff *skb, const struct sock *sk,
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	skb->ndm_mark = sk->sk_ndm_mark;
+#endif
 
 	/* Send it out. */
 	return ip_local_out(net, skb->sk, skb);
@@ -500,6 +503,9 @@ packet_routed:
 	/* TODO : should we use skb->sk here instead of sk ? */
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	skb->ndm_mark = sk->sk_ndm_mark;
+#endif
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 	FOE_AI_UNHIT(skb);
@@ -525,6 +531,9 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	skb_dst_copy(to, from);
 	to->dev = from->dev;
 	to->mark = from->mark;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	to->ndm_mark = from->ndm_mark;
+#endif
 
 	skb_copy_hash(to, from);
 
@@ -1473,6 +1482,9 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 
 	skb->priority = (cork->tos != -1) ? cork->priority: sk->sk_priority;
 	skb->mark = sk->sk_mark;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	skb->ndm_mark = sk->sk_ndm_mark;
+#endif
 	/*
 	 * Steal rt from cork.dst to avoid a pair of atomic_inc/atomic_dec
 	 * on dst refcount

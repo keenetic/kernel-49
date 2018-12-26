@@ -237,6 +237,9 @@ static void xfrmi_scrub_packet(struct sk_buff *skb, bool xnet)
 	secpath_reset(skb);
 	skb_orphan(skb);
 	skb->mark = 0;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	skb->ndm_mark = 0;
+#endif
 }
 
 static int xfrmi_rcv_cb(struct sk_buff *skb, int err)

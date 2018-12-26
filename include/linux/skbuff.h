@@ -796,6 +796,11 @@ struct sk_buff {
 	__u32		secmark;
 #endif
 
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	__u8			ndm_mark;
+	/* 24 bit hole */
+#endif
+
 	union {
 		__u32		mark;
 		__u32		reserved_tailroom;

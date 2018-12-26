@@ -109,6 +109,9 @@ struct nf_conn {
 	struct nf_conn *master;
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
+	u_int8_t ndm_mark;
+	/* 24 bit hole */
+
 	u_int32_t mark;
 #endif
 

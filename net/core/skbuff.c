@@ -4432,6 +4432,9 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 	ipvs_reset(skb);
 	skb_orphan(skb);
 	skb->mark = 0;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	skb->ndm_mark = 0;
+#endif
 }
 EXPORT_SYMBOL_GPL(skb_scrub_packet);
 

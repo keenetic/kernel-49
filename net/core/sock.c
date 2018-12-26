@@ -962,6 +962,13 @@ set_rcvbuf:
 			sk->sk_mark = val;
 		break;
 
+	case SO_NDMMARK:
+		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+			ret = -EPERM;
+		else
+			sk->sk_ndm_mark = val & 0xFF;
+		break;
+
 	case SO_RXQ_OVFL:
 		sock_valbool_flag(sk, SOCK_RXQ_OVFL, valbool);
 		break;
@@ -1218,6 +1225,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_MARK:
 		v.val = sk->sk_mark;
+		break;
+
+	case SO_NDMMARK:
+		v.val = sk->sk_ndm_mark;
 		break;
 
 	case SO_RXQ_OVFL:

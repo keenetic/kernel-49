@@ -53,6 +53,7 @@ enum ctattr_type {
 	CTA_MARK_MASK,
 	CTA_LABELS,
 	CTA_LABELS_MASK,
+	CTA_NDMMARK,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)

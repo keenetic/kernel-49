@@ -271,6 +271,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	seq_printf(s, "mark=%u ", ct->mark);
+	seq_printf(s, "ndm_mark=%u ", ct->ndm_mark);
 #endif
 
 	ct_show_secctx(s, ct);

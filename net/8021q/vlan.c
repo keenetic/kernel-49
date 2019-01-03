@@ -51,6 +51,78 @@ const char vlan_version[] = DRV_VERSION;
 
 /* End of global variables definitions. */
 
+/*
+ * must be rcu_read_lock protected
+ */
+struct net_device *
+get_vlan_dev_by_real(struct net_device *real_dev, u16 vlan_id)
+{
+	const char *name = real_dev->name;
+
+	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
+		pr_info("VLANs not supported on %s\n", name);
+		return NULL;
+	}
+
+	return vlan_find_dev(real_dev, htons(ETH_P_8021Q), vlan_id);
+}
+EXPORT_SYMBOL(get_vlan_dev_by_real);
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+/*
+ * must be called from non-preemptable context
+ */
+void vlan_dev_update_stats(struct net_device *vlan_dev,
+			   u32 recv_bytes, u32 recv_pkts,
+			   u32 sent_bytes, u32 sent_pkts)
+{
+	struct vlan_dev_priv *vlan = vlan_dev_priv(vlan_dev);
+	struct vlan_pcpu_stats *stats;
+
+	if (!vlan->vlan_pcpu_stats)
+		return;
+
+	stats = this_cpu_ptr(vlan->vlan_pcpu_stats);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_packets += recv_pkts;
+	stats->rx_bytes += recv_bytes;
+	stats->tx_packets += sent_pkts;
+	stats->tx_bytes += sent_bytes;
+	u64_stats_update_end(&stats->syncp);
+}
+EXPORT_SYMBOL(vlan_dev_update_stats);
+#endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+/*
+ * must be called from non-preemptable context
+ */
+void vlan_dev_update_stats_swnat(struct net_device *vlan_dev,
+				u32 recv_bytes, u32 recv_pkts,
+				u32 sent_bytes, u32 sent_pkts,
+				int is_recv_mcast)
+{
+	struct vlan_dev_priv *vlan = vlan_dev_priv(vlan_dev);
+	struct vlan_pcpu_stats *stats;
+
+	if (!vlan->vlan_pcpu_stats)
+		return;
+
+	stats = this_cpu_ptr(vlan->vlan_pcpu_stats);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_packets += recv_pkts;
+	stats->rx_bytes += recv_bytes;
+	if (is_recv_mcast)
+		stats->rx_multicast += recv_pkts;
+	stats->tx_packets += sent_pkts;
+	stats->tx_bytes += sent_bytes;
+	u64_stats_update_end(&stats->syncp);
+}
+EXPORT_SYMBOL(vlan_dev_update_stats_swnat);
+#endif
+
 static int vlan_group_prealloc_vid(struct vlan_group *vg,
 				   __be16 vlan_proto, u16 vlan_id)
 {

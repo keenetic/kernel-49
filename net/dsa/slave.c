@@ -624,11 +624,13 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!nskb)
 		return NETDEV_TX_OK;
 
+#ifdef CONFIG_NETPOLL
 	/* SKB for netpoll still need to be mangled with the protocol-specific
 	 * tag to be successfully transmitted
 	 */
 	if (unlikely(netpoll_tx_running(dev)))
 		return dsa_netpoll_send_skb(p, nskb);
+#endif
 
 	/* Queue the SKB for transmission on the parent interface, but
 	 * do not modify its EtherType

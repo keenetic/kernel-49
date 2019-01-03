@@ -95,6 +95,7 @@ static void __br_forward(const struct net_bridge_port *to,
 		skb_forward_csum(skb);
 		net = dev_net(indev);
 	} else {
+#ifdef CONFIG_NETPOLL
 		if (unlikely(netpoll_tx_running(to->br->dev))) {
 			if (!is_skb_forwardable(skb->dev, skb)) {
 				kfree_skb(skb);
@@ -104,6 +105,7 @@ static void __br_forward(const struct net_bridge_port *to,
 			}
 			return;
 		}
+#endif
 		br_hook = NF_BR_LOCAL_OUT;
 		net = dev_net(skb->dev);
 		indev = NULL;

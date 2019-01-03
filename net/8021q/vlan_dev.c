@@ -125,8 +125,10 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 
 	skb->dev = vlan->real_dev;
 	len = skb->len;
+#ifdef CONFIG_NETPOLL
 	if (unlikely(netpoll_tx_running(dev)))
 		return vlan_netpoll_send_skb(vlan, skb);
+#endif
 
 	ret = dev_queue_xmit(skb);
 

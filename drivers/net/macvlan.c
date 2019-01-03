@@ -526,8 +526,10 @@ static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 	int ret;
 	struct macvlan_dev *vlan = netdev_priv(dev);
 
+#ifdef CONFIG_NETPOLL
 	if (unlikely(netpoll_tx_running(dev)))
 		return macvlan_netpoll_send_skb(vlan, skb);
+#endif
 
 	if (vlan->fwd_priv) {
 		skb->dev = vlan->lowerdev;

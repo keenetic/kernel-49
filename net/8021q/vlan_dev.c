@@ -38,6 +38,14 @@
 #include <linux/if_vlan.h>
 #include <linux/netpoll.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 /*
  *	Create the VLAN header for an arbitrary protocol layer
  *
@@ -109,6 +117,10 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
 	unsigned int len;
 	int ret;
+#if IS_ENABLED(CONFIG_RA_HW_NAT) || IS_ENABLED(CONFIG_FAST_NAT)
+	bool ka_mark = false;
+#endif
+
 
 	/* Handle non-VLAN frames if they are sent to us, for example by DHCP.
 	 *
@@ -130,7 +142,21 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 		return vlan_netpoll_send_skb(vlan, skb);
 #endif
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	if (FOE_SKB_IS_KEEPALIVE(skb))
+		ka_mark = true;
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (SWNAT_KA_CHECK_MARK(skb))
+		ka_mark = true;
+#endif
+
 	ret = dev_queue_xmit(skb);
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT) || IS_ENABLED(CONFIG_FAST_NAT)
+	if (unlikely(ka_mark))
+		return ret;
+#endif
 
 	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		struct vlan_pcpu_stats *stats;

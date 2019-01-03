@@ -5,6 +5,14 @@
 #include <linux/export.h>
 #include "vlan.h"
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 bool vlan_do_receive(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
@@ -51,6 +59,15 @@ bool vlan_do_receive(struct sk_buff **skbp)
 
 	skb->priority = vlan_get_ingress_priority(vlan_dev, skb->vlan_tci);
 	skb->vlan_tci = 0;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	if (FOE_SKB_IS_KEEPALIVE(skb))
+		return true;
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (SWNAT_KA_CHECK_MARK(skb))
+		return true;
+#endif
 
 	rx_stats = this_cpu_ptr(vlan_dev_priv(vlan_dev)->vlan_pcpu_stats);
 

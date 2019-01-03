@@ -22,6 +22,14 @@
 #include <linux/rculist.h>
 #include "br_private.h"
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 #if IS_ENABLED(CONFIG_BRIDGE_EBT_BROUTE)
 /* Hook for brouter */
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
@@ -40,12 +48,22 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
 	struct net_bridge *br = netdev_priv(brdev);
 	struct net_bridge_vlan_group *vg;
-	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 
-	u64_stats_update_begin(&brstats->syncp);
-	brstats->rx_packets++;
-	brstats->rx_bytes += skb->len;
-	u64_stats_update_end(&brstats->syncp);
+	if (likely(1
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	    && !FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	    && !SWNAT_KA_CHECK_MARK(skb)
+#endif
+	    )) {
+		struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
+
+		u64_stats_update_begin(&brstats->syncp);
+		brstats->rx_packets++;
+		brstats->rx_bytes += skb->len;
+		u64_stats_update_end(&brstats->syncp);
+	}
 
 	vg = br_vlan_group_rcu(br);
 	/* Bridge is just like any other port.  Make sure the

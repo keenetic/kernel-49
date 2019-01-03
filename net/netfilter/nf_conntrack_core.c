@@ -1646,6 +1646,14 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 
 	ct->timeout = extra_jiffies;
 acct:
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (unlikely(SWNAT_KA_CHECK_MARK(skb)))
+		return;
+#endif
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	if (unlikely(FOE_SKB_IS_KEEPALIVE(skb)))
+		return;
+#endif
 	if (do_acct)
 		nf_ct_acct_update(ct, ctinfo, skb->len);
 }

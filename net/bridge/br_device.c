@@ -22,6 +22,14 @@
 #include <asm/uaccess.h>
 #include "br_private.h"
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 #define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
 			 NETIF_F_GSO_MASK | NETIF_F_HW_CSUM)
 
@@ -37,7 +45,6 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	const unsigned char *dest = skb->data;
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
-	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	const struct nf_br_ops *nf_ops;
 	u16 vid = 0;
 
@@ -56,11 +63,22 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
-	u64_stats_update_begin(&brstats->syncp);
-	brstats->tx_packets++;
-	/* Exclude ETH_HLEN from byte stats for consistency with Rx chain */
-	brstats->tx_bytes += skb->len;
-	u64_stats_update_end(&brstats->syncp);
+	if (likely(1
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	    && !FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	    && !SWNAT_KA_CHECK_MARK(skb)
+#endif
+	    )) {
+		struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
+
+		u64_stats_update_begin(&brstats->syncp);
+		brstats->tx_packets++;
+		/* Exclude ETH_HLEN from byte stats for consistency with Rx chain */
+		brstats->tx_bytes += skb->len;
+		u64_stats_update_end(&brstats->syncp);
+	}
 
 	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
 		goto out;

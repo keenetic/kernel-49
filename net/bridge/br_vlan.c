@@ -6,6 +6,14 @@
 
 #include "br_private.h"
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 static inline int br_vlan_cmp(struct rhashtable_compare_arg *arg,
 			      const void *ptr)
 {
@@ -368,7 +376,14 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 			return NULL;
 		}
 	}
-	if (br->vlan_stats_enabled) {
+	if (br->vlan_stats_enabled
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	    && !FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	    && !SWNAT_KA_CHECK_MARK(skb)
+#endif
+	    ) {
 		stats = this_cpu_ptr(v->stats);
 		u64_stats_update_begin(&stats->syncp);
 		stats->tx_bytes += skb->len;
@@ -458,7 +473,14 @@ static bool __allowed_ingress(const struct net_bridge *br,
 	if (!v || !br_vlan_should_use(v))
 		goto drop;
 
-	if (br->vlan_stats_enabled) {
+	if (br->vlan_stats_enabled
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	    && !FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	    && !SWNAT_KA_CHECK_MARK(skb)
+#endif
+	    ) {
 		stats = this_cpu_ptr(v->stats);
 		u64_stats_update_begin(&stats->syncp);
 		stats->rx_bytes += skb->len;

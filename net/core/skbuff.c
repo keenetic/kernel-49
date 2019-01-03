@@ -4303,12 +4303,14 @@ err:
 }
 EXPORT_SYMBOL(skb_checksum_trimmed);
 
+#ifdef CONFIG_INET_LRO
 void __skb_warn_lro_forwarding(const struct sk_buff *skb)
 {
 	net_warn_ratelimited("%s: received packets cannot be forwarded while LRO is enabled\n",
 			     skb->dev->name);
 }
 EXPORT_SYMBOL(__skb_warn_lro_forwarding);
+#endif
 
 void kfree_skb_partial(struct sk_buff *skb, bool head_stolen)
 {

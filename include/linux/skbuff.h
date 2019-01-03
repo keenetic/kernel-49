@@ -3824,6 +3824,7 @@ static inline void skb_gso_reset(struct sk_buff *skb)
 	skb_shinfo(skb)->gso_type = 0;
 }
 
+#ifdef CONFIG_INET_LRO
 void __skb_warn_lro_forwarding(const struct sk_buff *skb);
 
 static inline bool skb_warn_if_lro(const struct sk_buff *skb)
@@ -3839,6 +3840,12 @@ static inline bool skb_warn_if_lro(const struct sk_buff *skb)
 	}
 	return false;
 }
+#else
+static inline bool skb_warn_if_lro(const struct sk_buff *skb)
+{
+	return false;
+}
+#endif
 
 static inline void skb_forward_csum(struct sk_buff *skb)
 {

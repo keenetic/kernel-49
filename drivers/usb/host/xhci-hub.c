@@ -902,6 +902,30 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	return status;
 }
 
+#ifdef CONFIG_USB_XHCI_NO_USB3
+static int xhci_usb2_mode = 1;
+#else
+#include <linux/module.h>
+#include <linux/atomic.h>
+
+static int xhci_usb2_mode;
+extern int usb_hub_restart(void);
+
+int xhci_hub_restart(int usb2_mode)
+{
+	const int xhci_usb2_mode_new = usb2_mode ? 1 : 0;
+
+	if (xhci_usb2_mode == xhci_usb2_mode_new)
+		return 0;
+
+	xhci_usb2_mode = xhci_usb2_mode_new;
+	wmb();
+
+	return usb_hub_restart();
+}
+EXPORT_SYMBOL_GPL(xhci_hub_restart);
+#endif
+
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
@@ -1114,7 +1138,11 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			 * However, hub_wq will ignore the roothub events until
 			 * the roothub is registered.
 			 */
-			writel(temp | PORT_POWER, port_array[wIndex]);
+
+			if (xhci_usb2_mode && hcd->speed >= HCD_USB3)
+				writel(temp & ~PORT_POWER, port_array[wIndex]);
+			else
+				writel(temp | PORT_POWER, port_array[wIndex]);
 
 			temp = readl(port_array[wIndex]);
 			xhci_dbg(xhci, "set port power, actual port %d status  = 0x%x\n", wIndex, temp);

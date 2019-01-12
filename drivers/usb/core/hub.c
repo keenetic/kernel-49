@@ -2269,6 +2269,9 @@ static int usb_enumerate_device_otg(struct usb_device *udev)
 	return err;
 }
 
+/* implementation Microsoft Compatible ID feature descriptors, McMCC, 19112013 */
+int (*usb_get_os_str_desc_hook)(struct usb_device *udev) = NULL;
+EXPORT_SYMBOL_GPL(usb_get_os_str_desc_hook);
 
 /**
  * usb_enumerate_device - Read device configs/intfs/otg (usbcore-internal)
@@ -2288,6 +2291,7 @@ static int usb_enumerate_device(struct usb_device *udev)
 {
 	int err;
 	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+	typeof(usb_get_os_str_desc_hook) usb_get_os_str_desc;
 
 	if (udev->config == NULL) {
 		err = usb_get_configuration(udev);
@@ -2304,6 +2308,22 @@ static int usb_enumerate_device(struct usb_device *udev)
 	udev->manufacturer = usb_cache_string(udev,
 					      udev->descriptor.iManufacturer);
 	udev->serial = usb_cache_string(udev, udev->descriptor.iSerialNumber);
+
+	/* get Microsoft Compatible ID feature descriptors, McMCC, 19112013 */
+	err = 0;
+	rcu_read_lock();
+	usb_get_os_str_desc = rcu_dereference(usb_get_os_str_desc_hook);
+	if (usb_get_os_str_desc)
+		err = usb_get_os_str_desc(udev);
+	rcu_read_unlock();
+
+	if (err < 0)
+		return err;
+
+	if (err == 1) {
+		usb_set_device_state(udev, USB_STATE_RECONNECTING);
+		return -ENODEV;
+	}
 
 	err = usb_enumerate_device_otg(udev);
 	if (err < 0)
@@ -5314,7 +5334,11 @@ int usb_hub_init(void)
 
 void usb_hub_cleanup(void)
 {
+	if (hub_wq == NULL)
+		return;
+
 	destroy_workqueue(hub_wq);
+	hub_wq = NULL;
 
 	/*
 	 * Hub resources are freed for us by usb_deregister. It calls
@@ -5325,6 +5349,16 @@ void usb_hub_cleanup(void)
 	 */
 	usb_deregister(&hub_driver);
 } /* usb_hub_cleanup() */
+
+#if IS_ENABLED(CONFIG_USB_XHCI_HCD) && !defined(CONFIG_USB_XHCI_NO_USB3)
+int usb_hub_restart(void)
+{
+	usb_hub_cleanup();
+
+	return usb_hub_init();
+}
+EXPORT_SYMBOL_GPL(usb_hub_restart);
+#endif
 
 static int descriptors_changed(struct usb_device *udev,
 		struct usb_device_descriptor *old_device_descriptor,

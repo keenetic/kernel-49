@@ -79,6 +79,10 @@ config USB_XHCI_TEGRA
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in NVIDIA Tegra124 and later SoCs.
 
+config USB_XHCI_NO_USB3
+	bool "Disable power from N/C USB3 ports"
+	default n
+
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD

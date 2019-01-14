@@ -302,6 +302,14 @@ config USB_NET_DM9601
 	  This option adds support for Davicom DM9601/DM9620/DM9621A
 	  based USB 10/100 Ethernet adapters.
 
+config USB_NET_KPDSL
+	tristate "ZyXEL Keenetic Plus DSL device"
+	depends on USB_USBNET
+	select CRC32
+	help
+	  This option adds support for ZyXEL Keenetic Plus DSL
+	  based on a Davicom DM9620 Ethernet adapter.
+
 config USB_NET_SR9700
 	tristate "CoreChip-sz SR9700 based USB 1.1 10/100 ethernet devices"
 	depends on USB_USBNET

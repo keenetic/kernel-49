@@ -85,6 +85,10 @@
 #include <../ndm/hw_nat/ra_nat.h>
 #endif
 
+#ifdef CONFIG_NETFILTER_FP_SMB
+#include <net/netfilter/nf_fp_smb.h>
+#endif
+
 static int
 ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	    unsigned int mtu,
@@ -113,6 +117,11 @@ int __ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 		return 0;
 
 	skb->protocol = htons(ETH_P_IP);
+
+#ifdef CONFIG_NETFILTER_FP_SMB
+	if (skb->nf_fp_cache || nf_fp_smb_hook_out(skb))
+		return 1;
+#endif
 
 	return nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT,
 		       net, sk, skb, NULL, skb_dst(skb)->dev,
@@ -408,6 +417,11 @@ int ip_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_IP);
 
+#ifdef CONFIG_NETFILTER_FP_SMB
+	if (skb->nf_fp_cache || nf_fp_smb_hook_out(skb))
+		return ip_finish_output(net, sk, skb);
+#endif
+
 	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING,
 			    net, sk, skb, NULL, dev,
 			    ip_finish_output,
@@ -549,6 +563,9 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	nf_copy(to, from);
 #if IS_ENABLED(CONFIG_IP_VS)
 	to->ipvs_property = from->ipvs_property;
+#endif
+#ifdef CONFIG_NETFILTER_FP_SMB
+	to->nf_fp_cache = from->nf_fp_cache;
 #endif
 	skb_copy_secmark(to, from);
 }

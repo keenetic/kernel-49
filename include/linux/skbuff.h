@@ -765,7 +765,10 @@ struct sk_buff {
 #ifdef CONFIG_NET_SWITCHDEV
 	__u8			offload_fwd_mark:1;
 #endif
-	/* 2, 4 or 5 bit hole */
+#ifdef CONFIG_NETFILTER_FP_SMB
+	__u8			nf_fp_cache:1;
+#endif
+	/* 1, 2, 4 or 5 bit hole */
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */

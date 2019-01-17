@@ -148,6 +148,10 @@
 #include <linux/netlink.h>
 #include <net/dst_metadata.h>
 
+#ifdef CONFIG_NETFILTER_FP_SMB
+#include <net/netfilter/nf_fp_smb.h>
+#endif
+
 /*
  *	Process Router Attention IP option (RFC 2113)
  */
@@ -253,6 +257,11 @@ int ip_local_deliver(struct sk_buff *skb)
 		if (ip_defrag(net, skb, IP_DEFRAG_LOCAL_DELIVER))
 			return 0;
 	}
+
+#ifdef CONFIG_NETFILTER_FP_SMB
+	if (skb->nf_fp_cache || nf_fp_smb_hook_in(skb))
+		return ip_local_deliver_finish(net, NULL, skb);
+#endif
 
 	return NF_HOOK(NFPROTO_IPV4, NF_INET_LOCAL_IN,
 		       net, NULL, skb, skb->dev, NULL,
@@ -483,6 +492,11 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 
 	/* Must drop socket now because of tproxy. */
 	skb_orphan(skb);
+
+#ifdef CONFIG_NETFILTER_FP_SMB
+	if (skb->nf_fp_cache || nf_fp_smb_hook_in(skb))
+		return ip_rcv_finish(net, NULL, skb);
+#endif
 
 	return NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING,
 		       net, NULL, skb, dev, NULL,

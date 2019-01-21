@@ -28,6 +28,10 @@
 
 #include "xfrm_hash.h"
 
+#if IS_ENABLED(CONFIG_RALINK_HWCRYPTO)
+#include "xfrm_hwcrypto.h"
+#endif
+
 #define xfrm_state_deref_prot(table, net) \
 	rcu_dereference_protected((table), lockdep_is_held(&(net)->xfrm.xfrm_state_lock))
 
@@ -551,6 +555,28 @@ int __xfrm_state_delete(struct xfrm_state *x)
 		 */
 		xfrm_state_put(x);
 		err = 0;
+
+#if IS_ENABLED(CONFIG_RALINK_HWCRYPTO)
+		if (atomic_read(&esp_mtk_hardware) &&
+		    x->type != NULL) {
+			/* test ESP4 or ESP6 module */
+			if (x->type->description[0] == 'E' &&
+#ifdef CONFIG_RALINK_HWCRYPTO_ESP6
+			    x->type->description[1] == 'S')
+#else
+			    x->type->description[3] == '4')
+#endif
+			{
+				typeof(eip93Adapter_free) ipsec_spi_free;
+
+				rcu_read_lock();
+				ipsec_spi_free = rcu_dereference(eip93Adapter_free);
+				if (ipsec_spi_free)
+					ipsec_spi_free(x->id.spi);
+				rcu_read_unlock();
+			}
+		}
+#endif
 	}
 
 	return err;

@@ -14,6 +14,10 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
+#ifdef CONFIG_RALINK_HWCRYPTO_ESP6
+#include "../xfrm/xfrm_hwcrypto.h"
+#endif
+
 /* Add encapsulation header.
  *
  * The IP header and mutable extension headers will be moved forward to make
@@ -30,8 +34,22 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
 	if (hdr_len < 0)
 		return hdr_len;
+
+#ifdef CONFIG_RALINK_HWCRYPTO_ESP6
+	if (x->type->proto == IPPROTO_ESP && atomic_read(&esp_mtk_hardware)) {
+		int header_len = 0;
+
+		if (x->props.mode == XFRM_MODE_TUNNEL)
+			header_len += sizeof(struct ipv6hdr);
+
+		skb_set_mac_header(skb, (prevhdr - header_len) - skb->data);
+		skb_set_network_header(skb, -header_len);
+	} else
+#endif
+    {
 	skb_set_mac_header(skb, (prevhdr - x->props.header_len) - skb->data);
 	skb_set_network_header(skb, -x->props.header_len);
+    }
 	skb->transport_header = skb->network_header + hdr_len;
 	__skb_pull(skb, hdr_len);
 	memmove(ipv6_hdr(skb), iph, hdr_len);

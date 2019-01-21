@@ -16,6 +16,10 @@
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
 
+#if IS_ENABLED(CONFIG_RALINK_HWCRYPTO)
+#include "xfrm_hwcrypto.h"
+#endif
+
 static struct kmem_cache *secpath_cachep __read_mostly;
 
 static DEFINE_SPINLOCK(xfrm_input_afinfo_lock);
@@ -158,6 +162,9 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 	*seq = *(__be32 *)(skb_transport_header(skb) + offset_seq);
 	return 0;
 }
+#if IS_MODULE(CONFIG_RALINK_HWCRYPTO)
+EXPORT_SYMBOL(xfrm_parse_spi);
+#endif
 
 int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 {
@@ -297,6 +304,27 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		XFRM_SKB_CB(skb)->seq.input.hi = seq_hi;
 
 		skb_dst_force(skb);
+
+#if IS_ENABLED(CONFIG_RALINK_HWCRYPTO)
+		if (atomic_read(&esp_mtk_hardware) &&
+		    x->type->proto == IPPROTO_ESP
+#ifndef CONFIG_RALINK_HWCRYPTO_ESP6
+		 && family == AF_INET
+#endif
+		   ) {
+			err = x->type->input(x, skb);
+
+			/* check skb in progress */
+			if (err == HWCRYPTO_OK)
+				return 0;
+
+			/* check skb already freed */
+			if (err == HWCRYPTO_NOMEM)
+				return 0;
+
+			goto drop;
+		}
+#endif
 		dev_hold(skb->dev);
 
 		nexthdr = x->type->input(x, skb);

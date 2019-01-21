@@ -427,6 +427,9 @@ int ip_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			    ip_finish_output,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
+#if IS_ENABLED(CONFIG_RALINK_HWCRYPTO)
+EXPORT_SYMBOL(ip_output);
+#endif
 
 /*
  * copy saddr and daddr, possibly using 64bit load/stores

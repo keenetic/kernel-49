@@ -436,8 +436,8 @@ static int usbnet_cdc_zte_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int status = usbnet_cdc_bind(dev, intf);
 
-	if (!status && (dev->net->dev_addr[0] & 0x02))
-		eth_hw_addr_random(dev->net);
+	if (!status && (dev->net->dev_addr[0] & 0x01))
+		dev->net->dev_addr[0] &= ~0x01;
 
 	return status;
 }

@@ -92,7 +92,7 @@ static struct list_head inetsw6[SOCK_MAX];
 static DEFINE_SPINLOCK(inetsw6_lock);
 
 struct ipv6_params ipv6_defaults = {
-	.disable_ipv6 = 0,
+	.disable_ipv6 = 1,
 	.autoconf = 1,
 };
 

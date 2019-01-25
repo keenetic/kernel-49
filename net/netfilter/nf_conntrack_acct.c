@@ -18,12 +18,12 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_acct.h>
 
-static bool nf_ct_acct __read_mostly;
+static bool nf_ct_acct __read_mostly = 1;
 
 module_param_named(acct, nf_ct_acct, bool, 0644);
 MODULE_PARM_DESC(acct, "Enable connection tracking flow accounting.");
 
-#ifdef CONFIG_SYSCTL
+#if 0
 static struct ctl_table acct_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_acct",
@@ -61,7 +61,7 @@ static struct nf_ct_ext_type acct_extend __read_mostly = {
 	.id	= NF_CT_EXT_ACCT,
 };
 
-#ifdef CONFIG_SYSCTL
+#if 0
 static int nf_conntrack_acct_init_sysctl(struct net *net)
 {
 	struct ctl_table *table;

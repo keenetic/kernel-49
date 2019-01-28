@@ -481,8 +481,8 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	dev_set_name(&nvmem->dev, "%s%d",
 		     config->name ? : "nvmem", config->id);
 
-	nvmem->read_only = of_property_read_bool(np, "read-only") |
-			   config->read_only;
+	nvmem->read_only = of_property_read_bool(np, "read-only") ||
+			   config->read_only || !nvmem->reg_write;
 
 	if (config->root_only)
 		nvmem->dev.groups = nvmem->read_only ?

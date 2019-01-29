@@ -60,6 +60,7 @@ struct netns_ipv4 {
 	struct xt_table		*iptable_filter;
 	struct xt_table		*iptable_mangle;
 	struct xt_table		*iptable_raw;
+	struct xt_table		*iptable_raw_out;
 	struct xt_table		*arptable_filter;
 #ifdef CONFIG_SECURITY
 	struct xt_table		*iptable_security;

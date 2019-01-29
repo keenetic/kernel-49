@@ -48,6 +48,7 @@ struct netns_ipv6 {
 	struct xt_table		*ip6table_filter;
 	struct xt_table		*ip6table_mangle;
 	struct xt_table		*ip6table_raw;
+	struct xt_table		*ip6table_raw_out;
 #ifdef CONFIG_SECURITY
 	struct xt_table		*ip6table_security;
 #endif

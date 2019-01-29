@@ -2568,7 +2568,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 			}
 		}
 
-		sd_first_printk(KERN_ERR, sdkp, "No Caching mode page found\n");
+		sd_first_printk(KERN_INFO, sdkp, "No Caching mode page found\n");
 		goto defaults;
 
 	Page_found:
@@ -2597,7 +2597,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 
 		if (sdkp->first_scan || old_wce != sdkp->WCE ||
 		    old_rcd != sdkp->RCD || old_dpofua != sdkp->DPOFUA)
-			sd_printk(KERN_NOTICE, sdkp,
+			sd_printk(KERN_INFO, sdkp,
 				  "Write cache: %s, read cache: %s, %s\n",
 				  sdkp->WCE ? "enabled" : "disabled",
 				  sdkp->RCD ? "disabled" : "enabled",
@@ -2619,11 +2619,11 @@ bad_sense:
 
 defaults:
 	if (sdp->wce_default_on) {
-		sd_first_printk(KERN_NOTICE, sdkp,
+		sd_first_printk(KERN_INFO, sdkp,
 				"Assuming drive cache: write back\n");
 		sdkp->WCE = 1;
 	} else {
-		sd_first_printk(KERN_ERR, sdkp,
+		sd_first_printk(KERN_INFO, sdkp,
 				"Assuming drive cache: write through\n");
 		sdkp->WCE = 0;
 	}

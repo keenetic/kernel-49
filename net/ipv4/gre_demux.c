@@ -30,11 +30,16 @@
 #include <net/route.h>
 #include <net/xfrm.h>
 
-static const struct gre_protocol __rcu *gre_proto[GREPROTO_MAX] __read_mostly;
+#define GREPROTO_CNT	\
+		(GREPROTO_MAX + GREPROTO_NONSTD_MAX - GREPROTO_NONSTD_BASE)
+
+static const struct gre_protocol __rcu *gre_proto[GREPROTO_CNT] __read_mostly;
 
 int gre_add_protocol(const struct gre_protocol *proto, u8 version)
 {
-	if (version >= GREPROTO_MAX)
+	if (version >= GREPROTO_NONSTD_BASE && version < GREPROTO_NONSTD_MAX)
+		version -= GREPROTO_NONSTD_BASE - GREPROTO_MAX;
+	else if (version >= GREPROTO_MAX)
 		return -EINVAL;
 
 	return (cmpxchg((const struct gre_protocol **)&gre_proto[version], NULL, proto) == NULL) ?
@@ -46,7 +51,9 @@ int gre_del_protocol(const struct gre_protocol *proto, u8 version)
 {
 	int ret;
 
-	if (version >= GREPROTO_MAX)
+	if (version >= GREPROTO_NONSTD_BASE && version < GREPROTO_NONSTD_MAX)
+		version -= GREPROTO_NONSTD_BASE - GREPROTO_MAX;
+	else if (version >= GREPROTO_MAX)
 		return -EINVAL;
 
 	ret = (cmpxchg((const struct gre_protocol **)&gre_proto[version], proto, NULL) == proto) ?
@@ -125,15 +132,30 @@ EXPORT_SYMBOL(gre_parse_header);
 static int gre_rcv(struct sk_buff *skb)
 {
 	const struct gre_protocol *proto;
-	u8 ver;
 	int ret;
+	const u32 *eoiphdr;
+	u32 _eoiphdr;
+	u8 ver;
 
+	/* the standard GRE header is 12 octets; the EoIP header is 8
+	 * 4 octets long ethernet packet can not be valid
+	 */
 	if (!pskb_may_pull(skb, 12))
 		goto drop;
 
-	ver = skb->data[1]&0x7f;
-	if (ver >= GREPROTO_MAX)
+	eoiphdr = skb_header_pointer(skb, 0, sizeof(_eoiphdr), &_eoiphdr);
+	if (unlikely(!eoiphdr))
 		goto drop;
+
+	/* check for custom EOIP header */
+	if (*eoiphdr == htonl(GRE_EOIP_MAGIC)) {
+		ver = GREPROTO_NONSTD_EOIP - GREPROTO_NONSTD_BASE +
+		      GREPROTO_MAX;
+	} else {
+		ver = skb->data[1] & 0x7f;
+		if (ver >= GREPROTO_MAX)
+			goto drop;
+	}
 
 	rcu_read_lock();
 	proto = rcu_dereference(gre_proto[ver]);
@@ -154,10 +176,20 @@ static void gre_err(struct sk_buff *skb, u32 info)
 {
 	const struct gre_protocol *proto;
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
-	u8 ver = skb->data[(iph->ihl<<2) + 1]&0x7f;
+	const u32 *eoiphdr;
+	u32 _eoiphdr;
+	u8 ver;
 
-	if (ver >= GREPROTO_MAX)
-		return;
+	eoiphdr = skb_header_pointer(skb, iph->ihl << 2, sizeof(_eoiphdr),
+				     &_eoiphdr);
+	if (eoiphdr && *eoiphdr == htonl(GRE_EOIP_MAGIC)) {
+		ver = GREPROTO_NONSTD_EOIP - GREPROTO_NONSTD_BASE +
+		      GREPROTO_MAX;
+	} else {
+		ver = skb->data[(iph->ihl << 2) + 1] & 0x7f;
+		if (ver >= GREPROTO_MAX)
+			return;
+	}
 
 	rcu_read_lock();
 	proto = rcu_dereference(gre_proto[ver]);
@@ -177,7 +209,7 @@ static int __init gre_init(void)
 	pr_info("GRE over IPv4 demultiplexor driver\n");
 
 	if (inet_add_protocol(&net_gre_protocol, IPPROTO_GRE) < 0) {
-		pr_err("can't add protocol\n");
+		pr_err("can't add GRE demultiplexor protocol\n");
 		return -EAGAIN;
 	}
 	return 0;

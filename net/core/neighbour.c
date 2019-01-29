@@ -896,6 +896,7 @@ static void neigh_timer_handler(unsigned long arg)
 				   neigh->confirmed + neigh->parms->reachable_time)) {
 			neigh_dbg(2, "neigh %p is still alive\n", neigh);
 			next = neigh->confirmed + neigh->parms->reachable_time;
+			notify = 1;
 		} else if (time_before_eq(now,
 					  neigh->used +
 					  NEIGH_VAR(neigh->parms, DELAY_PROBE_TIME))) {
@@ -904,6 +905,7 @@ static void neigh_timer_handler(unsigned long arg)
 			neigh->updated = jiffies;
 			neigh_suspect(neigh);
 			next = now + NEIGH_VAR(neigh->parms, DELAY_PROBE_TIME);
+			notify = 1;
 		} else {
 			neigh_dbg(2, "neigh %p is suspected\n", neigh);
 			neigh->nud_state = NUD_STALE;

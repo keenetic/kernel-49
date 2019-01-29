@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/major.h>
 #include <linux/bio.h>
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
@@ -1881,8 +1882,8 @@ static int __init zram_init(void)
 	}
 
 	zram_debugfs_create();
-	zram_major = register_blkdev(0, "zram");
-	if (zram_major <= 0) {
+	zram_major = ZRAM_MAJOR;
+	if (register_blkdev(zram_major, "zram") <= 0) {
 		pr_err("Unable to get major number\n");
 		class_unregister(&zram_control_class);
 		return -EBUSY;

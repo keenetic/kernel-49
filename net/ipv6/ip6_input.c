@@ -49,6 +49,8 @@
 
 int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	const struct ipv6hdr *hdr;
+
 	/* if ingress device is enslaved to an L3 master device pass the
 	 * skb to its handler for processing
 	 */
@@ -65,6 +67,32 @@ int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 	}
 	if (!skb_valid_dst(skb))
 		ip6_route_input(skb);
+
+	hdr = ipv6_hdr(skb);
+	if (ipv6_addr_is_multicast(&hdr->daddr)) {
+		unsigned int nhoff;
+		int nexthdr;
+
+		rcu_read_lock();
+		nhoff = IP6CB(skb)->nhoff;
+		nexthdr = skb_network_header(skb)[nhoff];
+
+		if (nexthdr == IPPROTO_ICMPV6) {
+			if (!pskb_pull(skb, skb_transport_offset(skb))) {
+				__IP6_INC_STATS(net,
+					ip6_dst_idev(skb_dst(skb)),
+					IPSTATS_MIB_INDISCARDS);
+				rcu_read_unlock();
+				kfree_skb(skb);
+				return 0;
+			}
+
+			raw6_local_deliver(skb, nexthdr);
+			__skb_push(skb, skb_transport_offset(skb));
+		}
+
+		rcu_read_unlock();
+	}
 
 	return dst_input(skb);
 }

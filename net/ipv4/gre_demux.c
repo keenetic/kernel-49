@@ -79,6 +79,23 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		return -EINVAL;
 
 	greh = (struct gre_base_hdr *)(skb->data + nhs);
+
+	if (greh->flags == htons(GRE_EOIP_FLAGS) &&
+	    greh->protocol == htons(GRE_EOIP_PROTO)) {
+		const struct gre_eoip_hdr *eoiph;
+
+		if (unlikely(!pskb_may_pull(skb, nhs + sizeof(struct gre_eoip_hdr))))
+			return -EINVAL;
+
+		eoiph = (struct gre_eoip_hdr *)(skb->data + nhs);
+		tpi->flags = TUNNEL_KEY;
+		tpi->proto = htons(GRE_EOIP_PROTO);
+		tpi->key = cpu_to_be32(le16_to_cpu(eoiph->key));
+		tpi->seq = 0;
+		tpi->hdr_len = sizeof(*eoiph);
+		return tpi->hdr_len;
+	}
+
 	if (unlikely(greh->flags & (GRE_VERSION | GRE_ROUTING)))
 		return -EINVAL;
 

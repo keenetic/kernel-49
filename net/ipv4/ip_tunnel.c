@@ -72,6 +72,10 @@ static unsigned int ip_tunnel_hash(__be32 key, __be32 remote)
 static bool ip_tunnel_key_match(const struct ip_tunnel_parm *p,
 				__be16 flags, __be32 key)
 {
+	/* Keyed GRE and EoIP explicitly turned into unkeyed for
+	 * tunnel maintaining purposes */
+	return true;
+
 	if (p->i_flags & TUNNEL_KEY) {
 		if (flags & TUNNEL_KEY)
 			return key == p->i_key;
@@ -1098,7 +1102,7 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		goto out;
 
 	if (dev->type == ARPHRD_ETHER && !tb[IFLA_ADDRESS])
-		eth_hw_addr_random(dev);
+		eth_random_addr(dev->dev_addr);
 
 	mtu = ip_tunnel_bind_dev(dev);
 	if (!tb[IFLA_MTU])

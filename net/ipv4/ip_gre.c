@@ -115,6 +115,7 @@ static int ipgre_tunnel_init(struct net_device *dev);
 
 static int ipgre_net_id __read_mostly;
 static int gre_tap_net_id __read_mostly;
+static int gre_eoip_net_id __read_mostly;
 
 static void ipgre_err(struct sk_buff *skb, u32 info,
 		      const struct tnl_ptk_info *tpi)
@@ -173,6 +174,9 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 
 	if (tpi->proto == htons(ETH_P_TEB))
 		itn = net_generic(net, gre_tap_net_id);
+	else
+	if (tpi->proto == htons(GRE_EOIP_PROTO))
+		itn = net_generic(net, gre_eoip_net_id);
 	else
 		itn = net_generic(net, ipgre_net_id);
 
@@ -296,6 +300,9 @@ static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 
 	if (tpi->proto == htons(ETH_P_TEB))
 		itn = net_generic(net, gre_tap_net_id);
+	else
+	if (tpi->proto == htons(GRE_EOIP_PROTO))
+		itn = net_generic(net, gre_eoip_net_id);
 	else
 		itn = net_generic(net, ipgre_net_id);
 
@@ -528,6 +535,23 @@ free_skb:
 	return NETDEV_TX_OK;
 }
 
+static netdev_tx_t gre_eoip_xmit(struct sk_buff *skb,
+				struct net_device *dev)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+
+	if (skb_cow_head(skb, dev->needed_headroom))
+		goto free_skb;
+
+	__gre_xmit(skb, dev, &tunnel->parms.iph, htons(GRE_EOIP_PROTO));
+	return NETDEV_TX_OK;
+
+free_skb:
+	kfree_skb(skb);
+	dev->stats.tx_dropped++;
+	return NETDEV_TX_OK;
+}
+
 static int ipgre_tunnel_ioctl(struct net_device *dev,
 			      struct ifreq *ifr, int cmd)
 {
@@ -689,13 +713,14 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 	ip_tunnel_setup(dev, ipgre_net_id);
 }
 
-static void __gre_tunnel_init(struct net_device *dev)
+static void __gre_tunnel_init(struct net_device *dev, int hdr_len)
 {
 	struct ip_tunnel *tunnel;
 	int t_hlen;
 
 	tunnel = netdev_priv(dev);
-	tunnel->tun_hlen = gre_calc_hlen(tunnel->parms.o_flags);
+	tunnel->tun_hlen =
+		((hdr_len > 0) ? hdr_len : gre_calc_hlen(tunnel->parms.o_flags));
 	tunnel->parms.iph.protocol = IPPROTO_GRE;
 
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen;
@@ -731,7 +756,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
 
-	__gre_tunnel_init(dev);
+	__gre_tunnel_init(dev, 0);
 
 	memcpy(dev->dev_addr, &iph->saddr, 4);
 	memcpy(dev->broadcast, &iph->daddr, 4);
@@ -826,6 +851,38 @@ out:
 	return ipgre_tunnel_validate(tb, data);
 }
 
+static int ipgre_eoip_validate(struct nlattr *tb[], struct nlattr *data[])
+{
+	__be32 daddr;
+	__be32 ikey, okey;
+
+	if (tb[IFLA_ADDRESS]) {
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+			return -EINVAL;
+
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+			return -EADDRNOTAVAIL;
+	}
+
+	if (data[IFLA_GRE_REMOTE]) {
+		memcpy(&daddr, nla_data(data[IFLA_GRE_REMOTE]), 4);
+		if (!daddr)
+			return -EINVAL;
+	}
+
+	if (!data[IFLA_GRE_IKEY] || !data[IFLA_GRE_OKEY])
+		return -EINVAL;
+
+	if (data[IFLA_GRE_OKEY] && data[IFLA_GRE_OKEY]) {
+		memcpy(&ikey, nla_data(data[IFLA_GRE_IKEY]), 4);
+		memcpy(&okey, nla_data(data[IFLA_GRE_OKEY]), 4);
+		if (ikey != okey)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ipgre_netlink_parms(struct net_device *dev,
 				struct nlattr *data[],
 				struct nlattr *tb[],
@@ -870,6 +927,7 @@ static int ipgre_netlink_parms(struct net_device *dev,
 	if (!data[IFLA_GRE_PMTUDISC] || nla_get_u8(data[IFLA_GRE_PMTUDISC])) {
 		if (t->ignore_df)
 			return -EINVAL;
+
 		parms->iph.frag_off = htons(IP_DF);
 	}
 
@@ -925,7 +983,16 @@ static bool ipgre_netlink_encap_parms(struct nlattr *data[],
 
 static int gre_tap_init(struct net_device *dev)
 {
-	__gre_tunnel_init(dev);
+	__gre_tunnel_init(dev, 0);
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+
+	return ip_tunnel_init(dev);
+}
+
+static int gre_eoip_init(struct net_device *dev)
+{
+	__gre_tunnel_init(dev, sizeof(struct gre_eoip_hdr));
+
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	return ip_tunnel_init(dev);
@@ -943,6 +1010,18 @@ static const struct net_device_ops gre_tap_netdev_ops = {
 	.ndo_fill_metadata_dst	= gre_fill_metadata_dst,
 };
 
+static const struct net_device_ops gre_eoip_netdev_ops = {
+	.ndo_init		= gre_eoip_init,
+	.ndo_uninit		= ip_tunnel_uninit,
+	.ndo_start_xmit		= gre_eoip_xmit,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= ip_tunnel_change_mtu,
+	.ndo_get_stats64	= ip_tunnel_get_stats64,
+	.ndo_get_iflink		= ip_tunnel_get_iflink,
+	.ndo_fill_metadata_dst	= gre_fill_metadata_dst,
+};
+
 static void ipgre_tap_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -950,6 +1029,15 @@ static void ipgre_tap_setup(struct net_device *dev)
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags	|= IFF_LIVE_ADDR_CHANGE;
 	ip_tunnel_setup(dev, gre_tap_net_id);
+}
+
+static void ipgre_eoip_setup(struct net_device *dev)
+{
+	ether_setup(dev);
+	dev->netdev_ops	= &gre_eoip_netdev_ops;
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags	|= IFF_LIVE_ADDR_CHANGE;
+	ip_tunnel_setup(dev, gre_eoip_net_id);
 }
 
 static int ipgre_newlink(struct net *src_net, struct net_device *dev,
@@ -1125,6 +1213,21 @@ static struct rtnl_link_ops ipgre_tap_ops __read_mostly = {
 	.get_link_net	= ip_tunnel_get_link_net,
 };
 
+static struct rtnl_link_ops ipgre_eoip_ops __read_mostly = {
+	.kind		= "eoip",
+	.maxtype	= IFLA_GRE_MAX,
+	.policy		= ipgre_policy,
+	.priv_size	= sizeof(struct ip_tunnel),
+	.setup		= ipgre_eoip_setup,
+	.validate	= ipgre_eoip_validate,
+	.newlink	= ipgre_newlink,
+	.changelink	= ipgre_changelink,
+	.dellink	= ip_tunnel_dellink,
+	.get_size	= ipgre_get_size,
+	.fill_info	= ipgre_fill_info,
+	.get_link_net	= ip_tunnel_get_link_net,
+};
+
 struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 					u8 name_assign_type)
 {
@@ -1188,6 +1291,24 @@ static struct pernet_operations ipgre_tap_net_ops = {
 	.size = sizeof(struct ip_tunnel_net),
 };
 
+static int __net_init ipgre_eoip_init_net(struct net *net)
+{
+	return ip_tunnel_init_net(net, gre_eoip_net_id, &ipgre_eoip_ops, "ethoip0");
+}
+
+static void __net_exit ipgre_eoip_exit_net(struct net *net)
+{
+	struct ip_tunnel_net *itn = net_generic(net, gre_eoip_net_id);
+	ip_tunnel_delete_net(itn, &ipgre_eoip_ops);
+}
+
+static struct pernet_operations ipgre_eoip_net_ops = {
+	.init = ipgre_eoip_init_net,
+	.exit = ipgre_eoip_exit_net,
+	.id   = &gre_eoip_net_id,
+	.size = sizeof(struct ip_tunnel_net),
+};
+
 static int __init ipgre_init(void)
 {
 	int err;
@@ -1202,10 +1323,20 @@ static int __init ipgre_init(void)
 	if (err < 0)
 		goto pnet_tap_faied;
 
+	err = register_pernet_device(&ipgre_eoip_net_ops);
+	if (err < 0)
+		goto pnet_eoip_faied;
+
 	err = gre_add_protocol(&ipgre_protocol, GREPROTO_CISCO);
 	if (err < 0) {
-		pr_info("%s: can't add protocol\n", __func__);
-		goto add_proto_failed;
+		pr_info("%s: can't add GRE/CISCO protocol\n", __func__);
+		goto add_proto_cisco_failed;
+	}
+
+	err = gre_add_protocol(&ipgre_protocol, GREPROTO_NONSTD_EOIP);
+	if (err < 0) {
+		pr_info("%s: can't add GRE/EoIP protocol\n", __func__);
+		goto add_proto_eoip_failed;
 	}
 
 	err = rtnl_link_register(&ipgre_link_ops);
@@ -1216,13 +1347,23 @@ static int __init ipgre_init(void)
 	if (err < 0)
 		goto tap_ops_failed;
 
+	err = rtnl_link_register(&ipgre_eoip_ops);
+	if (err < 0)
+		goto eoip_ops_failed;
+
 	return 0;
 
+eoip_ops_failed:
+	rtnl_link_unregister(&ipgre_tap_ops);
 tap_ops_failed:
 	rtnl_link_unregister(&ipgre_link_ops);
 rtnl_link_failed:
+	gre_del_protocol(&ipgre_protocol, GREPROTO_NONSTD_EOIP);
+add_proto_eoip_failed:
 	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
-add_proto_failed:
+add_proto_cisco_failed:
+	unregister_pernet_device(&ipgre_eoip_net_ops);
+pnet_eoip_faied:
 	unregister_pernet_device(&ipgre_tap_net_ops);
 pnet_tap_faied:
 	unregister_pernet_device(&ipgre_net_ops);
@@ -1231,9 +1372,12 @@ pnet_tap_faied:
 
 static void __exit ipgre_fini(void)
 {
+	rtnl_link_unregister(&ipgre_eoip_ops);
 	rtnl_link_unregister(&ipgre_tap_ops);
 	rtnl_link_unregister(&ipgre_link_ops);
+	gre_del_protocol(&ipgre_protocol, GREPROTO_NONSTD_EOIP);
 	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
+	unregister_pernet_device(&ipgre_eoip_net_ops);
 	unregister_pernet_device(&ipgre_tap_net_ops);
 	unregister_pernet_device(&ipgre_net_ops);
 }
@@ -1243,5 +1387,7 @@ module_exit(ipgre_fini);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_RTNL_LINK("gre");
 MODULE_ALIAS_RTNL_LINK("gretap");
+MODULE_ALIAS_RTNL_LINK("eoip");
 MODULE_ALIAS_NETDEV("gre0");
 MODULE_ALIAS_NETDEV("gretap0");
+MODULE_ALIAS_NETDEV("ethoip0");

@@ -38,6 +38,7 @@
 #include <net/protocol.h>
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
+#include <net/gre.h>
 #include <net/arp.h>
 #include <net/checksum.h>
 #include <net/dsfield.h>
@@ -103,7 +104,8 @@ int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
 
 	skb_pull_rcsum(skb, hdr_len);
 
-	if (!raw_proto && inner_proto == htons(ETH_P_TEB)) {
+	if (!raw_proto && (inner_proto == htons(ETH_P_TEB) ||
+			   inner_proto == htons(GRE_EOIP_PROTO))) {
 		struct ethhdr *eh;
 
 		if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))

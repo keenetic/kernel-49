@@ -18,6 +18,12 @@ struct gre_full_hdr {
 } __packed;
 #define GRE_HEADER_SECTION 4
 
+struct gre_eoip_hdr {
+	struct gre_base_hdr gre;
+	__be16 len;
+	__le16 key;
+} __packed;
+
 #define GREPROTO_CISCO		0
 #define GREPROTO_PPTP		1
 #define GREPROTO_MAX		2
@@ -125,6 +131,17 @@ static inline void gre_build_header(struct sk_buff *skb, int hdr_len,
 
 	skb_set_inner_protocol(skb, proto);
 	skb_reset_transport_header(skb);
+
+	if (proto == htons(GRE_EOIP_PROTO)) {
+		struct gre_eoip_hdr *eoiph = (struct gre_eoip_hdr *)skb->data;
+
+		eoiph->gre.flags = htons(GRE_EOIP_FLAGS);
+		eoiph->gre.protocol = htons(GRE_EOIP_PROTO);
+		eoiph->len = cpu_to_be16(skb->len - hdr_len);
+		eoiph->key = cpu_to_le16((u32)(be32_to_cpu(key) & 0xFFFFU));
+		return;
+	}
+
 	greh = (struct gre_base_hdr *)skb->data;
 	greh->flags = gre_tnl_flags_to_gre_flags(flags);
 	greh->protocol = proto;

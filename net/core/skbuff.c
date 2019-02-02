@@ -3872,7 +3872,9 @@ void skb_complete_tx_timestamp(struct sk_buff *skb,
 	 * but only if the socket refcount is not zero.
 	 */
 	if (likely(atomic_inc_not_zero(&sk->sk_refcnt))) {
+#ifdef HAVE_HW_TIME_STAMP
 		*skb_hwtstamps(skb) = *hwtstamps;
+#endif
 		__skb_complete_tx_timestamp(skb, sk, SCM_TSTAMP_SND);
 		sock_put(sk);
 		return;
@@ -3910,9 +3912,11 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 		skb_shinfo(skb)->tskey = skb_shinfo(orig_skb)->tskey;
 	}
 
+#ifdef HAVE_HW_TIME_STAMP
 	if (hwtstamps)
 		*skb_hwtstamps(skb) = *hwtstamps;
 	else
+#endif
 		skb->tstamp = ktime_get_real();
 
 	__skb_complete_tx_timestamp(skb, sk, tstype);

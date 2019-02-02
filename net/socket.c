@@ -676,8 +676,10 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	int need_software_tstamp = sock_flag(sk, SOCK_RCVTSTAMP);
 	struct scm_timestamping tss;
 	int empty = 1;
+#ifdef HAVE_HW_TIME_STAMP
 	struct skb_shared_hwtstamps *shhwtstamps =
 		skb_hwtstamps(skb);
+#endif
 
 	/* Race occurred between timestamp enabling and packet
 	   receiving.  Fill in the current time for now. */
@@ -702,10 +704,12 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	if ((sk->sk_tsflags & SOF_TIMESTAMPING_SOFTWARE) &&
 	    ktime_to_timespec_cond(skb->tstamp, tss.ts + 0))
 		empty = 0;
+#ifdef HAVE_HW_TIME_STAMP
 	if (shhwtstamps &&
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
 	    ktime_to_timespec_cond(shhwtstamps->hwtstamp, tss.ts + 2))
 		empty = 0;
+#endif
 	if (!empty)
 		put_cmsg(msg, SOL_SOCKET,
 			 SCM_TIMESTAMPING, sizeof(tss), &tss);

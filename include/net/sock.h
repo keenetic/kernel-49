@@ -2130,7 +2130,9 @@ static inline void
 sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 {
 	ktime_t kt = skb->tstamp;
+#ifdef HAVE_HW_TIME_STAMP
 	struct skb_shared_hwtstamps *hwtstamps = skb_hwtstamps(skb);
+#endif
 
 	/*
 	 * generate control messages if
@@ -2140,9 +2142,12 @@ sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 	 */
 	if (sock_flag(sk, SOCK_RCVTSTAMP) ||
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RX_SOFTWARE) ||
-	    (kt.tv64 && sk->sk_tsflags & SOF_TIMESTAMPING_SOFTWARE) ||
-	    (hwtstamps->hwtstamp.tv64 &&
-	     (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE)))
+	    (kt.tv64 && sk->sk_tsflags & SOF_TIMESTAMPING_SOFTWARE)
+#ifdef HAVE_HW_TIME_STAMP
+	 || (hwtstamps->hwtstamp.tv64 &&
+	     (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE))
+#endif
+	    )
 		__sock_recv_timestamp(msg, sk, skb);
 	else
 		sk->sk_stamp = kt;

@@ -45,9 +45,14 @@
 #include <net/fast_vpn.h>
 #endif
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 #define PPTP_DRIVER_VERSION "0.8.5"
 
 #define MAX_CALLID 65535
+#define PPTP_SEQ_INITIAL	0xffffffff /* uint32 max */
 
 static DECLARE_BITMAP(callid_bitmap, MAX_CALLID + 1);
 static struct pppox_sock __rcu **callid_sock;
@@ -57,6 +62,8 @@ static DEFINE_SPINLOCK(chan_lock);
 static struct proto pptp_sk_proto __read_mostly;
 static const struct ppp_channel_ops pptp_chan_ops;
 static const struct proto_ops pptp_ops;
+
+static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
 
 static struct pppox_sock *lookup_chan(u16 call_id, __be32 s_addr)
 {
@@ -148,8 +155,10 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	unsigned int header_len = sizeof(*hdr);
 	struct flowi4 fl4;
 	int islcp;
+	int is_ccp;
 	int len;
 	unsigned char *data;
+	__u8 *iph_int;
 	__u32 seq_recv;
 
 
@@ -185,8 +194,18 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		skb = new_skb;
 	}
 
+	iph_int = (__u8 *)(skb->data) + 2;
 	data = skb->data;
 	islcp = ((data[0] << 8) + data[1]) == PPP_LCP && 1 <= data[2] && data[2] <= 7;
+	is_ccp = atomic_read(&opt->has_ccp);
+
+	if (!is_ccp && data[0] == 0 && data[1] == PPP_COMP) {
+		/* Turn off SEQ window feature with MPPC/MPPE */
+		atomic_set(&opt->has_ccp, 1);
+		is_ccp = 1;
+
+		printk(KERN_INFO "PPTP: turn off SEQ window because of PPP compression");
+	}
 
 	/* compress protocol field */
 	if ((opt->ppp_flags & SC_COMP_PROT) && data[0] == 0 && !islcp)
@@ -197,9 +216,21 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		data = skb_push(skb, 2);
 		data[0] = PPP_ALLSTATIONS;
 		data[1] = PPP_UI;
+
+		/* Get magic from our first outgoing LCP Echo packet from system,
+		 * and will reply with this value till reconnect */
+
+		if (PPP_PROTOCOL(data) == PPP_LCP &&
+		    data[4] == PPP_LCP_ECHOREP) {
+			/* is our PPP LCP Echo reply */
+			opt->src_addr.magic_num =
+				(data[8] << 24) + (data[9] << 16) + (data[10] << 8) + data[11];
+		}
 	}
 
 	len = skb->len;
+
+	spin_lock(&opt->seq_ack_lock);
 
 	seq_recv = opt->seq_recv;
 
@@ -214,13 +245,26 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	hdr->gre_hd.protocol = GRE_PROTO_PPP;
 	hdr->call_id = htons(opt->dst_addr.call_id);
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (unlikely(SWNAT_KA_CHECK_MARK(skb)))
+		hdr->seq = htonl(opt->seq_sent);
+	else
+#endif
 	hdr->seq = htonl(++opt->seq_sent);
+
 	if (opt->ack_sent != seq_recv)	{
 		/* send ack with this message */
 		hdr->gre_hd.flags |= GRE_ACK;
 		hdr->ack  = htonl(seq_recv);
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		if (likely(!SWNAT_KA_CHECK_MARK(skb)))
+#endif
 		opt->ack_sent = seq_recv;
 	}
+
+	spin_unlock(&opt->seq_ack_lock);
+
 	hdr->payload_len = htons(len);
 
 	/*	Push down and install the IP header. */
@@ -254,8 +298,12 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	ip_select_ident(net, skb, NULL);
 	ip_send_check(iph);
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT) && !defined(CONFIG_RA_HW_NAT_PPTP_L2TP)
+	FOE_ALG_SKIP(skb);
+#endif
+
 #if IS_ENABLED(CONFIG_FAST_NAT)
-	if (likely(!SWNAT_KA_CHECK_MARK(skb))) {
+	if (likely(!is_ccp && !SWNAT_KA_CHECK_MARK(skb))) {
 		if (SWNAT_PPP_CHECK_MARK(skb)) {
 			/* We already have PPP encap, do skip it */
 			SWNAT_FNAT_RESET_MARK(skb);
@@ -293,6 +341,7 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 	int headersize, payload_len, seq;
 	__u8 *payload;
 	struct pptp_gre_header *header;
+	int is_ccp;
 
 	if (!(sk->sk_state & PPPOX_CONNECTED)) {
 		if (sock_queue_rcv_skb(sk, skb))
@@ -300,15 +349,22 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 		return NET_RX_SUCCESS;
 	}
 
+	is_ccp = atomic_read(&opt->has_ccp);
 	header = (struct pptp_gre_header *)(skb->data);
 	headersize  = sizeof(*header);
+
+	spin_lock(&opt->seq_ack_lock);
 
 	/* test if acknowledgement present */
 	if (GRE_IS_ACK(header->gre_hd.flags)) {
 		__u32 ack;
 
-		if (!pskb_may_pull(skb, headersize))
+		if (!pskb_may_pull(skb, headersize)) {
+			spin_unlock(&opt->seq_ack_lock);
+
 			goto drop;
+		}
+
 		header = (struct pptp_gre_header *)(skb->data);
 
 		/* ack in different place if S = 0 */
@@ -316,43 +372,109 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 
 		ack = ntohl(ack);
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	    if (likely(!SWNAT_KA_CHECK_MARK(skb)))
+#endif
+	    {
 		if (ack > opt->ack_recv)
 			opt->ack_recv = ack;
 		/* also handle sequence number wrap-around  */
 		if (WRAPPED(ack, opt->ack_recv))
 			opt->ack_recv = ack;
+	    }
 	} else {
 		headersize -= sizeof(header->ack);
 	}
 	/* test if payload present */
-	if (!GRE_IS_SEQ(header->gre_hd.flags))
+	if (!GRE_IS_SEQ(header->gre_hd.flags)) {
+		spin_unlock(&opt->seq_ack_lock);
+
 		goto drop;
+	}
 
 	payload_len = ntohs(header->payload_len);
 	seq         = ntohl(header->seq);
 
 	/* check for incomplete packet (length smaller than expected) */
-	if (!pskb_may_pull(skb, headersize + payload_len))
+	if (!pskb_may_pull(skb, headersize + payload_len)) {
+		spin_unlock(&opt->seq_ack_lock);
+
 		goto drop;
+	}
 
 	payload = skb->data + headersize;
+
+	/* check for echo-request and perform fast-reply */
+	if (
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	    !SWNAT_KA_CHECK_MARK(skb) &&
+#endif
+	    (opt->src_addr.magic_num != 0) &&
+	    (payload[0] == PPP_ALLSTATIONS) &&
+	    (payload[1] == PPP_UI) &&
+	    (PPP_PROTOCOL(payload) == PPP_LCP) &&
+	    (payload[4] == PPP_LCP_ECHOREQ)) {
+		unsigned int magic = opt->src_addr.magic_num;
+
+		if (likely((seq > opt->seq_recv) || is_ccp))
+			opt->seq_recv = seq;
+
+		spin_unlock(&opt->seq_ack_lock);
+
+		payload[4] = PPP_LCP_ECHOREP; /* Set Reply flag */
+
+		/* Set our magic number */
+		payload[8] = magic >> 24;
+		payload[9] = magic >> 16;
+		payload[10] = magic >> 8;
+		payload[11] = magic;
+
+		skb_pull(skb, headersize);
+
+		opt->ppp_flags = SC_COMP_AC;
+
+		pptp_xmit(&po->chan, skb);
+
+		return NET_RX_DROP;
+	}
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT) && !defined(CONFIG_RA_HW_NAT_PPTP_L2TP)
+	FOE_ALG_SKIP(skb);
+#endif
+
 	/* check for expected sequence number */
-	if (seq < opt->seq_recv + 1 || WRAPPED(opt->seq_recv, seq)) {
+	if (unlikely((is_ccp ? seq : (seq + MISSING_WINDOW)) < (opt->seq_recv + 1) ||
+			WRAPPED(opt->seq_recv, seq))) {
 		if ((payload[0] == PPP_ALLSTATIONS) && (payload[1] == PPP_UI) &&
 				(PPP_PROTOCOL(payload) == PPP_LCP) &&
 				((payload[4] == PPP_LCP_ECHOREQ) || (payload[4] == PPP_LCP_ECHOREP)))
 			goto allow_packet;
 	} else {
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		if (likely(!SWNAT_KA_CHECK_MARK(skb) &&
+			  (is_ccp || (seq > opt->seq_recv || (opt->seq_recv == PPTP_SEQ_INITIAL &&
+							      WRAPPED(seq, opt->seq_recv))))))
+#else
+		if (likely(is_ccp || (seq > opt->seq_recv || (opt->seq_recv == PPTP_SEQ_INITIAL &&
+							      WRAPPED(seq, opt->seq_recv)))))
+#endif
 		opt->seq_recv = seq;
+
 allow_packet:
 		skb_pull(skb, headersize);
 
 		if (payload[0] == PPP_ALLSTATIONS && payload[1] == PPP_UI) {
 			/* chop off address/control */
-			if (skb->len < 3)
+			if (skb->len < 3) {
+				spin_unlock(&opt->seq_ack_lock);
+
 				goto drop;
+			}
+
 			skb_pull(skb, 2);
 		}
+
+		spin_unlock(&opt->seq_ack_lock);
 
 		if ((*skb->data) & 1) {
 			/* protocol is compressed */
@@ -365,6 +487,9 @@ allow_packet:
 
 		return NET_RX_SUCCESS;
 	}
+
+	spin_unlock(&opt->seq_ack_lock);
+
 drop:
 	kfree_skb(skb);
 	return NET_RX_DROP;
@@ -502,6 +627,8 @@ static int pptp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		goto end;
 	}
 
+	opt->src_addr.magic_num = 0;
+
 	opt->dst_addr = sp->sa_addr.pptp;
 	sk->sk_state |= PPPOX_CONNECTED;
 
@@ -597,8 +724,14 @@ static int pptp_create(struct net *net, struct socket *sock, int kern)
 	po = pppox_sk(sk);
 	opt = &po->proto.pptp;
 
-	opt->seq_sent = 0; opt->seq_recv = 0xffffffff;
-	opt->ack_recv = 0; opt->ack_sent = 0xffffffff;
+	spin_lock_init(&opt->seq_ack_lock);
+
+	opt->seq_sent = 0; opt->seq_recv = PPTP_SEQ_INITIAL;
+	opt->ack_recv = 0; opt->ack_sent = PPTP_SEQ_INITIAL;
+
+	opt->src_addr.magic_num = 0;
+
+	atomic_set(&opt->has_ccp, 0);
 
 	error = 0;
 out:

@@ -5,7 +5,7 @@
 #define PPP_LCP_ECHOREP 0x0A
 #define SC_RCV_BITS     (SC_RCV_B7_1|SC_RCV_B7_0|SC_RCV_ODDP|SC_RCV_EVNP)
 
-#define MISSING_WINDOW 20
+#define MISSING_WINDOW 4096
 #define WRAPPED(curseq, lastseq)\
 	((((curseq) & 0xffffff00) == 0) &&\
 	(((lastseq) & 0xffffff00) == 0xffffff00))

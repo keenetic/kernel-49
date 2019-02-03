@@ -28,6 +28,10 @@
 
 #include "nf_internals.h"
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_nat.h>
+#endif
+
 static DEFINE_MUTEX(afinfo_mutex);
 
 const struct nf_afinfo __rcu *nf_afinfo[NFPROTO_NUMPROTO] __read_mostly;
@@ -322,6 +326,10 @@ unsigned int nf_iterate(struct sk_buff *skb,
 		   reference here, since function can't sleep. --RR */
 repeat:
 		verdict = (*entryp)->ops.hook((*entryp)->ops.priv, skb, state);
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		if (verdict == NF_FAST_NAT)
+			return NF_FAST_NAT;
+#endif
 		if (verdict != NF_ACCEPT) {
 #ifdef CONFIG_NETFILTER_DEBUG
 			if (unlikely((verdict & NF_VERDICT_MASK)
@@ -353,6 +361,11 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state)
 	entry = rcu_dereference(state->hook_entries);
 next_hook:
 	verdict = nf_iterate(skb, state, &entry);
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (verdict == NF_FAST_NAT)
+		ret = fast_nat_path(state->net, state->sk, skb);
+	else
+#endif
 	if (verdict == NF_ACCEPT || verdict == NF_STOP) {
 		ret = 1;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_DROP) {

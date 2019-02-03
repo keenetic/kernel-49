@@ -507,14 +507,16 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			  const struct tcphdr *tcph,
 			  u_int8_t pf)
 {
-	struct net *net = nf_ct_net(ct);
-	struct nf_tcp_net *tn = tcp_pernet(net);
 	struct ip_ct_tcp_state *sender = &state->seen[dir];
 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
 	__u32 seq, ack, sack, end, win, swin;
 	s32 receiver_offset;
 	bool res, in_recv_win;
+#if !IS_ENABLED(CONFIG_RA_HW_NAT) && !IS_ENABLED(CONFIG_FAST_NAT)
+	struct net *net = nf_ct_net(ct);
+	struct nf_tcp_net *tn = tcp_pernet(net);
+#endif
 
 	if (nf_ct_tcp_no_window_check)
 		return true;
@@ -650,6 +652,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 before(sack, receiver->td_end + 1),
 		 after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1));
 
+#if !IS_ENABLED(CONFIG_RA_HW_NAT) && !IS_ENABLED(CONFIG_FAST_NAT)
 	if (before(seq, sender->td_maxend + 1) &&
 	    in_recv_win &&
 	    before(sack, receiver->td_end + 1) &&
@@ -728,6 +731,9 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			: "SEQ is under the lower bound (already ACKed data retransmitted)"
 			: "SEQ is over the upper bound (over the window of the receiver)");
 	}
+#else
+	res = true;
+#endif
 
 	pr_debug("tcp_in_window: res=%u sender end=%u maxend=%u maxwin=%u "
 		 "receiver end=%u maxend=%u maxwin=%u\n",

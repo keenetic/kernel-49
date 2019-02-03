@@ -292,7 +292,10 @@ static int ip_finish_output_gso(struct net *net, struct sock *sk,
 	return ret;
 }
 
-static int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
+#if !IS_ENABLED(CONFIG_FAST_NAT)
+static
+#endif
+int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	unsigned int mtu;
 	int ret;

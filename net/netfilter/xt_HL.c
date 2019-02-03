@@ -20,6 +20,10 @@
 #include <linux/netfilter_ipv4/ipt_TTL.h>
 #include <linux/netfilter_ipv6/ip6t_HL.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/netfilter/nf_conntrack.h>
+#endif
+
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 #include <../ndm/hw_nat/ra_nat.h>
 #endif
@@ -32,6 +36,10 @@ MODULE_LICENSE("GPL");
 static unsigned int
 ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+#endif
 	struct iphdr *iph;
 	const struct ipt_TTL_info *info = par->targinfo;
 	int new_ttl;
@@ -63,6 +71,13 @@ ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 	FOE_ALG_MARK(skb);
 #endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	ct = nf_ct_get(skb, &ctinfo);
+	if (ct)
+		ct->fast_ext = 1;
+#endif
+
 	if (new_ttl != iph->ttl) {
 		csum_replace2(&iph->check, htons(iph->ttl << 8),
 					   htons(new_ttl << 8));

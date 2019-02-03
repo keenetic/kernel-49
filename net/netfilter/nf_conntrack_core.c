@@ -61,6 +61,14 @@
 #include <../ndm/hw_nat/ra_nat.h>
 #endif
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/ip.h>
+#include <net/fast_nat.h>
+#include <net/fast_vpn.h>
+#endif
+
+#include <linux/ntc_shaper_hooks.h>
+
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
 int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
@@ -76,6 +84,11 @@ EXPORT_SYMBOL_GPL(nf_conntrack_expect_lock);
 
 struct hlist_nulls_head *nf_conntrack_hash __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_hash);
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+int nf_fastnat_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastnat_control);
+#endif
 
 struct conntrack_gc_work {
 	struct delayed_work	dwork;
@@ -1383,6 +1396,28 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 	NF_CT_ASSERT(skb->nfct);
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (!ct->fast_bind_reached) {
+		struct nf_conn_acct *acct = nf_conn_acct_find(ct);
+
+		if (likely(acct != NULL)) {
+			struct nf_conn_counter *counter = acct->counter;
+			uint64_t pkt_o, pkt_r;
+
+			pkt_r = atomic64_read(&counter[IP_CT_DIR_REPLY].packets);
+			pkt_o = atomic64_read(&counter[IP_CT_DIR_ORIGINAL].packets);
+
+			if (pkt_o > FAST_NAT_BIND_PKT_DIR_BOTH &&
+			    pkt_r > FAST_NAT_BIND_PKT_DIR_BOTH)
+				ct->fast_bind_reached = 1;
+			else if (protonum == IPPROTO_UDP &&
+				 (pkt_o > FAST_NAT_BIND_PKT_DIR_HALF ||
+				  pkt_r > FAST_NAT_BIND_PKT_DIR_HALF))
+				ct->fast_bind_reached = 1;
+		}
+	}
+#endif
+
 	/* Decide what timeout policy we want to apply to this flow. */
 	timeouts = nf_ct_timeout_lookup(net, ct, l4proto);
 
@@ -1405,10 +1440,140 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 		FOE_ALG_MARK(skb);
 #endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		ct->fast_ext = 1;
+#endif
 	}
 
-	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (pf == PF_INET &&
+	    (protonum == IPPROTO_UDP || protonum == IPPROTO_TCP) &&
+	    (ctinfo == IP_CT_ESTABLISHED || ctinfo == IP_CT_ESTABLISHED_REPLY) &&
+	    hooknum == NF_INET_PRE_ROUTING &&
+	   !ct->fast_ext &&
+	    ct->fast_bind_reached &&
+	    nf_fastnat_control &&
+	   !SWNAT_KA_CHECK_MARK(skb) &&
+	    is_nf_connection_ready_nat(ct) &&
+	    is_nf_connection_has_nat(ct)) {
+#ifdef CONFIG_NTCE_MODULE
+		typeof(ntce_pass_pkt_func) ntce_pass_pkt;
+		typeof(ntce_enq_pkt_hook_func) ntce_enq_pkt_hook;
+		unsigned int ntce_skip_swnat = 1;
+#endif
+		const struct iphdr *iph;
+		unsigned char _l4hdr[4];
+		__be32 orig_src, new_src;
+		__be16 orig_port = 0;
+#ifdef CONFIG_NF_CONNTRACK_MARK
+		u32 oldmark = skb->mark;
+#endif
+
+		iph = ip_hdr(skb);
+		orig_src = iph->saddr;
+
+		if (protonum == IPPROTO_TCP) {
+			const struct tcphdr *tcph;
+
+			/* actually only need first 4 bytes to get ports. */
+			tcph = skb_header_pointer(skb, dataoff, sizeof(_l4hdr), _l4hdr);
+			if (tcph)
+				orig_port = tcph->source;
+		} else {
+			const struct udphdr *udph;
+
+			/* actually only need first 4 bytes to get ports. */
+			udph = skb_header_pointer(skb, dataoff, sizeof(_l4hdr), _l4hdr);
+			if (udph)
+				orig_port = udph->source;
+		}
+
+#ifdef CONFIG_NF_CONNTRACK_MARK
+		if (ct->mark != 0)
+			skb->mark = ct->mark;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+		if (ct->ndm_mark != 0)
+			skb->ndm_mark = ct->ndm_mark;
+#endif
+#endif
+
+#ifdef CONFIG_NTCE_MODULE
+		/* rcu_read_lock()ed by nf_hook_thresh */
+		if ((ntce_pass_pkt = rcu_dereference(ntce_pass_pkt_func)) &&
+		    (ntce_enq_pkt_hook = rcu_dereference(ntce_enq_pkt_hook_func))) {
+			ntce_skip_swnat = ntce_pass_pkt(skb);
+			if (ntce_skip_swnat)
+				ntce_enq_pkt_hook(skb);
+		} else
+			ntce_skip_swnat = 0;
+#endif
+		ret = fast_nat_do_bind(ct, skb, l3proto, l4proto, ctinfo);
+
+		iph = ip_hdr(skb);
+		new_src = iph->saddr;
+
+		/* Get rid of junky binds, do swnat only when src IP changed */
+		if (orig_src != new_src
+#ifdef CONFIG_NTCE_MODULE
+			&& !ntce_skip_swnat
+#endif
+		    ) {
+			typeof(prebind_from_fastnat) swnat_prebind;
+
+			/* Set mark for further binds */
+			SWNAT_FNAT_SET_MARK(skb);
+
+			/* rcu_read_lock()ed by nf_hook_thresh */
+			swnat_prebind = rcu_dereference(prebind_from_fastnat);
+			if (swnat_prebind)
+				swnat_prebind(skb, orig_src, orig_port, ct, ctinfo);
+		}
+
+		if (ret == NF_FAST_NAT && orig_src != new_src) {
+			ntc_shaper_hook_fn *ntc_ingress;
+
+			/* from ntc.ko */
+			ntc_ingress = ntc_shaper_ingress_hook_get();
+			if (ntc_ingress) {
+				const struct ntc_shaper_fwd_t fwd = {
+					.saddr_ext	= ntohl(orig_src),
+					.daddr_ext	= 0,
+					.okfn_nf	= fast_nat_path,
+					.okfn_custom	= NULL,
+					.data		= NULL,
+					.net		= net,
+					.sk		= skb->sk
+				};
+				unsigned int ntc_retval;
+
+				ntc_retval = ntc_ingress(skb, &fwd);
+				if (ntc_retval == NF_ACCEPT) {
+					/* Shaper skipped that packet */
+					ret = NF_FAST_NAT;
+				} else if (ntc_retval == NF_DROP) {
+					/* Shaper tell us to drop it */
+					ret = NF_DROP;
+				} else if (ntc_retval == NF_STOLEN) {
+					/* Shaper queued packet and will handle it's destiny */
+					ret = NF_STOLEN;
+				}
+			}
+			ntc_shaper_ingress_hook_put();
+		}
+#ifdef CONFIG_NF_CONNTRACK_MARK
+		else
+			skb->mark = oldmark;
+#endif
+	}
+#endif
+
+	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		if (hooknum == NF_INET_LOCAL_OUT)
+			ct->fast_ext = 1;
+#endif
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
+	}
 out:
 	if (tmpl) {
 		/* Special case: we have to repeat this hook, assign the

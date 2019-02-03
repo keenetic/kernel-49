@@ -108,9 +108,14 @@ struct nf_conn {
 	/* If we were expected by an expectation, this will be it */
 	struct nf_conn *master;
 
-#if defined(CONFIG_NF_CONNTRACK_MARK)
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	u_int8_t fast_ext;
+	u_int8_t fast_bind_reached;
+#endif
+
+#ifdef CONFIG_NF_CONNTRACK_MARK
 	u_int8_t ndm_mark;
-	/* 24 bit hole */
+	/* 8 or 24 bit hole */
 
 	u_int32_t mark;
 #endif

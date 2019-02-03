@@ -35,6 +35,10 @@
 #include <net/netfilter/nf_conntrack_ext_mark.h>
 #include <linux/rculist_nulls.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_nat.h>
+#endif
+
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
@@ -580,6 +584,15 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	{
+		.procname	= "nf_conntrack_fastnat",
+		.data		= &nf_fastnat_control,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 	{ }
 };
 

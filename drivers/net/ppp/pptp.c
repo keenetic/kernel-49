@@ -41,6 +41,10 @@
 
 #include <linux/uaccess.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 #define PPTP_DRIVER_VERSION "0.8.5"
 
 #define MAX_CALLID 65535
@@ -249,6 +253,30 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	skb->ip_summed = CHECKSUM_NONE;
 	ip_select_ident(net, skb, NULL);
 	ip_send_check(iph);
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (likely(!SWNAT_KA_CHECK_MARK(skb))) {
+		if (SWNAT_PPP_CHECK_MARK(skb)) {
+			/* We already have PPP encap, do skip it */
+			SWNAT_FNAT_RESET_MARK(skb);
+			SWNAT_PPP_RESET_MARK(skb);
+		} else if (SWNAT_FNAT_CHECK_MARK(skb)) {
+			typeof(prebind_from_pptptx) swnat_prebind;
+
+			rcu_read_lock();
+			swnat_prebind = rcu_dereference(prebind_from_pptptx);
+			if (likely(swnat_prebind != NULL)) {
+				sock_hold(sk);
+				swnat_prebind(skb, (struct iphdr *)iph_int, sk,
+					      iph->saddr, iph->daddr);
+
+				SWNAT_FNAT_RESET_MARK(skb);
+				SWNAT_PPP_SET_MARK(skb);
+			}
+			rcu_read_unlock();
+		}
+	}
+#endif
 
 	ip_local_out(net, skb->sk, skb);
 	return 1;

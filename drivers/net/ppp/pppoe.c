@@ -85,6 +85,10 @@
 
 #include <asm/uaccess.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 #define PPPOE_HASH_BITS 4
 #define PPPOE_HASH_SIZE (1 << PPPOE_HASH_BITS)
 #define PPPOE_HASH_MASK	(PPPOE_HASH_SIZE - 1)
@@ -957,6 +961,29 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 
 	skb->protocol = cpu_to_be16(ETH_P_PPP_SES);
 	skb->dev = dev;
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (likely(!SWNAT_KA_CHECK_MARK(skb))) {
+		if (SWNAT_PPP_CHECK_MARK(skb)) {
+			/* We already have PPP encap, do skip it */
+			SWNAT_FNAT_RESET_MARK(skb);
+			SWNAT_PPP_RESET_MARK(skb);
+		} else if (SWNAT_FNAT_CHECK_MARK(skb)) {
+			typeof(prebind_from_pppoetx) swnat_prebind;
+
+			rcu_read_lock();
+			swnat_prebind = rcu_dereference(prebind_from_pppoetx);
+			if (likely(swnat_prebind != NULL)) {
+				sock_hold(sk);
+				swnat_prebind(skb, sk, ph->sid);
+
+				SWNAT_FNAT_RESET_MARK(skb);
+				SWNAT_PPP_SET_MARK(skb);
+			}
+			rcu_read_unlock();
+		}
+	}
+#endif
 
 	dev_hard_header(skb, dev, ETH_P_PPP_SES,
 			po->pppoe_pa.remote, NULL, data_len);

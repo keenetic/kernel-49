@@ -104,6 +104,10 @@
 
 #include "l2tp_core.h"
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 #define PPPOL2TP_DRV_VERSION	"V2.0"
 
 /* Space for UDP, L2TP and PPP headers */
@@ -399,6 +403,46 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		   2;			/* 2 bytes for PPP_ALLSTATIONS & PPP_UI */
 	if (skb_cow_head(skb, headroom))
 		goto abort_put_sess_tun;
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (likely(!SWNAT_KA_CHECK_MARK(skb))) {
+		if (SWNAT_PPP_CHECK_MARK(skb)) {
+			/* We already have PPP encap, do skip it */
+			SWNAT_FNAT_RESET_MARK(skb);
+			SWNAT_PPP_RESET_MARK(skb);
+		} else if (SWNAT_FNAT_CHECK_MARK(skb) &&
+			   uhlen > 0 &&
+			   !session->lns_mode &&
+			   !session->send_seq &&
+			   tunnel->sock) {
+			typeof(prebind_from_l2tptx) swnat_prebind;
+
+			rcu_read_lock();
+			swnat_prebind = rcu_dereference(prebind_from_l2tptx);
+			if (likely(swnat_prebind != NULL)) {
+				struct inet_sock *inet = inet_sk(tunnel->sock);
+
+				sock_hold(sk);
+				swnat_prebind(skb,
+					sk,
+					htons(tunnel->peer_tunnel_id),
+					htons(session->peer_session_id),
+					htons(tunnel->tunnel_id),
+					htons(session->session_id),
+					inet->inet_saddr,
+					inet->inet_daddr,
+					inet->inet_sport,
+					inet->inet_dport);
+
+				SWNAT_FNAT_RESET_MARK(skb);
+				SWNAT_PPP_SET_MARK(skb);
+			}
+			rcu_read_unlock();
+		} else {
+			SWNAT_FNAT_RESET_MARK(skb);
+		}
+	}
+#endif
 
 	/* Setup PPP header */
 	__skb_push(skb, 2);

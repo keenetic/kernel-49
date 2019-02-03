@@ -46,6 +46,10 @@
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 #define DRIVER_VERSION		"22-Aug-2005"
 
 
@@ -338,6 +342,21 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 
 	if (skb_defer_rx_timestamp(skb))
 		return;
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (!(dev->driver_info->flags & FLAG_MULTI_PACKET) &&
+	     (dev->driver_info->flags & FLAG_ETHER)) {
+		typeof(go_swnat) swnat;
+
+		rcu_read_lock();
+		swnat = rcu_dereference(go_swnat);
+		if (swnat && swnat(skb, SWNAT_ORIGIN_USB_MAC)) {
+			rcu_read_unlock();
+			return;
+		}
+		rcu_read_unlock();
+	}
+#endif
 
 	status = netif_rx (skb);
 	if (status != NET_RX_SUCCESS)
@@ -1361,8 +1380,27 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 	unsigned long		flags;
 	int retval;
 
-	if (skb)
+	if (skb) {
 		skb_tx_timestamp(skb);
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		if (unlikely(SWNAT_KA_CHECK_MARK(skb)))
+			goto not_drop;
+
+		if (!(info->flags & FLAG_MULTI_PACKET) &&
+		     (info->flags & FLAG_ETHER) &&
+		     (SWNAT_PPP_CHECK_MARK(skb) ||
+		      SWNAT_FNAT_CHECK_MARK(skb))) {
+			typeof(prebind_from_usb_mac) swnat_prebind;
+
+			rcu_read_lock();
+			swnat_prebind = rcu_dereference(prebind_from_usb_mac);
+			if (likely(swnat_prebind != NULL))
+				swnat_prebind(skb);
+			rcu_read_unlock();
+		}
+#endif
+	}
 
 	// some devices want funky USB-level framing, for
 	// win32 driver (usually) and/or hardware quirks

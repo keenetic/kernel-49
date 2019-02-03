@@ -127,3 +127,12 @@ void unregister_net_sysctl_table(struct ctl_table_header *header)
 	unregister_sysctl_table(header);
 }
 EXPORT_SYMBOL_GPL(unregister_net_sysctl_table);
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+struct ctl_table_header *
+register_init_net_sysctl(const char *path, struct ctl_table *table)
+{
+	return __register_sysctl_table(&init_net.sysctls, path, table);
+}
+EXPORT_SYMBOL(register_init_net_sysctl);
+#endif

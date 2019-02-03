@@ -1511,7 +1511,10 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 EXPORT_SYMBOL(rt_dst_alloc);
 
 /* called in rcu_read_lock() section */
-static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
+#if !IS_ENABLED(CONFIG_FAST_NAT)
+static
+#endif
+int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 				u8 tos, struct net_device *dev, int our)
 {
 	struct rtable *rth;
@@ -1571,6 +1574,9 @@ e_inval:
 e_err:
 	return err;
 }
+#if IS_ENABLED(CONFIG_FAST_NAT)
+EXPORT_SYMBOL(ip_route_input_mc);
+#endif
 
 
 static void ip_handle_martian_source(struct net_device *dev,

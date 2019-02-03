@@ -5,6 +5,49 @@
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+/* fastvpn */
+int (*go_swnat)(struct sk_buff *skb, u8 origin) = NULL;
+EXPORT_SYMBOL(go_swnat);
+
+void (*prebind_from_raeth)(struct sk_buff *skb) = NULL;
+EXPORT_SYMBOL(prebind_from_raeth);
+
+void (*prebind_from_usb_mac)(struct sk_buff *skb) = NULL;
+EXPORT_SYMBOL(prebind_from_usb_mac);
+
+void (*prebind_from_fastnat)(struct sk_buff *skb,
+			     __be32 orig_saddr,
+			     __be16 orig_sport,
+			     struct nf_conn *ct,
+			     enum ip_conntrack_info ctinfo) = NULL;
+EXPORT_SYMBOL(prebind_from_fastnat);
+
+void (*prebind_from_l2tptx)(struct sk_buff *skb,
+			    struct sock *sock,
+			    __be16 l2w_tid,
+			    __be16 l2w_sid,
+			    __be16 w2l_tid,
+			    __be16 w2l_sid,
+			    __be32 saddr,
+			    __be32 daddr,
+			    __be16 sport,
+			    __be16 dport) = NULL;
+EXPORT_SYMBOL(prebind_from_l2tptx);
+
+void (*prebind_from_pptptx)(struct sk_buff *skb,
+			    struct iphdr *iph_int,
+			    struct sock *sock,
+			    __be32 saddr,
+			    __be32 daddr) = NULL;
+EXPORT_SYMBOL(prebind_from_pptptx);
+
+void (*prebind_from_pppoetx)(struct sk_buff *skb,
+			     struct sock *sock,
+			     __be16 sid) = NULL;
+EXPORT_SYMBOL(prebind_from_pppoetx);
+#endif
+
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 int (*ra_sw_nat_hook_rx)(struct sk_buff *skb) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_hook_rx);

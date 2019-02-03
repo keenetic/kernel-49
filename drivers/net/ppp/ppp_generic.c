@@ -55,6 +55,10 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 #define PPP_VERSION	"2.4.2"
 
 /*

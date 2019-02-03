@@ -1268,6 +1268,10 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	hash = hash_conntrack_raw(&tuple, net);
 	h = __nf_conntrack_find_get(net, zone, &tuple, hash);
 	if (!h) {
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		if (unlikely(SWNAT_KA_CHECK_MARK(skb)))
+			return NULL;
+#endif
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 		if (unlikely(FOE_SKB_IS_KEEPALIVE(skb)))
 			return NULL;

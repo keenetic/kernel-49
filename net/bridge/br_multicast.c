@@ -119,6 +119,9 @@ struct net_bridge_mdb_entry *br_mdb_ip_get(struct net_bridge_mdb_htable *mdb,
 
 	return __br_mdb_ip_get(mdb, dst, br_ip_hash(mdb, dst));
 }
+#if IS_ENABLED(CONFIG_FAST_NAT)
+EXPORT_SYMBOL(br_mdb_ip_get);
+#endif
 
 static struct net_bridge_mdb_entry *br_mdb_ip4_get(
 	struct net_bridge_mdb_htable *mdb, __be32 dst, __u16 vid)

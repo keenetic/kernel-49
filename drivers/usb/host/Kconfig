@@ -29,7 +29,7 @@ config USB_XHCI_HCD
 if USB_XHCI_HCD
 
 config USB_XHCI_PCI
-       tristate
+       tristate "xHCI support for PCI-bus USB controllers"
        depends on PCI
        default y
 

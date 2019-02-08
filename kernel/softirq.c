@@ -316,6 +316,7 @@ restart:
 	tsk_restore_flags(current, old_flags, PF_MEMALLOC);
 }
 
+__IMEM
 asmlinkage __visible void do_softirq(void)
 {
 	__u32 pending;
@@ -337,6 +338,7 @@ asmlinkage __visible void do_softirq(void)
 /*
  * Enter an interrupt context.
  */
+__IMEM
 void irq_enter(void)
 {
 	rcu_irq_enter();
@@ -395,6 +397,7 @@ static inline void tick_irq_exit(void)
 /*
  * Exit an interrupt context. Process softirqs if needed and possible:
  */
+__IMEM
 void irq_exit(void)
 {
 #ifndef __ARCH_IRQ_EXIT_IRQS_DISABLED
@@ -433,6 +436,7 @@ inline void raise_softirq_irqoff(unsigned int nr)
 		wakeup_softirqd();
 }
 
+__IMEM
 void raise_softirq(unsigned int nr)
 {
 	unsigned long flags;

@@ -96,8 +96,12 @@
 #define RALINK_PCIEPHY_P0P1_CTL_OFFSET	(RALINK_PCI_BASE + 0x9000)
 #define RALINK_PCIEPHY_P2_CTL_OFFSET	(RALINK_PCI_BASE + 0xA000)
 
+#elif defined(CONFIG_ECONET_EN75XX_MP)
+
+/* pci_en75xx.c */
+
 #else
-#error "Ralink chip undefined in PCI"
+#error "Ralink chip undefined for PCI MEM map"
 #endif
 
 #endif

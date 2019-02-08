@@ -1,0 +1,35 @@
+if MIPS_TC3262
+
+config PCIE_PORT1
+	bool "Second PCIe port support"
+	default n
+
+#--------------------------
+
+if (ECONET_EN7512 || ECONET_EN7516)
+
+config TC3162_ADSL
+	bool "Enable ADSL support"
+	default n
+
+config RALINK_VDSL
+	bool "Enable VDSL support"
+	default n
+
+endif
+
+#--------------------------
+
+if !MIPS_TC3262_1004K
+
+config TC3262_IMEM
+	bool "Enable SPRAM IMEM"
+	default y
+
+endif
+
+config TC3262_CPU_TIMER
+	bool "Use CPU External Timer (per-VPE)"
+	default y
+
+endif # MIPS_TC3262

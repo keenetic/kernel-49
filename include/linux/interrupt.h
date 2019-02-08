@@ -700,11 +700,16 @@ extern int early_irq_init(void);
 extern int arch_probe_nr_irqs(void);
 extern int arch_early_irq_init(void);
 
+#ifdef CONFIG_TC3262_IMEM
+#define __irq_entry		__IMEM
+#define __softirq_entry		__IMEM
+#else
 /*
  * We want to know which function is an entrypoint of a hardirq or a softirq.
  */
 #define __irq_entry		 __attribute__((__section__(".irqentry.text")))
 #define __softirq_entry  \
 	__attribute__((__section__(".softirqentry.text")))
+#endif
 
 #endif

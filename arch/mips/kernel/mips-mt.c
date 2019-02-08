@@ -123,6 +123,16 @@ static int mt_opt_rpsctl = -1;
 static int mt_opt_nblsu = -1;
 static int mt_opt_forceconfig7;
 static int mt_opt_config7 = -1;
+#ifdef CONFIG_MIPS_TC3262_34K
+static int mt_opt_es;
+
+static int __init es_set(char *str)
+{
+	get_option(&str, &mt_opt_es);
+	return 1;
+}
+__setup("es=", es_set);
+#endif
 
 static int __init rps_disable(char *s)
 {
@@ -201,6 +211,15 @@ void mips_mt_set_cpuoptions(void)
 {
 	unsigned int oconfig7 = read_c0_config7();
 	unsigned int nconfig7 = oconfig7;
+
+#ifdef CONFIG_MIPS_TC3262_34K
+	if (mt_opt_es >= 0) {
+		if (mt_opt_es)
+			nconfig7 |= (1 << 8);
+		else
+			nconfig7 &= ~(1 << 8);
+	}
+#endif
 
 	if (mt_opt_norps) {
 		printk("\"norps\" option deprecated: use \"rpsctl=\"\n");

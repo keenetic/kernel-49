@@ -1663,6 +1663,11 @@ config SERIAL_MVEBU_CONSOLE
 	  and warnings and which allows logins in single user mode)
 	  Otherwise, say 'N'.
 
+config SERIAL_TC3162
+	bool "TC3162/TC3262 serial port support"
+	depends on MIPS_TC3262
+	select SERIAL_CORE
+
 endmenu
 
 config SERIAL_MCTRL_GPIO

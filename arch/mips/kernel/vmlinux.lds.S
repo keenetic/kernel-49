@@ -11,6 +11,10 @@
 
 #include <asm-generic/vmlinux.lds.h>
 
+#ifdef CONFIG_TC3262_IMEM
+#define TC3262_IMEM_SIZE 65536
+#endif
+
 #undef mips
 #define mips mips
 OUTPUT_ARCH(mips)
@@ -53,7 +57,9 @@ SECTIONS
 	/* read-only */
 	_text = .;	/* Text and read-only data */
 	.text : {
+#ifndef CONFIG_MIPS_TC3262
 		. = . + 0x8000;
+#endif
 		TEXT_TEXT
 		SCHED_TEXT
 		CPUIDLE_TEXT
@@ -65,7 +71,17 @@ SECTIONS
 		*(.fixup)
 		*(.gnu.warning)
 	} :text = 0
+
+#ifdef CONFIG_TC3262_IMEM
+	. = ALIGN(32768);
+	__imem = . ;
+	.imem_text : { *(.imem_text) }
+	_imem_end = .;
+	_etext = (__imem + TC3262_IMEM_SIZE) > . ? (__imem + TC3262_IMEM_SIZE) : .;
+	. = _etext;
+#else
 	_etext = .;	/* End of text section */
+#endif
 
 	EXCEPTION_TABLE(16)
 

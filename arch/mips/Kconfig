@@ -70,6 +70,42 @@ config MIPS
 
 menu "Machine selection"
 
+config ECONET_EN75XX_MP
+	bool
+
+config MIPS_TC3262_34K
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_SMP
+	bool
+
+config MIPS_TC3262_1004K
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_MIPS_CMP
+	select SYS_SUPPORTS_MIPS_CPS
+	select SYS_SUPPORTS_HIGHMEM
+	select MIPS_CPU_SCACHE
+	select MIPS_GIC
+	select IRQ_MIPS_CPU
+	select WEAK_REORDERING_BEYOND_LLSC
+	bool
+
+config MIPS_TC3262
+	bool
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select BOOT_RAW
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select CSRC_R4K
+	select CEVT_R4K
+	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_IRQ_EI
+	select NO_EXCEPT_FILL
+
 choice
 	prompt "System type"
 	default RALINK_MT7621
@@ -171,6 +207,24 @@ config RALINK_MT7628
 	select CPU_MIPSR2_IRQ_VI
 	help
 	  Ralink evaluation board based on MT7628
+
+config ECONET_EN7512
+	bool "EcoNET EN7512/3 board"
+	select MIPS_TC3262
+	select MIPS_TC3262_34K
+	select ECONET_EN75XX_MP
+	select SYS_SUPPORTS_BIG_ENDIAN
+	help
+	  EcoNET evaluation board based on EN7512/3
+
+config ECONET_EN7516
+	bool "EcoNET EN7516 board"
+	select MIPS_TC3262
+	select MIPS_TC3262_1004K
+	select ECONET_EN75XX_MP
+	select SYS_SUPPORTS_BIG_ENDIAN
+	help
+	  EcoNET evaluation board based on EN7516
 
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
@@ -1065,6 +1119,7 @@ source "arch/mips/ralink/Kconfig"
 source "arch/mips/rt2880/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
+source "arch/mips/tc3262/Kconfig"
 source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 source "arch/mips/cavium-octeon/Kconfig"

@@ -239,7 +239,7 @@ int mips_cm_probe(void)
 
 	/* disable CM regions */
 	write_gcr_reg0_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-#if !defined(CONFIG_RALINK_MT7621)
+#if !defined(CONFIG_RALINK_MT7621) && !defined(CONFIG_MIPS_TC3262_1004K)
 	write_gcr_reg0_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
 	write_gcr_reg1_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
 	write_gcr_reg1_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);

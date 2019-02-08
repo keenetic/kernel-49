@@ -1,0 +1,9 @@
+#
+# Econet EN75xx boards
+#
+platform-$(CONFIG_MIPS_TC3262)		+= tc3262/
+cflags-$(CONFIG_MIPS_TC3262)		+= -I$(srctree)/arch/mips/include/asm/tc3162/
+cflags-$(CONFIG_MIPS_TC3262_34K)	+= -mtune=34kc
+cflags-$(CONFIG_MIPS_TC3262_1004K)	+= -mtune=1004kc
+load-$(CONFIG_MIPS_TC3262)		+= 0xffffffff80020000
+all-$(CONFIG_MIPS_TC3262)		:= $(COMPRESSION_FNAME).bin

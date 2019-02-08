@@ -1612,6 +1612,9 @@ do {									\
 #define read_c0_taglo()		__read_32bit_c0_register($28, 0)
 #define write_c0_taglo(val)	__write_32bit_c0_register($28, 0, val)
 
+#define read_c0_idatalo()	__read_32bit_c0_register($28, 1)
+#define write_c0_idatalo(val)	__write_32bit_c0_register($28, 1, val)
+
 #define read_c0_dtaglo()	__read_32bit_c0_register($28, 2)
 #define write_c0_dtaglo(val)	__write_32bit_c0_register($28, 2, val)
 
@@ -1623,6 +1626,9 @@ do {									\
 
 #define read_c0_taghi()		__read_32bit_c0_register($29, 0)
 #define write_c0_taghi(val)	__write_32bit_c0_register($29, 0, val)
+
+#define read_c0_idatahi()	__read_32bit_c0_register($29, 1)
+#define write_c0_idatahi(val)	__write_32bit_c0_register($29, 1, val)
 
 #define read_c0_errorepc()	__read_ulong_c0_register($30, 0)
 #define write_c0_errorepc(val)	__write_ulong_c0_register($30, 0, val)

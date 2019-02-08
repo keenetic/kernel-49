@@ -32,7 +32,7 @@
 #include "xhci.h"
 #include "xhci-mtk.h"
 
-#if defined(CONFIG_RALINK_MT7621)
+#if defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ECONET_EN75XX_MP)
 #include <soc/ralink/dev_xhci.h>
 #endif
 
@@ -92,7 +92,7 @@ enum ssusb_wakeup_src {
 	SSUSB_WK_LINE_STATE = 2,
 };
 
-#if defined(CONFIG_RALINK_MT7621)
+#if defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ECONET_EN75XX_MP)
 static void xhci_plat_uphy_init(struct xhci_hcd_mtk *mtk)
 {
 	struct xhci_mtk_pdata *pdata = dev_get_platdata(mtk->dev);
@@ -164,7 +164,7 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 		return ret;
 	}
 
-#if defined(CONFIG_RALINK_MT7621)
+#if defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ECONET_EN75XX_MP)
 	xhci_plat_uphy_init(mtk);
 #endif
 	return 0;
@@ -639,7 +639,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		mtk->num_phys = 0;
 	}
 
-#if defined(CONFIG_RALINK_MT7621)
+#if defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ECONET_EN75XX_MP)
 	xhci_plat_caps_fill(mtk);
 #endif
 	pm_runtime_enable(dev);

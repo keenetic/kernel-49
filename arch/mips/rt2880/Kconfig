@@ -70,7 +70,7 @@ config RT2880_DRAM_256M
 
 config RT2880_DRAM_512M
 	bool "512M (448M + 64M Highmem)"
-	depends on RALINK_MT7621
+	depends on (RALINK_MT7621 || MIPS_TC3262_1004K)
 	select LONG_CALLS
 
 endchoice
@@ -113,6 +113,7 @@ config  RALINK_UART_BRATE
 
 config  RALINK_TIMER_DFS
 	tristate "Ralink DFS Timer"
+	depends on !MIPS_TC3262
 	default n
 
 config  RALINK_TIMER_WDG
@@ -122,6 +123,7 @@ config  RALINK_TIMER_WDG
 config  RALINK_TIMER_WDG_RESET_OUTPUT
 	bool "Ralink WatchDog Reset Output GPIO Pin"
 	depends on RALINK_TIMER_WDG
+	depends on !MIPS_TC3262
 	default n
 
 config  RALINK_TIMER_WDG_REBOOT_DELAY

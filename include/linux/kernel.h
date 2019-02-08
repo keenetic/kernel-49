@@ -41,6 +41,12 @@
 #define S64_MAX		((s64)(U64_MAX>>1))
 #define S64_MIN		((s64)(-S64_MAX - 1))
 
+#ifdef CONFIG_TC3262_IMEM
+#define __IMEM  __attribute__  ((__section__(".imem_text")))
+#else
+#define __IMEM
+#endif
+
 #define STACK_MAGIC	0xdeadbeef
 
 #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))

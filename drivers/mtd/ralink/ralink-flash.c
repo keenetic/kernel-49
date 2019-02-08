@@ -14,6 +14,9 @@
 int ra_check_flash_type(void)
 {
 	int boot_from = BOOT_FROM_SPI;
+#if defined(CONFIG_ECONET_EN75XX_MP)
+	/* todo */
+#else
 	uint8_t Id[8];
 	uint32_t chip_mode;
 
@@ -43,7 +46,7 @@ int ra_check_flash_type(void)
 	else
 #endif
 		printk(KERN_ERR "%s: %s is not supported\n", __func__, Id);
-
+#endif
 	return boot_from;
 }
 

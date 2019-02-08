@@ -13,6 +13,12 @@ choice
 
 	config MTD_SPI_RALINK
 		bool "SPI NOR Flash"
+		depends on !ECONET_EN75XX_MP
+
+	config MTD_SPINAND_ECONET
+		bool "SPI NAND Flash"
+		depends on ECONET_EN75XX_MP
+		select MTD_NAND
 
 	config MTD_NAND_MT7621
 		bool "NAND Flash"

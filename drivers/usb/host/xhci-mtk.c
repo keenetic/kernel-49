@@ -32,6 +32,10 @@
 #include "xhci.h"
 #include "xhci-mtk.h"
 
+#if defined(CONFIG_RALINK_MT7621)
+#include <soc/ralink/dev_xhci.h>
+#endif
+
 /* ip_pw_ctrl0 register */
 #define CTRL0_IP_SW_RST	BIT(0)
 
@@ -88,6 +92,24 @@ enum ssusb_wakeup_src {
 	SSUSB_WK_LINE_STATE = 2,
 };
 
+#if defined(CONFIG_RALINK_MT7621)
+static void xhci_plat_uphy_init(struct xhci_hcd_mtk *mtk)
+{
+	struct xhci_mtk_pdata *pdata = dev_get_platdata(mtk->dev);
+
+	if (pdata && pdata->uphy_init)
+		pdata->uphy_init();
+}
+
+static void xhci_plat_caps_fill(struct xhci_hcd_mtk *mtk)
+{
+	struct xhci_mtk_pdata *pdata = dev_get_platdata(mtk->dev);
+
+	if (pdata)
+		mtk->lpm_support = pdata->usb3_lpm_capable;
+}
+#endif
+
 static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 {
 	struct mu3c_ippc_regs __iomem *ippc = mtk->ippc_regs;
@@ -142,6 +164,9 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 		return ret;
 	}
 
+#if defined(CONFIG_RALINK_MT7621)
+	xhci_plat_uphy_init(mtk);
+#endif
 	return 0;
 }
 
@@ -613,6 +638,10 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	} else {
 		mtk->num_phys = 0;
 	}
+
+#if defined(CONFIG_RALINK_MT7621)
+	xhci_plat_caps_fill(mtk);
+#endif
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	device_enable_async_suspend(dev);

@@ -2,13 +2,13 @@ config MIPS
 	bool
 	default y
 	select ARCH_SUPPORTS_UPROBES
-	select ARCH_MIGHT_HAVE_PC_PARPORT
+#	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
 	select ARCH_USE_BUILTIN_BSWAP
 	select HAVE_CONTEXT_TRACKING
-	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_IDE
+#	select HAVE_GENERIC_DMA_COHERENT
+#	select HAVE_IDE
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
@@ -38,7 +38,7 @@ config MIPS
 	select GENERIC_PCI_IOMAP
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select IRQ_FORCED_THREADING
+#	select IRQ_FORCED_THREADING
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select ARCH_DISCARD_MEMBLOCK
@@ -72,7 +72,7 @@ menu "Machine selection"
 
 choice
 	prompt "System type"
-	default SGI_IP22
+	default RALINK_MT7621
 
 config MIPS_GENERIC
 	bool "Generic board-agnostic MIPS kernel"
@@ -125,6 +125,52 @@ config MIPS_GENERIC
 	  generally using a flattened device tree passed from the bootloader
 	  using the boot protocol defined in the UHI (Unified Hosting
 	  Interface) specification.
+
+config RALINK_MT7621
+	bool "Ralink MT7621 board"
+	select DMA_NONCOHERENT
+#	select DMA_MAYBE_COHERENT
+	select IRQ_MIPS_CPU
+	select HW_HAS_PCI
+	select SWAP_IO_SPACE
+	select BOOT_ELF32
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_HIGHMEM
+	select CSRC_R4K
+	select CEVT_R4K
+	select MIPS_CPU_SCACHE
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_MIPS_CMP
+	select SYS_SUPPORTS_MIPS_CPS
+	select MIPS_GIC
+	select WEAK_REORDERING_BEYOND_LLSC
+	help
+	  Ralink evaluation board based on MT7621
+
+config RALINK_MT7628
+	bool "Ralink MT7628 board"
+	select DMA_NONCOHERENT
+	select IRQ_MIPS_CPU
+	select HW_HAS_PCI
+	select SWAP_IO_SPACE
+	select BOOT_ELF32
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_MIPS16
+	select CSRC_R4K
+	select CEVT_R4K
+	select CPU_MIPSR2_IRQ_VI
+	help
+	  Ralink evaluation board based on MT7628
 
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
@@ -1016,6 +1062,7 @@ source "arch/mips/pic32/Kconfig"
 source "arch/mips/pistachio/Kconfig"
 source "arch/mips/pmcs-msp71xx/Kconfig"
 source "arch/mips/ralink/Kconfig"
+source "arch/mips/rt2880/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
 source "arch/mips/txx9/Kconfig"
@@ -3156,11 +3203,11 @@ endmenu
 menu "Power management options"
 
 config ARCH_HIBERNATION_POSSIBLE
-	def_bool y
+	def_bool n
 	depends on SYS_SUPPORTS_HOTPLUG_CPU || !SMP
 
 config ARCH_SUSPEND_POSSIBLE
-	def_bool y
+	def_bool n
 	depends on SYS_SUPPORTS_HOTPLUG_CPU || !SMP
 
 source "kernel/power/Kconfig"

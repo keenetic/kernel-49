@@ -288,8 +288,8 @@ static inline struct br2684_vcc *pick_outgoing_vcc(const struct sk_buff *skb,
 	return list_empty(&brdev->brvccs) ? NULL : list_entry_brvcc(brdev->brvccs.next);	/* 1 vcc/dev right now */
 }
 
-static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
-				     struct net_device *dev)
+netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
+			      struct net_device *dev)
 {
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct br2684_vcc *brvcc;
@@ -342,6 +342,7 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 	read_unlock(&devs_lock);
 	return ret;
 }
+EXPORT_SYMBOL(br2684_start_xmit);
 
 /*
  * We remember when the MAC gets set, so we don't override it later with

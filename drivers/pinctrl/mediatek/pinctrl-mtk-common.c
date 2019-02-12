@@ -961,7 +961,7 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
 
 	if (pctl->devdata->pin_dir_grps)
-		return mtk_pinctrl_get_gpio_direction(pctl, offset);
+		return !mtk_pinctrl_get_gpio_direction(pctl, offset);
 
 	reg_addr =  mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
 	bit = BIT(offset & 0xf);

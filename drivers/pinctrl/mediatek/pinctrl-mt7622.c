@@ -186,6 +186,7 @@ static const struct mtk_pinctrl_devdata mt7622_pinctrl_data = {
 		.port_mask = 7,
 		.ports     = 7,
 	},
+	.ies_offset = MTK_PINCTRL_NOT_SUPPORT,
 	.ap_num = 213,
 	.db_cnt = 20,
 };

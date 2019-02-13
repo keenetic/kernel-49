@@ -65,8 +65,10 @@ SECTIONS
 		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+#ifndef CONFIG_TC3262_IMEM
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
+#endif
 		*(.text.*)
 		*(.fixup)
 		*(.gnu.warning)

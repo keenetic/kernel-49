@@ -3249,6 +3249,12 @@ void ppp_stats_reset(struct net_device *dev)
 		stats->tx_packets = 0;
 		u64_stats_update_end(&stats->syncp);
 	}
+
+	dev->stats.tx_errors = 0;
+	dev->stats.tx_dropped = 0;
+	dev->stats.rx_errors = 0;
+	dev->stats.rx_dropped = 0;
+
 	ppp_unlock(ppp);
 }
 

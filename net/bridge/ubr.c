@@ -383,6 +383,38 @@ ubr_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	return stats;
 }
 
+void ubr_reset_stats(struct net_device *dev)
+{
+	int cpu;
+	struct ubr_private *ubr = netdev_priv(dev);
+
+	if (!is_ubridge(dev) || ubr == NULL)
+		return;
+
+	local_bh_disable();
+
+	for_each_possible_cpu(cpu) {
+		const struct pcpu_sw_netstats *ustats;
+
+		ustats = per_cpu_ptr(ubr->stats, cpu);
+
+		u64_stats_update_begin(&ustats->syncp);
+		ustats->rx_bytes = 0;
+		ustats->rx_packets = 0;
+		ustats->tx_bytes = 0;
+		ustats->tx_packets = 0;
+		u64_stats_update_end(&ustats->syncp);
+	}
+
+	dev->stats.tx_errors = 0;
+	dev->stats.tx_dropped = 0;
+	dev->stats.rx_errors = 0;
+	dev->stats.rx_dropped = 0;
+
+	local_bh_enable();
+}
+EXPORT_SYMBOL(ubr_reset_stats);
+
 static int
 ubr_set_mac_addr(struct net_device *master_dev, struct sockaddr *addr)
 {

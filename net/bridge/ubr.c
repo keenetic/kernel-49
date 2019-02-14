@@ -394,9 +394,7 @@ void ubr_reset_stats(struct net_device *dev)
 	local_bh_disable();
 
 	for_each_possible_cpu(cpu) {
-		const struct pcpu_sw_netstats *ustats;
-
-		ustats = per_cpu_ptr(ubr->stats, cpu);
+		struct pcpu_sw_netstats *ustats = per_cpu_ptr(ubr->stats, cpu);
 
 		u64_stats_update_begin(&ustats->syncp);
 		ustats->rx_bytes = 0;

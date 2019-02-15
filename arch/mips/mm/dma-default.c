@@ -274,13 +274,8 @@ static inline void __dma_sync(struct page *page,
 		if (PageHighMem(page)) {
 			void *addr;
 
-			if (offset + len > PAGE_SIZE) {
-				if (offset >= PAGE_SIZE) {
-					page += offset >> PAGE_SHIFT;
-					offset &= ~PAGE_MASK;
-				}
+			if (offset + len > PAGE_SIZE)
 				len = PAGE_SIZE - offset;
-			}
 
 			addr = kmap_atomic(page);
 			__dma_sync_virtual(addr + offset, len, direction);

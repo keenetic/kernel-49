@@ -2121,7 +2121,7 @@ static int __init zram_init(void)
 
 	zram_debugfs_create();
 	zram_major = ZRAM_MAJOR;
-	if (register_blkdev(zram_major, "zram") <= 0) {
+	if (register_blkdev(zram_major, "zram")) {
 		pr_err("Unable to get major number\n");
 		class_unregister(&zram_control_class);
 		return -EBUSY;
@@ -2157,3 +2157,4 @@ MODULE_PARM_DESC(num_devices, "Number of pre-created zram devices");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
 MODULE_DESCRIPTION("Compressed RAM Block Device");
+MODULE_ALIAS_BLOCKDEV_MAJOR(ZRAM_MAJOR);

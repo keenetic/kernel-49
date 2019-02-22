@@ -26,6 +26,15 @@
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/netfilter/nf_nat_l4proto.h>
 
+#include <net/fast_vpn.h>
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <linux/netfilter/nf_conntrack_common.h>
+#endif
+#include <uapi/linux/netfilter/xt_ndmmark.h>
+
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4;
 
 #ifdef CONFIG_XFRM
@@ -354,17 +363,30 @@ nf_nat_ipv4_out(void *priv, struct sk_buff *skb,
 					  const struct nf_hook_state *state,
 					  struct nf_conn *ct))
 {
-#ifdef CONFIG_XFRM
-	const struct nf_conn *ct;
+#if IS_ENABLED(CONFIG_XFRM) || IS_ENABLED(CONFIG_FAST_NAT)
+	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
+#endif
+#ifdef CONFIG_XFRM
 	int err;
 #endif
 	unsigned int ret;
+	const struct iphdr *iph;
+	u_int8_t tos;
+	__be32 saddr, daddr;
+	u_int32_t mark;
+	struct net_device *dev;
 
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct iphdr) ||
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
+
+	mark = skb->mark;
+	iph = ip_hdr(skb);
+	saddr = iph->saddr;
+	daddr = iph->daddr;
+	tos = iph->tos;
 
 	ret = nf_nat_ipv4_fn(priv, skb, state, do_chain);
 #ifdef CONFIG_XFRM
@@ -384,6 +406,40 @@ nf_nat_ipv4_out(void *priv, struct sk_buff *skb,
 		}
 	}
 #endif
+
+	if (ret != NF_DROP &&
+		ret != NF_STOLEN &&
+		((skb->ndm_mark & XT_NDMMARK_DNAT) == XT_NDMMARK_DNAT)) {
+		iph = ip_hdr(skb);
+
+		if (iph->saddr != saddr ||
+			iph->daddr != daddr ||
+			skb->mark != mark ||
+			iph->tos != tos) {
+
+				dev = skb->dev;
+
+				if (ip_route_me_harder(state->net, skb, RTN_UNSPEC))
+					ret = NF_DROP;
+				else {
+					if (dev != skb_dst(skb)->dev) {
+						skb->dev = skb_dst(skb)->dev;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+						FOE_ALG_SKIP(skb);
+#endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+						ct = nf_ct_get(skb, &ctinfo);
+
+						if (ct != NULL)
+							ct->fast_ext = 1;
+#endif
+					}
+				}
+		}
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_nat_ipv4_out);

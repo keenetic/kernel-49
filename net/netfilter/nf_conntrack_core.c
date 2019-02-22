@@ -1666,8 +1666,6 @@ bool nf_ct_kill_acct(struct nf_conn *ct,
 		     enum ip_conntrack_info ctinfo,
 		     const struct sk_buff *skb)
 {
-	nf_ct_acct_update(ct, ctinfo, skb->len);
-
 	return nf_ct_delete(ct, 0, 0);
 }
 EXPORT_SYMBOL_GPL(nf_ct_kill_acct);

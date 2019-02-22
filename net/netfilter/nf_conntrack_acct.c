@@ -13,10 +13,18 @@
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/export.h>
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_acct.h>
+
+#include <net/fast_vpn.h>
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
 
 static bool nf_ct_acct __read_mostly = 1;
 
@@ -110,6 +118,90 @@ static void nf_conntrack_acct_fini_sysctl(struct net *net)
 }
 #endif
 
+static unsigned int do_conntrack_acct(
+		void *priv,
+		struct sk_buff *skb,
+		const struct nf_hook_state *state)
+{
+	if (unlikely( 0
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		|| SWNAT_KA_CHECK_MARK(skb)
+#endif
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		|| FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+		)) {
+		return NF_ACCEPT;
+	}
+
+	{
+		struct nf_conn_counter *counters;
+		enum ip_conntrack_info ctinfo;
+		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+		struct nf_conn_acct *acct;
+
+		if (unlikely(ct == NULL))
+			return NF_ACCEPT;
+
+		acct = nf_conn_acct_find(ct);
+
+		if (unlikely(acct == NULL))
+			return NF_ACCEPT;
+
+		counters = acct->counter;
+
+		if (likely(acct != NULL)) {
+			atomic64_inc(&counters[CTINFO2DIR(ctinfo)].packets);
+			atomic64_add(
+				skb->len - skb_network_offset(skb),
+				&counters[CTINFO2DIR(ctinfo)].bytes);
+		}
+	}
+
+	return NF_ACCEPT;
+}
+
+static struct nf_hook_ops conntrack_acct_ops[] __read_mostly = {
+	{
+		.hook		= do_conntrack_acct,
+		.pf			= NFPROTO_IPV4,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= NF_IP_PRI_CONNTRACK_ACCT,
+	},
+	{
+		.hook		= do_conntrack_acct,
+		.pf			= NFPROTO_IPV4,
+		.hooknum	= NF_INET_FORWARD,
+		.priority	= NF_IP_PRI_CONNTRACK_ACCT,
+	},
+	{
+		.hook		= do_conntrack_acct,
+		.pf			= NFPROTO_IPV4,
+		.hooknum	= NF_INET_LOCAL_OUT,
+		.priority	= NF_IP_PRI_CONNTRACK_ACCT,
+	},
+#ifdef CONFIG_IPV6
+	{
+		.hook		= do_conntrack_acct,
+		.pf			= NFPROTO_IPV6,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= NF_IP6_PRI_CONNTRACK_ACCT,
+	},
+	{
+		.hook		= do_conntrack_acct,
+		.pf			= NFPROTO_IPV6,
+		.hooknum	= NF_INET_FORWARD,
+		.priority	= NF_IP6_PRI_CONNTRACK_ACCT,
+	},
+	{
+		.hook		= do_conntrack_acct,
+		.pf			= NFPROTO_IPV6,
+		.hooknum	= NF_INET_LOCAL_OUT,
+		.priority	= NF_IP6_PRI_CONNTRACK_ACCT,
+	},
+#endif
+};
+
 int nf_conntrack_acct_pernet_init(struct net *net)
 {
 	net->ct.sysctl_acct = nf_ct_acct;
@@ -126,10 +218,25 @@ int nf_conntrack_acct_init(void)
 	int ret = nf_ct_extend_register(&acct_extend);
 	if (ret < 0)
 		pr_err("nf_conntrack_acct: Unable to register extension\n");
+
+	ret = nf_register_hooks(conntrack_acct_ops,
+							ARRAY_SIZE(conntrack_acct_ops));
+	if (ret < 0) {
+		pr_err("nf_conntrack_acct: can't register accounting hooks\n");
+		goto out_acct_opts;
+	}
+
+	return ret;
+
+out_acct_opts:
+	nf_ct_extend_unregister(&acct_extend);
+
 	return ret;
 }
 
 void nf_conntrack_acct_fini(void)
 {
+	nf_unregister_hooks(conntrack_acct_ops,
+						ARRAY_SIZE(conntrack_acct_ops));
 	nf_ct_extend_unregister(&acct_extend);
 }

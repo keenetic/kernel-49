@@ -99,7 +99,8 @@ int fast_nat_path(struct net *net, struct sock *sk, struct sk_buff *skb)
 				enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 
 				atomic64_inc(&counter[dir].packets);
-				atomic64_add(skb->len, &counter[dir].bytes);
+				atomic64_add(
+					skb->len - skb_network_offset(skb), &counter[dir].bytes);
 			}
 		}
 	}

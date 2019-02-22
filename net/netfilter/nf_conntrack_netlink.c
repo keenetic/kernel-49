@@ -141,7 +141,14 @@ nla_put_failure:
 
 static int ctnetlink_dump_status(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	if (nla_put_be32(skb, CTA_STATUS, htonl(ct->status)))
+	unsigned long status = ct->status;
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (!ct->fast_ext)
+		set_bit(IPS_FASTNAT_BIT, &status);
+#endif
+
+	if (nla_put_be32(skb, CTA_STATUS, htonl(status)))
 		goto nla_put_failure;
 	return 0;
 

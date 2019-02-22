@@ -270,6 +270,11 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (test_bit(IPS_ASSURED_BIT, &ct->status))
 		seq_printf(s, "[ASSURED] ");
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (l3proto->l3proto == PF_INET && !ct->fast_ext)
+		seq_printf(s, "[FASTNAT] ");
+#endif
+
 	if (seq_has_overflowed(s))
 		goto release;
 

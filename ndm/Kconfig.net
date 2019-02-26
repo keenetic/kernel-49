@@ -42,3 +42,10 @@ config NETFILTER_XT_MATCH_CONNSKIP
 	depends on NETFILTER_ADVANCED
 	---help---
 	  This option adds a "connskip" match.
+
+config NETFILTER_XT_MATCH_TLS
+	tristate '"tls" match support'
+	depends on NETFILTER_ADVANCED
+	select GLOB
+	---help---
+	  This option adds a "tls" match.

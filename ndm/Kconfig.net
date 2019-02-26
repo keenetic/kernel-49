@@ -36,3 +36,9 @@ config NETFILTER_XT_CONNNDMMARK
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
 	select NF_CONNTRACK_MARK
+
+config NETFILTER_XT_MATCH_CONNSKIP
+	tristate '"connskip" match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option adds a "connskip" match.

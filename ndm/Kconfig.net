@@ -17,6 +17,14 @@ config NETFILTER_FP_SMB
 	depends on NETFILTER
 	default n
 
+config NETFILTER_XT_TARGET_PPE
+	tristate '"PPE" ppe disabling target support'
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option adds the "PPE" target to disable fastnat/hwnat
+	  offloading for ct
+
 config NETFILTER_XT_NDMMARK
 	tristate 'ndmmark target and match support'
 	depends on NETFILTER_XTABLES

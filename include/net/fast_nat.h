@@ -5,7 +5,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 
-#define FAST_NAT_BIND_PKT_DIR_BOTH	2
+#define FAST_NAT_BIND_PKT_DIR_BOTH	5
 #define FAST_NAT_BIND_PKT_DIR_HALF	200
 
 extern int nf_fastnat_control;

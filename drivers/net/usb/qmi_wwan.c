@@ -680,6 +680,13 @@ static const struct usb_device_id products[] = {
 					      0xff),
 		.driver_info	    = (unsigned long)&qmi_wwan_info_quirk_dtr,
 	},
+	{	/* Quectel EG12/EM12 */
+		USB_DEVICE_AND_INTERFACE_INFO(0x2c7c, 0x0512,
+					      USB_CLASS_VENDOR_SPEC,
+					      USB_SUBCLASS_VENDOR_SPEC,
+					      0xff),
+		.driver_info	    = (unsigned long)&qmi_wwan_info_quirk_dtr,
+	},
 
 	/* 3. Combined interface devices matching on interface number */
 	{QMI_FIXED_INTF(0x0408, 0xea42, 4)},	/* Yota / Megafon M100-1 */
@@ -980,7 +987,6 @@ static const struct usb_device_id products[] = {
 	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0191, 4)},	/* Quectel EG91 */
 	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0195, 4)},	/* Quectel EG95 */
 	{QMI_FIXED_INTF(0x2c7c, 0x0296, 4)},	/* Quectel BG96 */
-	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0512, 4)},	/* Quectel EG12/EM12 */
 	{QMI_QUIRK_SET_DTR(0x31b7, 0x0011, 0)}, /* Keenetic LTE MDM9207 */
 
 	/* 4. Gobi 1000 devices */
@@ -1057,17 +1063,20 @@ static bool quectel_ec20_detected(struct usb_interface *intf)
 	return false;
 }
 
-static bool quectel_ep06_diag_detected(struct usb_interface *intf)
+static bool quectel_diag_detected(struct usb_interface *intf)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usb_interface_descriptor intf_desc = intf->cur_altsetting->desc;
+	u16 id_vendor = le16_to_cpu(dev->descriptor.idVendor);
+	u16 id_product = le16_to_cpu(dev->descriptor.idProduct);
 
-	if (le16_to_cpu(dev->descriptor.idVendor) == 0x2c7c &&
-	    le16_to_cpu(dev->descriptor.idProduct) == 0x0306 &&
-	    intf_desc.bNumEndpoints == 2)
+	if (id_vendor != 0x2c7c || intf_desc.bNumEndpoints != 2)
+		return false;
+
+	if (id_product == 0x0306 || id_product == 0x0512)
 		return true;
-
-	return false;
+	else
+		return false;
 }
 
 static int qmi_wwan_probe(struct usb_interface *intf,
@@ -1104,13 +1113,13 @@ static int qmi_wwan_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	/* Quectel EP06/EM06/EG06 supports dynamic interface configuration, so
+	/* Several Quectel modems supports dynamic interface configuration, so
 	 * we need to match on class/subclass/protocol. These values are
 	 * identical for the diagnostic- and QMI-interface, but bNumEndpoints is
 	 * different. Ignore the current interface if the number of endpoints
 	 * the number for the diag interface (two).
 	 */
-	if (quectel_ep06_diag_detected(intf))
+	if (quectel_diag_detected(intf))
 		return -ENODEV;
 
 	return usbnet_probe(intf, id);

@@ -183,10 +183,15 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 		/* We're only interested in headers related to this
 		 * connection */
 		if (request) {
-			if (!nf_inet_addr_cmp(&addr,
-					&ct->tuplehash[dir].tuple.src.u3) ||
-			    port != ct->tuplehash[dir].tuple.src.u.udp.port)
+			if (!nf_inet_addr_cmp(&addr, &ct->tuplehash[dir].tuple.src.u3))
 				goto next;
+
+			if (port != ct->tuplehash[dir].tuple.src.u.udp.port) {
+				if (ct_sip_info->forced_dport)
+					port = ct->tuplehash[dir].tuple.src.u.udp.port;
+				else
+					goto next;
+			}
 		} else {
 			if (!nf_inet_addr_cmp(&addr,
 					&ct->tuplehash[dir].tuple.dst.u3) ||

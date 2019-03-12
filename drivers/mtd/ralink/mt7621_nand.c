@@ -47,9 +47,6 @@ extern int nand_bbt_get(struct mtd_info *mtd, int page);
 static int mtk_nand_read_oob_hw(struct mtd_info *mtd, struct nand_chip *chip, int page);
 static int mtk_nand_read_oob_raw(struct mtd_info *mtd, uint8_t * buf, int page_addr, int len);
 
-extern void nand_release_device(struct mtd_info *mtd);
-extern int nand_get_device(struct mtd_info *mtd, int new_state);
-
 int mtk_nand_erase_hw(struct mtd_info *mtd, int page);
 int mtk_nand_block_markbad_hw(struct mtd_info *mtd, loff_t ofs);
 
@@ -1867,8 +1864,6 @@ static int mtk_nand_block_markbad(struct mtd_info *mtd, loff_t offset)
 	int ret;
 	int mapped_block = block;
 
-	nand_get_device(mtd, FL_WRITING);
-
 #ifdef SKIP_BAD_BLOCK
 	if (!is_skip_bad_block(mtd, offset >> chip->page_shift)) {
 		// bmt code
@@ -1876,14 +1871,12 @@ static int mtk_nand_block_markbad(struct mtd_info *mtd, loff_t offset)
 		if (shift_on_bbt) {
 			mapped_block = block_remap(mtd, block);
 			if (mapped_block < 0) {
-				nand_release_device(mtd);
 				return 1;
 			}
 		}
 	}
 #endif
 	ret = mtk_nand_block_markbad_hw(mtd, mapped_block << chip->phys_erase_shift);
-	nand_release_device(mtd);
 
 	return ret;
 }
@@ -2269,7 +2262,7 @@ static int mtk_nand_probe(struct platform_device *pdev)
 	chip->buf_align = 4;
 
 	chip->block_bad = mtk_nand_block_bad;
-	chip->block_markbad = mtk_nand_block_markbad;   // need to add nand_get_device()/nand_release_device().
+	chip->block_markbad = mtk_nand_block_markbad;
 
 	/* init NFI host */
 	mtk_nand_init_hw();

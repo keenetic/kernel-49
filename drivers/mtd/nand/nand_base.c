@@ -47,7 +47,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
 
-int nand_get_device(struct mtd_info *mtd, int new_state);
+static int nand_get_device(struct mtd_info *mtd, int new_state);
 
 static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops);
@@ -239,7 +239,7 @@ static int check_offs_len(struct mtd_info *mtd,
  *
  * Release chip lock and wake up anyone waiting on the device.
  */
-void nand_release_device(struct mtd_info *mtd)
+static void nand_release_device(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 
@@ -926,7 +926,7 @@ static void panic_nand_get_device(struct nand_chip *chip,
  *
  * Get the device and lock it for exclusive access
  */
-int
+static int
 nand_get_device(struct mtd_info *mtd, int new_state)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);

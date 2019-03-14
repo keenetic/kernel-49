@@ -825,9 +825,11 @@ bool is_nobbm_partition(uint64_t offs)
 
 	/* disable bad block management for given partitions */
 	for (i = 0; i < ARRAY_SIZE(nobbm_parts); i++) {
-		if (!parts[i].skip &&
-		    offs >= parts[i].offset &&
-		    offs < (parts[i].offset + parts[i].size))
+		const int part_idx = nobbm_parts[i];
+
+		if (!parts[part_idx].skip &&
+		    offs >= parts[part_idx].offset &&
+		    offs < (parts[part_idx].offset + parts[part_idx].size))
 			return true;
 	}
 

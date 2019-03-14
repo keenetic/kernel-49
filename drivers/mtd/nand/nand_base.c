@@ -528,6 +528,9 @@ static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 	int res, ret = 0;
 
 	if (!(chip->bbt_options & NAND_BBT_NO_OOB_BBM)) {
+#if !IS_ENABLED(CONFIG_MTD_SNAND_MTK) && \
+    !defined(CONFIG_MTD_NAND_MT7621) && \
+    !defined(CONFIG_MTD_SPINAND_ECONET)
 		struct erase_info einfo;
 
 		/* Attempt erase before marking OOB */
@@ -536,6 +539,7 @@ static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 		einfo.addr = ofs;
 		einfo.len = 1ULL << chip->phys_erase_shift;
 		nand_erase_nand(mtd, &einfo, 0);
+#endif
 
 		/* Write bad block marker to OOB */
 		nand_get_device(mtd, FL_WRITING);

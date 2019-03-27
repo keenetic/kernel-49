@@ -102,6 +102,11 @@ static __read_mostly spinlock_t nf_conntrack_locks_all_lock;
 static __read_mostly DEFINE_SPINLOCK(nf_conntrack_locks_all_lock);
 static __read_mostly bool nf_conntrack_locks_all;
 
+#ifdef CONFIG_NAT_CONE
+unsigned int nf_conntrack_nat_mode __read_mostly = NAT_MODE_LINUX;
+int nf_conntrack_nat_cone_ifindex __read_mostly = -1;
+#endif
+
 /* every gc cycle scans at most 1/GC_MAX_BUCKETS_DIV part of table */
 #define GC_MAX_BUCKETS_DIV	128u
 /* upper bound of full table scan */
@@ -217,12 +222,40 @@ static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
 	u32 seed;
 
 	get_random_once(&nf_conntrack_hash_rnd, sizeof(nf_conntrack_hash_rnd));
+	seed = nf_conntrack_hash_rnd ^ net_hash_mix(net);
+
+#ifdef CONFIG_NAT_CONE
+	if (tuple->dst.protonum == IPPROTO_UDP &&
+	    nf_conntrack_nat_mode != NAT_MODE_LINUX) {
+		if (nf_conntrack_nat_mode == NAT_MODE_RCONE) {
+			u32 a, b;
+
+			/* src ip & l3 proto */
+			a = jhash2(tuple->src.u3.all,
+				   sizeof(tuple->src.u3.all) / sizeof(u32),
+				   tuple->src.l3num);
+
+			/* dst ip & dst port & dst proto */
+			b = jhash2(tuple->dst.u3.all,
+				   sizeof(tuple->dst.u3.all) / sizeof(u32),
+				   ((__force __u16)tuple->dst.u.all << 16) |
+				   tuple->dst.protonum);
+
+			return jhash_2words(a, b, seed);
+		}
+
+		/* dst ip & dst port & dst proto */
+		return jhash2(tuple->dst.u3.all,
+			      sizeof(tuple->dst.u3.all) / sizeof(u32),
+			      seed ^ (((__force __u16)tuple->dst.u.all << 16) |
+				      tuple->dst.protonum));
+	}
+#endif
 
 	/* The direction must be ignored, so we hash everything up to the
 	 * destination ports (which is a multiple of 4) and treat the last
 	 * three bytes manually.
 	 */
-	seed = nf_conntrack_hash_rnd ^ net_hash_mix(net);
 	n = (sizeof(tuple->src) + sizeof(tuple->dst.u3)) / sizeof(u32);
 	return jhash2((u32 *)tuple, n, seed ^
 		      (((__force __u16)tuple->dst.u.all << 16) |
@@ -568,6 +601,100 @@ begin:
 
 	return NULL;
 }
+
+#ifdef CONFIG_NAT_CONE
+static inline bool
+nf_cone_ct_key_equal(struct nf_conntrack_tuple_hash *h,
+		     const struct nf_conntrack_tuple *tuple,
+		     const struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+
+	if (!net_eq(net, nf_ct_net(ct)))
+		return false;
+#endif
+
+	if (nf_conntrack_nat_mode == NAT_MODE_RCONE) {
+		/* dst ip & dst port & dst proto & src ip  */
+		return (__nf_ct_tuple_dst_equal(tuple, &h->tuple) &&
+			tuple->src.l3num == h->tuple.src.l3num &&
+			nf_inet_addr_cmp(&tuple->src.u3, &h->tuple.src.u3));
+	}
+
+	/* dst ip & dst port & dst proto */
+	return __nf_ct_tuple_dst_equal(tuple, &h->tuple);
+}
+
+static struct nf_conntrack_tuple_hash *
+__nf_cone_conntrack_find(struct net *net,
+			 const struct nf_conntrack_tuple *tuple, u32 hash)
+{
+	struct nf_conntrack_tuple_hash *h;
+	struct hlist_nulls_head *ct_hash;
+	struct hlist_nulls_node *n;
+	unsigned int bucket, hsize;
+
+begin:
+	nf_conntrack_get_ht(&ct_hash, &hsize);
+	bucket = reciprocal_scale(hash, hsize);
+
+	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[bucket], hnnode) {
+		struct nf_conn *ct;
+
+		ct = nf_ct_tuplehash_to_ctrack(h);
+		if (nf_ct_is_expired(ct)) {
+			nf_ct_gc_expired(ct);
+			continue;
+		}
+
+		if (nf_ct_is_dying(ct))
+			continue;
+
+		if (nf_cone_ct_key_equal(h, tuple, net))
+			return h;
+	}
+	/*
+	 * if the nulls value we got at the end of this lookup is
+	 * not the expected one, we must restart lookup.
+	 * We probably met an item that was moved to another chain.
+	 */
+	if (get_nulls_value(n) != bucket) {
+		NF_CT_STAT_INC_ATOMIC(net, search_restart);
+		goto begin;
+	}
+
+	return NULL;
+}
+
+/* Find a connection corresponding to a tuple. */
+static struct nf_conntrack_tuple_hash *
+__nf_cone_conntrack_find_get(struct net *net,
+			     const struct nf_conntrack_tuple *tuple, u32 hash)
+{
+	struct nf_conntrack_tuple_hash *h;
+	struct nf_conn *ct;
+
+	rcu_read_lock();
+begin:
+	h = __nf_cone_conntrack_find(net, tuple, hash);
+	if (h) {
+		ct = nf_ct_tuplehash_to_ctrack(h);
+		if (unlikely(nf_ct_is_dying(ct) ||
+			     !atomic_inc_not_zero(&ct->ct_general.use)))
+			h = NULL;
+		else {
+			if (unlikely(!nf_cone_ct_key_equal(h, tuple, net))) {
+				nf_ct_put(ct);
+				goto begin;
+			}
+		}
+	}
+	rcu_read_unlock();
+
+	return h;
+}
+#endif
 
 /* Find a connection corresponding to a tuple. */
 static struct nf_conntrack_tuple_hash *
@@ -1298,7 +1425,71 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	/* look for tuple match */
 	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
 	hash = hash_conntrack_raw(&tuple, net);
-	h = __nf_conntrack_find_get(net, zone, &tuple, hash);
+
+#ifdef CONFIG_NAT_CONE
+	/*
+	 * Based on NAT treatments of UDP in RFC3489:
+	 *
+	 * 1)Full Cone: A full cone NAT is one where all requests from the
+	 *   same internal IP address and port are mapped to the same external
+	 *   IP address and port.  Furthermore, any external host can send a
+	 *   packet to the internal host, by sending a packet to the mapped
+	 *   external address.
+	 *
+	 * 2)Restricted Cone: A restricted cone NAT is one where all requests
+	 *   from the same internal IP address and port are mapped to the same
+	 *   external IP address and port.  Unlike a full cone NAT, an external
+	 *   host (with IP address X) can send a packet to the internal host
+	 *   only if the internal host had previously sent a packet to IP
+	 *   address X.
+	 *
+	 * 3)Port Restricted Cone: A port restricted cone NAT is like a
+	 *   restricted cone NAT, but the restriction includes port numbers.
+	 *   Specifically, an external host can send a packet, with source IP
+	 *   address X and source port P, to the internal host only if the
+	 *   internal host had previously sent a packet to IP address X and
+	 *   port P.
+	 *
+	 * 4)Symmetric: A symmetric NAT is one where all requests from the
+	 *   same internal IP address and port, to a specific destination IP
+	 *   address and port, are mapped to the same external IP address and
+	 *   port.  If the same host sends a packet with the same source
+	 *   address and port, but to a different destination, a different
+	 *   mapping is used.  Furthermore, only the external host that
+	 *   receives a packet can send a UDP packet back to the internal host.
+	 *
+	 *
+	 * Original Linux NAT type is hybrid 'port restricted cone' and
+	 * 'symmetric'. XBOX certificate recommands NAT type is 'fully cone'
+	 * or 'restricted cone', so I patch the linux kernel to support
+	 * this feature
+	 * Tradition scenario from LAN->WAN:
+	 *
+	 *        (LAN)     (WAN)
+	 * Client------>AP---------> Server
+	 * -------------> (I)
+	 *              -------------->(II)
+	 *              <--------------(III)
+	 * <------------- (IV)
+	 *
+	 *
+	 * (CASE I/II/IV) Compared Tuple=src_ip/port & dst_ip/port & proto
+	 * (CASE III)  Compared Tuple:
+	 *             Fully cone=dst_ip/port & proto
+	 *             Restricted Cone=dst_ip/port & proto & src_ip
+	 *
+	 */
+	if (protonum == IPPROTO_UDP && nf_conntrack_nat_mode != NAT_MODE_LINUX &&
+	    skb->dev && skb->dev->ifindex == nf_conntrack_nat_cone_ifindex) {
+		/* CASE III To Cone NAT */
+		h = __nf_cone_conntrack_find_get(net, &tuple, hash);
+	} else
+#endif
+	{
+		/* CASE I.II.IV To Linux NAT */
+		h = __nf_conntrack_find_get(net, zone, &tuple, hash);
+	}
+
 	if (!h) {
 #if IS_ENABLED(CONFIG_FAST_NAT)
 		if (unlikely(SWNAT_KA_CHECK_MARK(skb)))

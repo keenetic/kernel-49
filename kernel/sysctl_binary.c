@@ -699,6 +699,13 @@ static const struct bin_table bin_net_netfilter_table[] = {
 	{ CTL_INT,	NET_NF_CONNTRACK_FRAG6_LOW_THRESH,	"nf_conntrack_frag6_low_thresh" },
 	{ CTL_INT,	NET_NF_CONNTRACK_FRAG6_HIGH_THRESH,	"nf_conntrack_frag6_high_thresh" },
 	{ CTL_INT,	NET_NF_CONNTRACK_CHECKSUM,		"nf_conntrack_checksum" },
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	{ CTL_INT,	NET_NF_CONNTRACK_FASTNAT,		"nf_conntrack_fastnat" },
+#endif
+#ifdef CONFIG_NAT_CONE
+	{ CTL_INT,	NET_NF_CONNTRACK_NAT_MODE,			"nf_conntrack_nat_mode" },
+	{ CTL_INT,	NET_NF_CONNTRACK_NAT_CONE_IFINDEX,	"nf_conntrack_nat_cone_ifindex" },
+#endif
 
 	{}
 };

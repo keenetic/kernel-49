@@ -15,7 +15,7 @@ config NTCE_MODULE
 config NETFILTER_FP_SMB
 	bool "Netfilter fastpath to speedup SMB traffic (skip NF handlers)"
 	depends on NETFILTER
-	default y
+	default n
 
 config NETFILTER_XT_NDMMARK
 	tristate 'ndmmark target and match support'

@@ -49,8 +49,16 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 			return -ENOMEM;
 
 		l7offset = thoff + th->doff * 4;
-	} else
+	} else {
+		struct udphdr _udph;
+		const struct udphdr *uh;
+
+		uh = skb_header_pointer(skb, thoff, sizeof(_udph), &_udph);
+		if (uh == NULL)
+			return -ENOMEM;
+
 		l7offset = thoff + sizeof(struct udphdr);
+	}
 
 	/* Now at D/TLS header */
 	if (unlikely(l7offset >= skb->len))
@@ -330,6 +338,10 @@ tls_mt_(const struct sk_buff *skb, struct xt_action_param *par, bool dtls)
 	bool match;
 	bool is_tls = false;
 	bool has_esni = false;
+
+	/* This is a fragment, no TCP/UDP header is available */
+	if (par->fragoff != 0)
+		return false;
 
 	parsed_host[0] = '\0';
 

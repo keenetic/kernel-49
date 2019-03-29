@@ -4250,7 +4250,10 @@ ident_done:
 	}
 
 	chip->badblockbits = 8;
-	chip->erase = single_erase;
+
+	/* do not override driver-specific erase code */
+	if (chip->erase == NULL)
+		chip->erase = single_erase;
 
 	/* Do not replace user supplied command function! */
 	if (mtd->writesize > 512 && chip->cmdfunc == nand_command)

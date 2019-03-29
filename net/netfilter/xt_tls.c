@@ -18,7 +18,7 @@
 #include <uapi/linux/netfilter/xt_tls.h>
 
 #define NAME_BUFFER 128
-#define XT_TLS_DEBUG
+/* #define XT_TLS_DEBUG */
 
 /*
  * Searches through skb->data and looks for a

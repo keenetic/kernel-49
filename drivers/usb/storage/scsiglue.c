@@ -143,7 +143,11 @@ static int slave_configure(struct scsi_device *sdev)
 		 * USB3 devices will be limited to 2048 sectors. This gives us
 		 * better throughput on most devices.
 		 */
+#ifdef CONFIG_64BIT
 		blk_queue_max_hw_sectors(sdev->request_queue, 2048);
+#else
+		blk_queue_max_hw_sectors(sdev->request_queue, 1024);
+#endif
 	}
 
 	/*

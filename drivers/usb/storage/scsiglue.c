@@ -148,6 +148,14 @@ static int slave_configure(struct scsi_device *sdev)
 #else
 		blk_queue_max_hw_sectors(sdev->request_queue, 1024);
 #endif
+	} else if (us->pusb_dev->speed == USB_SPEED_HIGH) {
+#if IS_ENABLED(CONFIG_USB_XHCI_HCD)
+		/* XHCI USB2 devices will be limited to 360 sectors */
+		blk_queue_max_hw_sectors(sdev->request_queue, 360);
+#else
+		/* EHCI USB2 devices will be limited to 256 sectors */
+		blk_queue_max_hw_sectors(sdev->request_queue, 256);
+#endif
 	}
 
 	/*

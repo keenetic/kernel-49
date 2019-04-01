@@ -61,7 +61,7 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 	}
 
 	/* Now at D/TLS header */
-	if (unlikely(l7offset >= skb->len))
+	if (unlikely(l7offset > skb->len))
 		return -ENOMEM;
 
 	/* Calculate packet data length */
@@ -323,7 +323,7 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 		}
 	}
 
-	return *is_tls ? 0 : EPROTO;
+	return *is_tls ? 0 : -EPROTO;
 }
 
 static inline bool

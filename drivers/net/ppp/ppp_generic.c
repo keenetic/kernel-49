@@ -1550,8 +1550,10 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 		 * the compress_proto because MPPE and MPPC share
 		 * the same number.
 		 */
-		if (net_ratelimit())
+		if (net_ratelimit()) {
+			netdev_err(ppp->dev, "HH=%d, M=%d\n", ppp->dev->hard_header_len, ppp->dev->mtu);
 			netdev_err(ppp->dev, "ppp: compressor dropped pkt\n");
+		}
 		kfree_skb(skb);
 		consume_skb(new_skb);
 		new_skb = NULL;

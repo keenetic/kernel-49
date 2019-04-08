@@ -222,7 +222,11 @@ static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
 	u32 seed;
 
 	get_random_once(&nf_conntrack_hash_rnd, sizeof(nf_conntrack_hash_rnd));
+#ifdef CONFIG_NET_NS
 	seed = nf_conntrack_hash_rnd ^ net_hash_mix(net);
+#else
+	seed = nf_conntrack_hash_rnd;
+#endif
 
 #ifdef CONFIG_NAT_CONE
 	if (tuple->dst.protonum == IPPROTO_UDP &&
@@ -262,19 +266,19 @@ static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
 		      tuple->dst.protonum));
 }
 
-static u32 scale_hash(u32 hash)
+static inline u32 scale_hash(u32 hash)
 {
 	return reciprocal_scale(hash, nf_conntrack_htable_size);
 }
 
-static u32 __hash_conntrack(const struct net *net,
+static inline u32 __hash_conntrack(const struct net *net,
 			    const struct nf_conntrack_tuple *tuple,
 			    unsigned int size)
 {
 	return reciprocal_scale(hash_conntrack_raw(tuple, net), size);
 }
 
-static u32 hash_conntrack(const struct net *net,
+static inline u32 hash_conntrack(const struct net *net,
 			  const struct nf_conntrack_tuple *tuple)
 {
 	return scale_hash(hash_conntrack_raw(tuple, net));
@@ -535,13 +539,21 @@ nf_ct_key_equal(struct nf_conntrack_tuple_hash *h,
 {
 	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
 
+#ifdef CONFIG_NET_NS
+	if (!net_eq(net, nf_ct_net(ct)))
+		return false;
+#endif
+
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	if (!nf_ct_zone_equal(ct, zone, NF_CT_DIRECTION(h)))
+		return false;
+#endif
+
 	/* A conntrack can be recreated with the equal tuple,
 	 * so we need to check that the conntrack is confirmed
 	 */
 	return nf_ct_tuple_equal(tuple, &h->tuple) &&
-	       nf_ct_zone_equal(ct, zone, NF_CT_DIRECTION(h)) &&
-	       nf_ct_is_confirmed(ct) &&
-	       net_eq(net, nf_ct_net(ct));
+	       nf_ct_is_confirmed(ct);
 }
 
 /* caller must hold rcu readlock and none of the nf_conntrack_locks */

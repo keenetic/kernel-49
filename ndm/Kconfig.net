@@ -12,6 +12,16 @@ config NTCE_MODULE
 	tristate "NTCE module support"
 	default y
 
+config NAT_CONE
+	bool "Netfilter Full-Cone/Restricted-Cone NAT mode support for UDP"
+	depends on NETFILTER
+	default n
+	---help---
+	  This Netfilter option must be enabled to support Cone NAT mode instead linux hybrid NAT.
+	  sysctl -w net.nf_conntrack_nat_mode=0/1/2(Linux/FullCone/RestrictedCone).
+	  sysctl -w net.nf_conntrack_nat_cone_ifindex
+	  This is processed UDP traffic for direct SIP/uTP and others complex UDP based protocol via NAT.
+
 config NETFILTER_FP_SMB
 	bool "Netfilter fastpath to speedup SMB traffic (skip NF handlers)"
 	depends on NETFILTER

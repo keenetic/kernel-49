@@ -61,6 +61,10 @@ config MT7615_MAP_SUPPORT
 	bool "Multi-AP Support"
 	default n
 
+config MT7615_WAPP_SUPPORT
+	bool "MTK wapp daemon support"
+	default n
+
 config MT7615_VOW_SUPPORT
 	bool "MediaAir (VOW) support"
 	default y

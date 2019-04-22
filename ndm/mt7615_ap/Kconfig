@@ -59,7 +59,6 @@ config MT7615_MBO_SUPPORT
 
 config MT7615_MAP_SUPPORT
 	bool "Multi-AP Support"
-	select MT7615_MBO_SUPPORT
 	default n
 
 config MT7615_VOW_SUPPORT

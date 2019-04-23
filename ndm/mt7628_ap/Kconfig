@@ -47,6 +47,27 @@ config MT7628_AIRPLAY_SUPPORT
 	bool "AirPlay Support"
 	default n
 
+config MT7628_MBO_SUPPORT
+	bool "MBO support"
+	select MT7628_DOT11K_RRM_SUPPORT
+	select MT7628_DOT11R_FT_SUPPORT
+	select MT7628_DOT11V_WNM_SUPPORT
+	select MT7628_DOT11U_GAS_SUPPORT
+	default n
+
+config MT7628_MAP_SUPPORT
+	bool "Multi-AP Support"
+	default y
+
+config MT7628_WPA3_SUPPORT
+	bool "WPA3 auth support"
+	default y
+
+config MT7628_OWE_SUPPORT
+	bool "Enhanced OPEN(OWE) auth support"
+	depends on MT7628_WPA3_SUPPORT
+	default y
+
 config MT7628_BAND_STEERING
 	bool "Band Steering Support"
 	default n

@@ -59,7 +59,7 @@ config MT7615_MBO_SUPPORT
 
 config MT7615_MAP_SUPPORT
 	bool "Multi-AP Support"
-	default n
+	default y
 
 config MT7615_WAPP_SUPPORT
 	bool "MTK wapp daemon support"
@@ -78,7 +78,7 @@ config MT7615_WPA3_SUPPORT
 	default y
 
 config MT7615_OWE_SUPPORT
-	bool "Enhance OPEN(OWE) auth support"
+	bool "Enhanced OPEN(OWE) auth support"
 	depends on MT7615_WPA3_SUPPORT
 	default y
 

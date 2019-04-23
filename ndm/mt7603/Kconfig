@@ -44,6 +44,10 @@ config MT7603_DOT11V_WNM_SUPPORT
 	bool "802.11v Wireless Network Management"
 	default n
 
+config MT7603_DOT11U_GAS_SUPPORT
+	bool "802.11u Interworking/Gas Support"
+	default n
+
 config MT7603_QOS_DLS_SUPPORT
 	bool "802.11e DLS (Direct-Link Setup)"
 	default n

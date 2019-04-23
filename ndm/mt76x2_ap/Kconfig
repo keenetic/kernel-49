@@ -73,6 +73,10 @@ config AIRPLAY_SUPPORT
 	bool "AirPlay Support"
 	default n
 
+config MAP_SUPPORT
+	bool "Multi-AP Support"
+	default y
+
 config BAND_STEERING
 	bool "Band Steering"
 	default n

@@ -40,6 +40,10 @@ config MT7610_CON_WPS_SUPPORT
 	depends on MT7610_WSC_V2_SUPPORT
 	default n
 
+config MT7610_MAP_SUPPORT
+	bool "Multi-AP Support"
+	default y
+
 config MT7610_BAND_STEERING
 	bool "Band Steering"
 	default n

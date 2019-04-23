@@ -86,6 +86,12 @@ choice
 	select RLT_MAC
 	select RALINK_MT7612E
 
+	config SECOND_IF_MT7613E
+	bool "MT7613E"
+	select MT_MAC
+	select WIFI_MT_MAC
+	select CHIP_MT7663E
+
 	config SECOND_IF_MT7615E
 	bool "MT7615E"
 	select MT_MAC
@@ -109,7 +115,7 @@ endchoice
 
 choice
 	prompt "PA & LNA type of 2nd card"
-	depends on SECOND_IF_MT7615E
+	depends on (SECOND_IF_MT7613E || SECOND_IF_MT7615E)
 
 	config SECOND_IF_EPAELNA
 	bool "ePA/eLNA"
@@ -135,6 +141,7 @@ config RT_SECOND_CARD
 	depends on ! SECOND_IF_NONE
 	default 7610 if SECOND_IF_MT7610E
 	default 7612 if SECOND_IF_MT7612E
+	default 7613 if SECOND_IF_MT7613E
 	default 7615 if SECOND_IF_MT7615E
 
 config RT_FIRST_IF_RF_OFFSET
@@ -195,6 +202,10 @@ config CHIP_MT7603E
 	bool
 	select RTMP_PCI_SUPPORT
 
+config CHIP_MT7663E
+	bool
+	select RTMP_PCI_SUPPORT
+
 config CHIP_MT7615E
 	bool
 	select RTMP_PCI_SUPPORT
@@ -222,6 +233,11 @@ endmenu
 
 menu "MediaTek MT7610E PCIe Wireless driver"
 source "ndm/mt7610_ap/Kconfig"
+endmenu
+
+menu "MediaTek MT7613E PCIe Wireless driver"
+source "ndm/mt7613_ap/Kconfig"
+source "ndm/mt7613/Kconfig"
 endmenu
 
 menu "MediaTek MT7622/MT7615E RBUS/PCIe Wireless driver"

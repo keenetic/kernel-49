@@ -1,0 +1,117 @@
+config MT7613_AP
+	tristate "MT7613E 802.11ac AP support"
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+
+if MT7613_AP
+
+config MT7613_MBSS_SUPPORT
+	bool "MBSSID support"
+	default y
+
+config MT7613_WDS_SUPPORT
+	bool "WDS support"
+	default n
+
+config MT7613_APCLI_SUPPORT
+	bool "AP-Client support"
+	default y
+
+config MT7613_APCLI_CERT_SUPPORT
+	bool "AP-Client TGN Cert support"
+	depends on MT7613_APCLI_SUPPORT
+	default n
+
+config MT7613_MAC_REPEATER_SUPPORT
+	bool "MAC Repeater support"
+	depends on MT7613_APCLI_SUPPORT
+	default n
+
+config MT7613_CON_WPS_SUPPORT
+	bool "Concurrent WPS support"
+	depends on MT7613_APCLI_SUPPORT
+	depends on MT7613_WSC_INCLUDED
+	depends on MT7613_WSC_V2_SUPPORT
+	default n
+
+config MT7613_PASSPOINT_R2
+	bool "Passpoint Release-2 support"
+	select MT7613_DOT11W_PMF_SUPPORT
+	default n
+
+#config MT7613_AIRPLAY_SUPPORT
+#	bool "AirPlay support"
+#	default n
+
+config MT7613_FTM_SUPPORT
+	bool "FTM support"
+	select MT7613_PASSPOINT_R2
+	default n
+
+config MT7613_MBO_SUPPORT
+	bool "MBO support"
+	select MT7613_DOT11K_RRM_SUPPORT
+	select MT7613_DOT11R_FT_SUPPORT
+	select MT7613_DOT11V_WNM_SUPPORT
+	select MT7613_DOT11U_GAS_SUPPORT
+	default n
+
+config MT7613_MAP_SUPPORT
+	bool "Multi-AP Support"
+	default y
+
+config MT7613_WAPP_SUPPORT
+	bool "MTK wapp daemon support"
+	default n
+
+config MT7613_VOW_SUPPORT
+	bool "MediaAir (VOW) support"
+	default y
+
+config MT7613_RED_SUPPORT
+	bool "RED (Random Early Drop) support"
+	default y
+
+config MT7613_WPA3_SUPPORT
+	bool "WPA3 auth support"
+	default y
+
+config MT7613_OWE_SUPPORT
+	bool "Enhanced OPEN(OWE) auth support"
+	depends on MT7613_WPA3_SUPPORT
+	default y
+
+config MT7613_BAND_STEERING
+	bool "Band Steering support"
+	default n
+
+#config MT7613_LLTD_SUPPORT
+#	bool "LLTD (Link Layer Topology Discovery Protocol) support"
+#	default n
+
+#config MT7613_IDS_SUPPORT
+#	bool "IDS (Intrusion Detection System) support"
+#	default n
+
+config MT7613_GREENAP_SUPPORT
+	bool "GreenAP support"
+	default n
+
+config MT7613_IGMP_SNOOP_SUPPORT
+	bool "IGMP Snooping support"
+	default y
+
+config MT7613_MCAST_RATE_SPECIFIC
+	bool "User Specific Tx Rate of MCAST Packet"
+	default n
+
+config MT7613_RADIUS_ACCOUNTING_SUPPORT
+	bool "Radius Accounting support"
+	default n
+
+config MT7613_ICAP_SUPPORT
+	bool "Internal Capture support"
+	default n
+
+endif # MT7613_AP

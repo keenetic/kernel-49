@@ -1,0 +1,98 @@
+if (MT7613_AP || MT7613_STA)
+
+comment "MT7613E common settings"
+
+config MT7613_LED_CONTROL_SUPPORT
+	bool "LED support"
+	default y
+
+config MT7613_LED_PHR_CONTROL_SUPPORT
+	bool "Soft-LED control support (NDM phr)"
+	depends on MT7613_LED_CONTROL_SUPPORT
+	default y
+
+config MT7613_WSC_INCLUDED
+	bool "WSC (WiFi Simple Config) support"
+	default y
+
+config MT7613_WSC_V2_SUPPORT
+	bool "WSC V2 (WiFi Simple Config v2.0)"
+	depends on MT7613_WSC_INCLUDED
+	default y
+
+config MT7613_DOT11_VHT_AC
+	bool "802.11ac support"
+	default y
+
+config MT7613_G_BAND_256QAM_SUPPORT
+	bool "2.4G 256QAM support"
+	depends on MT7613_DOT11_VHT_AC
+	default y
+
+config MT7613_MUMIMO_SUPPORT
+	bool "MU-MIMO support"
+	default n
+
+config MT7613_MU_RA_SUPPORT
+	bool "MU-RGA support"
+	depends on MT7613_MUMIMO_SUPPORT
+	default n
+
+config MT7613_DOT11W_PMF_SUPPORT
+	bool "802.11w PMF (Protected Management Frames)"
+	default y
+
+config MT7613_DOT11R_FT_SUPPORT
+	bool "802.11r Fast BSS Transition"
+	default n
+
+config MT7613_DOT11K_RRM_SUPPORT
+	bool "802.11k Radio Resource Management"
+	default n
+
+config MT7613_DOT11V_WNM_SUPPORT
+	bool "802.11v Wireless Network Management"
+	default n
+
+config MT7613_DOT11U_GAS_SUPPORT
+	bool "802.11u Interworking/Gas Support"
+	default n
+
+config MT7613_TPC_SUPPORT
+	bool "802.11h TPC support"
+	default n
+
+config MT7613_DFS_SUPPORT
+	bool "802.11h DFS support"
+	default n
+
+config MT7613_BACKGROUND_SCAN_SUPPORT
+	bool "Background Channels Scan support"
+	default y
+
+config MT7613_TXBF_SUPPORT
+	bool "Tx Beam Forming support"
+	default n
+
+config MT7613_SMART_CARRIER_SENSE_SUPPORT
+	bool "Smart Carrier Sense support"
+	default y
+
+config MT7613_TCP_RACK_SUPPORT
+	bool "TCP Reduced ACK support"
+	default n
+
+config MT7613_SINGLE_SKU
+	bool "Single SKU V2 support"
+	default n
+
+config MT7613_PCIE_ASPM_DYM_CTRL_SUPPORT
+	bool "PCIe ASPM Dynamic Control Support"
+	default y
+
+config MT7613_CFG80211_SUPPORT
+	bool "CFG80211"
+	default n
+
+endif # (MT7613_AP || MT7613_STA)
+

@@ -33,6 +33,7 @@
 #ifdef CONFIG_MTD_NDM_BOOT_UPDATE
 #include <linux/crc32.h>
 #include <linux/reboot.h>
+#include <linux/workqueue.h>
 #include <linux/xz.h>
 #include "ndm_boot.h"
 #endif
@@ -351,6 +352,13 @@ static int mtd_erase_retry(struct mtd_info *mtd, struct erase_info *instr)
 #endif
 
 #ifdef CONFIG_MTD_NDM_BOOT_UPDATE
+static void do_restart(struct work_struct *work)
+{
+	kernel_restart(NULL);
+}
+
+static DECLARE_WORK(restart_work, do_restart);
+
 static int ndm_flash_boot(struct mtd_info *master,
 			  uint32_t p_off, uint32_t p_size)
 {
@@ -470,9 +478,11 @@ static int ndm_flash_boot(struct mtd_info *master,
 	}
 
 	if (src_crc == dst_crc) {
+		queue_work(system_unbound_wq, &restart_work);
+		printk("Bootloader update complete, scheduling reboot...\n");
 		res = 0;
-		printk("Bootloader update complete, do reboot...\n");
-		kernel_restart(NULL);
+
+		goto out_xz_dec_end;
 	}
 
 out_write_fail:

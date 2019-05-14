@@ -34,7 +34,6 @@
 #include <linux/crc32.h>
 #include <linux/reboot.h>
 #include <linux/workqueue.h>
-#include <linux/xz.h>
 #include "ndm_boot.h"
 #endif
 
@@ -365,8 +364,6 @@ static int ndm_flash_boot(struct mtd_info *master,
 	bool update_need;
 	int res = -1, ret, retries;
 	size_t len;
-	struct xz_buf b;
-	struct xz_dec *s;
 	uint32_t off, size, es, ws;
 	uint32_t dst_crc = 0, src_crc = 0;
 	unsigned char *m, *v;
@@ -417,32 +414,13 @@ static int ndm_flash_boot(struct mtd_info *master,
 
 	printk(KERN_INFO "Updating bootloader...\n");
 
-	/* Decompress bootloader */
-	s = xz_dec_init(XZ_SINGLE, 0);
-	if (s == NULL) {
-		printk(KERN_ERR "xz_dec_init error\n");
-		goto out_kfree;
-	}
-
-	b.in = boot_bin_xz;
-	b.in_pos = 0;
-	b.in_size = boot_bin_xz_len;
-
-	b.out = m;
-	b.out_pos = 0;
-	b.out_size = boot_bin_len;
-
-	ret = xz_dec_run(s, &b);
-	if (ret != XZ_STREAM_END) {
-		printk(KERN_ERR "zx_dec_run error (%d)\n", ret);
-		goto out_xz_dec_end;
-	}
-
-	size = ALIGN(b.out_pos, master->writesize);
+	/* Flash bootloader */
+	memcpy(m, boot_bin, boot_bin_len);
+	size = ALIGN(boot_bin_len, master->writesize);
 
 	/* fill padding */
-	if (size > b.out_pos)
-		memset(m + b.out_pos, 0xff, size - b.out_pos);
+	if (size > boot_bin_len)
+		memset(m + boot_bin_len, 0xff, size - boot_bin_len);
 
 	/* erase & write -> verify */
 	for (off = 0; off < size; off += es) {
@@ -482,15 +460,13 @@ static int ndm_flash_boot(struct mtd_info *master,
 		queue_work(system_unbound_wq, &restart_work);
 		res = 0;
 
-		goto out_xz_dec_end;
+		goto out_kfree;
 	}
 
 out_write_fail:
 	if (src_crc != dst_crc)
 		printk(KERN_ERR "Bootloader update FAILED!"
 			" Device may be bricked!\n");
-out_xz_dec_end:
-	xz_dec_end(s);
 out_kfree:
 	kfree(v);
 	kfree(m);

@@ -478,8 +478,8 @@ static int ndm_flash_boot(struct mtd_info *master,
 	}
 
 	if (src_crc == dst_crc) {
-		queue_work(system_unbound_wq, &restart_work);
 		printk("Bootloader update complete, scheduling reboot...\n");
+		queue_work(system_unbound_wq, &restart_work);
 		res = 0;
 
 		goto out_xz_dec_end;

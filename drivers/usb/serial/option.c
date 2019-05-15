@@ -566,6 +566,9 @@ static void option_instat_callback(struct urb *urb);
 #define WETELECOM_PRODUCT_6802			0x6802
 #define WETELECOM_PRODUCT_WMD300		0x6803
 
+/* Keenetic products */
+#define KEENETIC_VENDOR_ID			0x31b7
+#define KEENETIC_PRODUCT_LTE_MDM9207		0x0011
 
 /* Device flags */
 
@@ -1095,6 +1098,8 @@ static const struct usb_device_id option_ids[] = {
 	  .driver_info = RSVD(1) | RSVD(4) },
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x9025),
 	  .driver_info = RSVD(0) | RSVD(1) | RSVD(3) | RSVD(4) },
+	{ USB_DEVICE(KEENETIC_VENDOR_ID, KEENETIC_PRODUCT_LTE_MDM9207),
+	  .driver_info = RSVD(0) | RSVD(2) | RSVD(3) },
 	/* u-blox products using Qualcomm vendor ID */
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, UBLOX_PRODUCT_R410M),
 	  .driver_info = RSVD(1) | RSVD(3) },

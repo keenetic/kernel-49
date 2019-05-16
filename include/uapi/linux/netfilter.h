@@ -8,11 +8,9 @@
 #include <linux/in6.h>
 
 /* Nat mode type */
-#ifdef CONFIG_NAT_CONE
 #define NAT_MODE_LINUX		0
 #define NAT_MODE_FCONE		1
 #define NAT_MODE_RCONE		2
-#endif
 
 /* Responses from hook functions. */
 #define NF_DROP 0

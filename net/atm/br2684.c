@@ -24,6 +24,7 @@
 #include <linux/atmdev.h>
 #include <linux/capability.h>
 #include <linux/seq_file.h>
+#include <linux/if_vlan.h>
 
 #include <linux/atmbr2684.h>
 
@@ -201,6 +202,8 @@ static void br2684_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 static int br2684_xmit_vcc(struct sk_buff *skb, struct net_device *dev,
 			   struct br2684_vcc *brvcc)
 {
+	struct ethhdr *eth;
+	unsigned int min_len;
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct atm_vcc *atmvcc;
 	int minheadroom = (brvcc->encaps == e_llc) ?
@@ -217,6 +220,19 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct net_device *dev,
 			return 0;
 		}
 		skb = skb2;
+	}
+
+	eth = (struct ethhdr *)skb->data;
+
+	if (eth->h_proto == htons(ETH_P_8021Q))
+		min_len = ETH_ZLEN + VLAN_HLEN;
+	else
+		min_len = ETH_ZLEN;
+
+	if (unlikely(skb->len < min_len)) {
+		if (skb_padto(skb, min_len))
+			return 0;
+		skb->len = min_len;
 	}
 
 	if (brvcc->encaps == e_llc) {

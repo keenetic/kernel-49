@@ -1204,10 +1204,15 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 		ret = master->prepare_transfer_hardware(master);
 		if (ret) {
 			dev_err(&master->dev,
-				"failed to prepare transfer hardware\n");
+				"failed to prepare transfer hardware: %d\n",
+				ret);
 
 			if (master->auto_runtime_pm)
 				pm_runtime_put(master->dev.parent);
+
+			master->cur_msg->status = ret;
+			spi_finalize_current_message(master);
+
 			mutex_unlock(&master->io_mutex);
 			return;
 		}

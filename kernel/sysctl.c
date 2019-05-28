@@ -1721,6 +1721,17 @@ static struct ctl_table vm_table[] = {
 		.extra2		= (void *)&mmap_rnd_compat_bits_max,
 	},
 #endif
+#ifdef CONFIG_PAGECACHE_RECLAIM
+	{
+		.procname	= "pagecache_ratio",
+		.data		= &pagecache_ratio,
+		.maxlen		= sizeof(pagecache_ratio),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+		.extra1		= &zero,
+		.extra2		= &one_hundred,
+	},
+#endif
 	{ }
 };
 

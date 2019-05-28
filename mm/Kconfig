@@ -255,6 +255,14 @@ config BALLOON_COMPACTION
 	  scenario aforementioned and helps improving memory defragmentation.
 
 #
+# support for page cache reclaim
+config PAGECACHE_RECLAIM
+	bool "Allow pagecache reclaim for buffered I/O"
+	default n
+	help
+	  Allows the pagecache pages are reclaimed if the limit is exceeded.
+
+#
 # support for memory compaction
 config COMPACTION
 	bool "Allow for memory compaction"

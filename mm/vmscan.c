@@ -60,6 +60,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/vmscan.h>
 
+#ifdef CONFIG_PAGECACHE_RECLAIM
+unsigned long check_pagecache_overlimit(void);
+#endif
+
 struct scan_control {
 	/* How many pages shrink_list() should reclaim */
 	unsigned long nr_to_reclaim;
@@ -104,6 +108,10 @@ struct scan_control {
 	/* One of the zones is ready for compaction */
 	unsigned int compaction_ready:1;
 
+#ifdef CONFIG_PAGECACHE_RECLAIM
+	/* Set when called from pagecache controller */
+	unsigned int reclaim_pagecache_only:1;
+#endif
 	/* Incremented by the number of inactive pages that were scanned */
 	unsigned long nr_scanned;
 
@@ -978,6 +986,13 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 
 		VM_BUG_ON_PAGE(PageActive(page), page);
 
+#ifdef CONFIG_PAGECACHE_RECLAIM
+		/* Take it easy if we are doing only pagecache pages */
+		if (sc->reclaim_pagecache_only) {
+			if (page_mapped(page) || !check_pagecache_overlimit())
+				goto keep_locked;
+		}
+#endif
 		sc->nr_scanned++;
 
 		if (unlikely(!page_evictable(page)))
@@ -1164,7 +1179,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 				goto keep_locked;
 			}
 
+#ifdef CONFIG_PAGECACHE_RECLAIM
+			/* Reclaim even referenced pagecache pages if over limit */
+			if (references == PAGEREF_RECLAIM_CLEAN && !check_pagecache_overlimit())
+#else
 			if (references == PAGEREF_RECLAIM_CLEAN)
+#endif
 				goto keep_locked;
 			if (!may_enter_fs)
 				goto keep_locked;
@@ -1986,6 +2006,16 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			}
 		}
 
+#ifdef CONFIG_PAGECACHE_RECLAIM
+		/* While reclaiming pagecache make it easy */
+		if (sc->reclaim_pagecache_only) {
+			if (page_mapped(page) || !check_pagecache_overlimit()) {
+				list_add(&page->lru, &l_active);
+				continue;
+			}
+		}
+#endif
+
 		if (page_referenced(page, 0, sc->target_mem_cgroup,
 				    &vm_flags)) {
 			nr_rotated += hpage_nr_pages(page);
@@ -2154,6 +2184,11 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 		scan_balance = SCAN_FILE;
 		goto out;
 	}
+
+#ifdef CONFIG_PAGECACHE_RECLAIM
+	if (sc->reclaim_pagecache_only)
+		swappiness = 0;
+#endif
 
 	/*
 	 * Global reclaim will swap to prevent OOM even with no
@@ -3007,6 +3042,36 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 
 	return nr_reclaimed;
 }
+
+#ifdef CONFIG_PAGECACHE_RECLAIM
+unsigned long shrink_all_pagecache_memory(unsigned long nr_pages)
+{
+	struct reclaim_state reclaim_state;
+	struct scan_control sc = {
+		.nr_to_reclaim = nr_pages,
+		.gfp_mask = GFP_KERNEL,
+		.reclaim_idx = MAX_NR_ZONES - 1,
+		.priority = DEF_PRIORITY,
+		.reclaim_pagecache_only = 1,
+	};
+	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
+	struct task_struct *p = current;
+	unsigned long nr_reclaimed;
+
+	p->flags |= PF_MEMALLOC;
+	lockdep_set_current_reclaim_state(sc.gfp_mask);
+	reclaim_state.reclaimed_slab = 0;
+	p->reclaim_state = &reclaim_state;
+
+	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+
+	p->reclaim_state = NULL;
+	lockdep_clear_current_reclaim_state();
+	p->flags &= ~PF_MEMALLOC;
+
+	return nr_reclaimed;
+}
+#endif
 
 #ifdef CONFIG_MEMCG
 

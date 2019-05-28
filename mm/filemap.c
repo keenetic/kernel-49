@@ -49,6 +49,70 @@
 
 #include <asm/mman.h>
 
+#ifdef CONFIG_PAGECACHE_RECLAIM
+int pagecache_ratio __read_mostly;
+static DEFINE_PER_CPU(struct delayed_work, pagecache_reclaim_dw);
+
+unsigned long shrink_all_pagecache_memory(unsigned long nr_pages);
+
+#define PAGECACHE_RECLAIM_DELAY		(HZ / 2)
+#define PAGECACHE_RECLAIM_THRESHOLD	(2 * 1024 * 1024 / PAGE_SIZE)	/* 2MB */
+#define PAGECACHE_LIMIT_MIN		(1 * 1024 * 1024 / PAGE_SIZE)	/* 1MB */
+
+unsigned long check_pagecache_overlimit(void)
+{
+	long current_pagecache, current_pagecache_limit;
+	long file_pcache_pages, file_mapped_pages, free_pages;
+
+	if (pagecache_ratio == 0)
+		return 0;
+
+	file_pcache_pages = global_node_page_state(NR_ACTIVE_FILE) +
+			    global_node_page_state(NR_INACTIVE_FILE);
+	file_mapped_pages = global_node_page_state(NR_FILE_MAPPED);
+
+	/* Reclaim unmapped pages only */
+	current_pagecache = file_pcache_pages - file_mapped_pages;
+
+	free_pages = global_page_state(NR_FREE_PAGES) + file_pcache_pages -
+		     totalreserve_pages;
+
+	/* Calculate limit from ratio */
+	current_pagecache_limit = free_pages * (100 - pagecache_ratio) / 100;
+	if (current_pagecache_limit < PAGECACHE_LIMIT_MIN)
+		current_pagecache_limit = PAGECACHE_LIMIT_MIN;
+
+	/* Calculate overlimit */
+	if (current_pagecache > current_pagecache_limit)
+		return current_pagecache - current_pagecache_limit;
+
+	return 0;
+}
+
+static void pagecache_reclaim_work(struct work_struct *w)
+{
+	unsigned long nr_pages = check_pagecache_overlimit();
+
+	/* Don't call reclaim for each page */
+	if (nr_pages > PAGECACHE_RECLAIM_THRESHOLD)
+		shrink_all_pagecache_memory(nr_pages);
+}
+
+static int __init pagecache_reclaim_init(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct delayed_work *dw = &per_cpu(pagecache_reclaim_dw, cpu);
+
+		INIT_DELAYED_WORK(dw, pagecache_reclaim_work);
+	}
+
+	return 0;
+}
+fs_initcall(pagecache_reclaim_init);
+#endif
+
 /*
  * Shared mappings implemented 30.11.1994. It's not fully working yet,
  * though.
@@ -2064,6 +2128,16 @@ out:
 
 	*ppos = ((loff_t)index << PAGE_SHIFT) + offset;
 	file_accessed(filp);
+
+#ifdef CONFIG_PAGECACHE_RECLAIM
+	if (written && pagecache_ratio) {
+		int cpu = raw_smp_processor_id();
+
+		schedule_delayed_work_on(cpu,
+			&per_cpu(pagecache_reclaim_dw, cpu),
+			__round_jiffies_relative(PAGECACHE_RECLAIM_DELAY, cpu));
+	}
+#endif
 	return written ? written : error;
 }
 
@@ -2975,6 +3049,15 @@ again:
 		balance_dirty_pages_ratelimited(mapping);
 	} while (iov_iter_count(i));
 
+#ifdef CONFIG_PAGECACHE_RECLAIM
+	if (written && pagecache_ratio) {
+		int cpu = raw_smp_processor_id();
+
+		schedule_delayed_work_on(cpu,
+			&per_cpu(pagecache_reclaim_dw, cpu),
+			__round_jiffies_relative(PAGECACHE_RECLAIM_DELAY, cpu));
+	}
+#endif
 	return written ? written : status;
 }
 EXPORT_SYMBOL(generic_perform_write);

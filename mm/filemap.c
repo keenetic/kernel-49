@@ -89,6 +89,17 @@ unsigned long check_pagecache_overlimit(void)
 	return 0;
 }
 
+static inline void pagecache_reclaim_async(void)
+{
+	if (pagecache_ratio) {
+		int cpu = raw_smp_processor_id();
+
+		schedule_delayed_work_on(cpu,
+			&per_cpu(pagecache_reclaim_dw, cpu),
+			__round_jiffies_relative(PAGECACHE_RECLAIM_DELAY, cpu));
+	}
+}
+
 static void pagecache_reclaim_work(struct work_struct *w)
 {
 	unsigned long nr_pages = check_pagecache_overlimit();
@@ -2130,13 +2141,8 @@ out:
 	file_accessed(filp);
 
 #ifdef CONFIG_PAGECACHE_RECLAIM
-	if (written && pagecache_ratio) {
-		int cpu = raw_smp_processor_id();
-
-		schedule_delayed_work_on(cpu,
-			&per_cpu(pagecache_reclaim_dw, cpu),
-			__round_jiffies_relative(PAGECACHE_RECLAIM_DELAY, cpu));
-	}
+	if (written)
+		pagecache_reclaim_async();
 #endif
 	return written ? written : error;
 }
@@ -3050,13 +3056,8 @@ again:
 	} while (iov_iter_count(i));
 
 #ifdef CONFIG_PAGECACHE_RECLAIM
-	if (written && pagecache_ratio) {
-		int cpu = raw_smp_processor_id();
-
-		schedule_delayed_work_on(cpu,
-			&per_cpu(pagecache_reclaim_dw, cpu),
-			__round_jiffies_relative(PAGECACHE_RECLAIM_DELAY, cpu));
-	}
+	if (written)
+		pagecache_reclaim_async();
 #endif
 	return written ? written : status;
 }

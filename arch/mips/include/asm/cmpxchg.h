@@ -57,7 +57,7 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 		"	.set	pop				\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (val)			\
-		: "memory");						\
+		: __LLSC_CLOBBER);					\
 	} else {							\
 		unsigned long __flags;					\
 									\
@@ -128,8 +128,8 @@ unsigned long __xchg(volatile void *ptr, unsigned long x, int size)
 		"	.set	pop				\n"	\
 		"2:						\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
-		: GCC_OFF_SMALL_ASM() (*m), "Jr" (old), "Jr" (new)		\
-		: "memory");						\
+		: GCC_OFF_SMALL_ASM() (*m), "Jr" (old), "Jr" (new)	\
+		: __LLSC_CLOBBER);					\
 	} else {							\
 		unsigned long __flags;					\
 									\

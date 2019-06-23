@@ -271,7 +271,7 @@ extern int gic_get_c0_perfcount_int(void);
 extern int gic_get_c0_fdc_int(void);
 extern int gic_get_usm_range(struct resource *gic_usm_res);
 
-#else /* CONFIG_MIPS_GIC */
+#elif !defined(CONFIG_IRQ_GIC)
 
 #define gic_present	0
 

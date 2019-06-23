@@ -21,7 +21,9 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#ifdef CONFIG_MIPS_GIC
 #include <linux/irqchip/mips-gic.h>
+#endif
 #include <linux/compiler.h>
 #include <linux/smp.h>
 
@@ -35,6 +37,9 @@
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
+#ifdef CONFIG_IRQ_GIC
+#include <asm/gic.h>
+#endif
 
 static void __init smvp_copy_vpe_config(void)
 {
@@ -119,7 +124,7 @@ static void vsmp_send_ipi_single(int cpu, unsigned int action)
 	unsigned long flags;
 	int vpflags;
 
-#ifdef CONFIG_MIPS_GIC
+#if defined(CONFIG_MIPS_GIC) || defined(CONFIG_IRQ_GIC)
 	if (gic_present) {
 		mips_smp_send_ipi_single(cpu, action);
 		return;
@@ -162,7 +167,7 @@ static void vsmp_init_secondary(void)
 	write_c0_status((read_c0_status() & ~ST0_IM ) |
 			(STATUSF_IP0 | STATUSF_IP1));
 #else
-#ifdef CONFIG_MIPS_GIC
+#if defined(CONFIG_MIPS_GIC) || defined(CONFIG_IRQ_GIC)
 	/* This is Malta specific: IPI,performance and timer interrupts */
 	if (gic_present)
 		change_c0_status(ST0_IM, STATUSF_IP2 | STATUSF_IP3 |

@@ -10,7 +10,9 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
+#ifdef CONFIG_MIPS_GIC
 #include <linux/irqchip/mips-gic.h>
+#endif
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -26,6 +28,9 @@
 #include <asm/smp-cps.h>
 #include <asm/time.h>
 #include <asm/uasm.h>
+#ifdef CONFIG_IRQ_GIC
+#include <asm/gic.h>
+#endif
 
 static bool threads_disabled;
 static DECLARE_BITMAP(core_power, NR_CPUS);

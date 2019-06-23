@@ -1352,6 +1352,13 @@ config IRQ_TXX9
 config IRQ_GT641XX
 	bool
 
+config IRQ_GIC
+	bool
+	select MIPS_CM
+
+config IRQ_GIC_EIC
+	bool
+
 config PCI_GT64XXX_PCI0
 	bool
 

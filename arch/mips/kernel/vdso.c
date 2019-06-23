@@ -13,7 +13,9 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#ifdef CONFIG_MIPS_GIC
 #include <linux/irqchip/mips-gic.h>
+#endif
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -23,6 +25,9 @@
 #include <asm/abi.h>
 #include <asm/page.h>
 #include <asm/vdso.h>
+#ifdef CONFIG_IRQ_GIC
+#include <asm/gic.h>
+#endif
 
 /* Kernel-provided data used by the VDSO. */
 static union mips_vdso_data vdso_data __page_aligned_data;

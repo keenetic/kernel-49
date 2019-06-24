@@ -349,8 +349,13 @@ struct gic_shared_intr_map {
 #define GIC_INT_TMR		(GIC_CPU_INT5)
 #define GIC_INT_PERFCTR		(GIC_CPU_INT5)
 
+#ifdef CONFIG_MIPS_TC3262_1004K
+/* EN7516/27 GIC pins shifted by 1, pin_offset must be 0 */
+#define GIC_CPU_TO_VEC_OFFSET	(1)
+#else
 /* Add 2 to convert non-EIC hardware interrupt to EIC vector number. */
 #define GIC_CPU_TO_VEC_OFFSET	(2)
+#endif
 
 /* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
 #define GIC_PIN_TO_VEC_OFFSET	(1)

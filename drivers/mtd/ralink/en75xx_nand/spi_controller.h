@@ -50,6 +50,27 @@
 #define SPI_CONTROLLER_REGS_STRAP 0xBFA10114
 
 /* MACRO DECLARATIONS ---------------------------------------------------------------- */
+#define _SPI_CONTROLLER_VAL_OP_CSH			(0x00)
+#define _SPI_CONTROLLER_VAL_OP_CSL			(0x01)
+#define _SPI_CONTROLLER_VAL_OP_CK			(0x02)
+#define _SPI_CONTROLLER_VAL_OP_OUTS			(0x08)
+#define _SPI_CONTROLLER_VAL_OP_OUTD			(0x09)
+#define _SPI_CONTROLLER_VAL_OP_OUTQ			(0x0A)
+#define _SPI_CONTROLLER_VAL_OP_INS			(0x0C)
+#define _SPI_CONTROLLER_VAL_OP_INS0			(0x0D)
+#define _SPI_CONTROLLER_VAL_OP_IND			(0x0E)
+#define _SPI_CONTROLLER_VAL_OP_INQ			(0x0F)
+#define _SPI_CONTROLLER_VAL_OP_OS2IS			(0x10)
+#define _SPI_CONTROLLER_VAL_OP_OS2ID			(0x11)
+#define _SPI_CONTROLLER_VAL_OP_OS2IQ			(0x12)
+#define _SPI_CONTROLLER_VAL_OP_OD2IS			(0x13)
+#define _SPI_CONTROLLER_VAL_OP_OD2ID			(0x14)
+#define _SPI_CONTROLLER_VAL_OP_OD2IQ			(0x15)
+#define _SPI_CONTROLLER_VAL_OP_OQ2IS			(0x16)
+#define _SPI_CONTROLLER_VAL_OP_OQ2ID			(0x17)
+#define _SPI_CONTROLLER_VAL_OP_OQ2IQ			(0x18)
+#define _SPI_CONTROLLER_VAL_OP_OSNIS			(0x19)
+#define _SPI_CONTROLLER_VAL_OP_ODNID			(0x1A)
 
 /* TYPE DECLARATIONS ----------------------------------------------------------------- */
 typedef enum{
@@ -71,6 +92,7 @@ typedef enum{
 typedef enum{
 	SPI_CONTROLLER_MODE_AUTO=0,
 	SPI_CONTROLLER_MODE_MANUAL,
+	SPI_CONTROLLER_MODE_DMA,
 
 	SPI_CONTROLLER_MODE_NO
 } SPI_CONTROLLER_MODE_T;
@@ -122,6 +144,7 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Enable_Manual_Mode( void );
  *------------------------------------------------------------------------------------
  */
 SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Write_One_Byte( u8  data );
+SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Write_One_Byte_With_Cmd(u8 op_cmd, u8 data );
 
 /*------------------------------------------------------------------------------------
  * FUNCTION: SPI_CONTROLLER_RTN_T SPI_CONTROLLER_WRITE_NBYTES( u8                        *ptr_data,

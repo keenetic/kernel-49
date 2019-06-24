@@ -1,7 +1,7 @@
 #ifndef __ASM_MACH_MIPS_TC3262_RT_MMAP_H
 #define __ASM_MACH_MIPS_TC3262_RT_MMAP_H
 
-/* EN7512(3)/EN7516 */
+/* EN7512(3)/EN7516/EN7527 */
 
 #define PHYS_TO_K1(physaddr)		KSEG1ADDR(physaddr)
 #define sysRegRead(phys)		(*(volatile unsigned int *)PHYS_TO_K1(phys))
@@ -34,6 +34,10 @@
 /* GIC */
 #define RALINK_GIC_BASE			0x1F8C0000
 #define RALINK_GIC_ADDRSPACE_SZ		0x20000
+
+/* CPC */
+#define RALINK_CPC_BASE			0x1F8E8000
+#define RALINK_CPC_ADDRSPACE_SZ		0x8000
 
 /* GCMP */
 #define RALINK_GCMP_BASE		0x1F8E0000

@@ -13,5 +13,15 @@ ifeq ($(CONFIG_MTD_SPINAND_ECONET),y)
 EXTRA_CFLAGS += -DTCSUPPORT_NAND_BMT
 rt_nand-objs += en75xx_nand/bmt.o
 rt_nand-objs += en75xx_nand/spi_controller.o
-rt_nand-objs += en75xx_nand/spi_nand_flash.o
+ifeq ($(CONFIG_ECONET_EN7516)$(CONFIG_ECONET_EN7527),y)
+EXTRA_CFLAGS += -DTCSUPPORT_SPI_CONTROLLER_ECC
+EXTRA_CFLAGS += -DTCSUPPORT_SPI_NAND_FLASH_ECC_DMA
+rt_nand-objs += en75xx_nand/en751627/spi_nfi.o
+rt_nand-objs += en75xx_nand/en751627/spi_ecc.o
+rt_nand-objs += en75xx_nand/en751627/spi_nand_flash.o
+rt_nand-objs += en75xx_nand/en751627/spi_nand_flash_table.o
+else
+rt_nand-objs += en75xx_nand/en751221/spi_nand_flash.o
 endif
+endif
+

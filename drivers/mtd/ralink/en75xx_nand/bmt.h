@@ -1,7 +1,12 @@
 #ifndef _EN75XX_BMT_H
 #define _EN75XX_BMT_H
 
-#include "spi_nand_flash.h"
+#if defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527)
+#include "en751627/spi_nand_flash.h"
+#else
+#include "en751221/spi_nand_flash.h"
+#endif
 
 //#define RABMT_DEBUG
 

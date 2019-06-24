@@ -13,12 +13,12 @@
 
 #include <asm/addrspace.h>
 #include <asm/mipsmtregs.h>
-#include <asm/mips-boards/launch.h>
+#include <asm/tc3162/launch.h>
 #include <asm/vpe.h>
 
 int amon_cpu_avail(int cpu)
 {
-	struct cpulaunch *launch = (struct cpulaunch *)CKSEG0ADDR(CPULAUNCH);
+	struct cpulaunch *launch = (struct cpulaunch *)CPU_LAUNCH_BASE;
 
 	if (cpu < 0 || cpu >= NCPULAUNCH) {
 		pr_debug("avail: cpu%d is out of range\n", cpu);
@@ -43,7 +43,7 @@ int amon_cpu_start(int cpu,
 		    unsigned long gp, unsigned long a0)
 {
 	volatile struct cpulaunch *launch =
-		(struct cpulaunch  *)CKSEG0ADDR(CPULAUNCH);
+		(struct cpulaunch  *)CPU_LAUNCH_BASE;
 
 	if (!amon_cpu_avail(cpu))
 		return -1;

@@ -12,17 +12,13 @@
 #include <asm/cpu.h>
 #include <asm/time.h>
 
-#ifdef CONFIG_CLKSRC_MIPS_GIC
-#include <linux/irqchip/mips-gic.h>
-#endif
-
 #include <asm/tc3162/tc3162.h>
 
 extern unsigned int surfboard_sysclk;
 extern unsigned int tc_mips_cpu_freq;
-
-extern void tc_setup_watchdog_irq(void);
-extern void tc_setup_bus_timeout_irq(void);
+#ifdef CONFIG_TC3162_ADSL
+extern void stop_adsl_dmt(void);
+#endif
 
 #ifdef CONFIG_TC3262_CPU_TIMER
 
@@ -129,10 +125,18 @@ static void tc_timer_ctl(
 	timer_enable &= 0x1;
 
 	word = VPint(CR_TIMER_CTL);
+#if defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527)
+	if (timer_enable)
+		word |=  (1 << timer_no);
+	else
+		word &= ~(1 << timer_no);
+#else
 	word &= ~(1u << timer_no);
 	word |=  (timer_enable << timer_no);
 	word |=  (timer_mode << (timer_no + 8));
 	word |=  (timer_halt << (timer_no + 26));
+#endif
 	VPint(CR_TIMER_CTL) = word;
 }
 
@@ -165,13 +169,60 @@ void tc_timer_set(
 }
 EXPORT_SYMBOL(tc_timer_set);
 
+static irqreturn_t tc_watchdog_timer_interrupt(int irq, void *dev_id)
+{
+	unsigned int word;
+
+	word = VPint(CR_TIMER_CTL);
+	word &= 0xffc0ffff;
+	word |= 0x00200000;
+	VPint(CR_TIMER_CTL) = word;
+
+	printk(KERN_WARNING "watchdog timer interrupt\n");
+
+#ifdef CONFIG_TC3162_ADSL
+	/* stop adsl */
+	stop_adsl_dmt();
+#endif
+
+	dump_stack();
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t tc_bus_timeout_interrupt(int irq, void *dev_id)
+{
+	unsigned int addr;
+
+	/* write to clear interrupt */
+	VPint(CR_PRATIR) = 1;
+
+	addr = VPint(CR_ERR_ADDR);
+	addr &= ~((1 << 30) | (1 << 31));
+
+	printk(KERN_WARNING "bus timeout interrupt ERR ADDR=%08x\n",
+		addr);
+
+	dump_stack();
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction tc_watchdog_timer_irqaction = {
+	.handler	 = tc_watchdog_timer_interrupt,
+	.flags		 = IRQF_NO_THREAD,
+	.name		 = "watchdog",
+};
+
+static struct irqaction tc_bus_timeout_irqaction = {
+	.handler	 = tc_bus_timeout_interrupt,
+	.flags		 = IRQF_NO_THREAD,
+	.name		 = "bus timeout",
+};
+
 void __init plat_time_init(void)
 {
-#ifdef CONFIG_CLKSRC_MIPS_GIC
-	gic_clocksource_init(mips_cpu_feq);
-#else
 	mips_hpt_frequency = tc_mips_cpu_freq / 2;
-#endif
 
 #ifdef CONFIG_TC3262_CPU_TIMER
 	if (isEN751221 || isEN751627) {
@@ -183,13 +234,13 @@ void __init plat_time_init(void)
 	tc_timer_set(1, TIMERTICKS_10MS, ENABLE, TIMER_TOGGLEMODE, TIMER_HALTDISABLE);
 
 	/* setup watchdog timer interrupt */
-	tc_setup_watchdog_irq();
+	setup_irq(TIMER5_INT, &tc_watchdog_timer_irqaction);
 
 	/* set countdown 2 seconds to issue WDG interrupt */
 	VPint(CR_WDOG_THSLD) = (2 * TIMERTICKS_1S * SYS_HCLK) * 500;
 
 	/* setup bus timeout interrupt */
-	tc_setup_bus_timeout_irq();
+	setup_irq(BUS_TOUT_INT, &tc_bus_timeout_irqaction);
 	VPint(CR_MON_TMR) = 0xcfffffff;
 	VPint(CR_BUSTIMEOUT_SWITCH) = 0xffffffff;
 }

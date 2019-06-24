@@ -234,7 +234,7 @@ uphy_setup_25mhz_xtal(void)
 
 void uphy_init(void)
 {
-	u32 reg_val;
+	u32 __maybe_unused reg_val;
 
 	if (atomic_inc_return(&uphy_init_instance) != 1)
 		return;
@@ -274,10 +274,11 @@ void uphy_init(void)
 		uphy_write32(ADDR_U2_PHY_P1_BASE + 0x1c, 0xC0240000); /* enable port 1 */
 	}
 
-#elif defined(CONFIG_ECONET_EN7516)
+#elif defined(CONFIG_ECONET_EN7516) || \
+      defined(CONFIG_ECONET_EN7527)
 
 	/* configure for XTAL 25MHz */
-	if ((VPint(0xbfb0008c) & 0x40000) == 0)
+	if ((VPint(CR_AHB_HWCONF) & 0x40000) == 0)
 		uphy_setup_25mhz_xtal();
 
 	uphy_write32(ADDR_U2_PHY_P0_BASE + 0x1c, 0xC0240008); /* enable port 0 */

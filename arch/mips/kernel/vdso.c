@@ -13,7 +13,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#ifdef CONFIG_MIPS_GIC
+#ifndef CONFIG_IRQ_GIC
 #include <linux/irqchip/mips-gic.h>
 #endif
 #include <linux/kernel.h>

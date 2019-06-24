@@ -13,10 +13,7 @@
 #ifndef __ASM_MACH_MIPS_TC3262_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_MIPS_TC3262_CPU_FEATURE_OVERRIDES_H
 
-/*
- * WARNING: this option checked only with SoC:
- * EN7512(3)
- */
+/* EN75xx */
 
 /* CPU options */
 #define cpu_has_tlb			1
@@ -43,21 +40,31 @@
 #define cpu_has_vint			1
 #define cpu_has_veic			1
 #define cpu_has_userlocal		1
+#define cpu_has_perf_cntr_intr_bit	1
+#define cpu_has_rixi			0
 
 /* CPU ases */
 #define cpu_has_mips16			1
 #define cpu_has_mdmx			0
 #define cpu_has_mips3d			0
 #define cpu_has_smartmips		0
-#define cpu_has_rixi			0
 #define cpu_has_dsp			1
 #define cpu_has_mipsmt			1
+#define cpu_has_dsp2			0
+#define cpu_has_vz			0
 
 /* CPU ISA level */
+#define cpu_has_mips_2			1
+#define cpu_has_mips_3			0
+#define cpu_has_mips_4			0
+#define cpu_has_mips_5			0
 #define cpu_has_mips32r1		1
 #define cpu_has_mips32r2		1
 #define cpu_has_mips64r1		0
 #define cpu_has_mips64r2		0
+
+#define cpu_has_mips32r6		0
+#define cpu_has_mips64r6		0
 
 #define cpu_has_64bits			0
 #define cpu_has_64bit_zero_reg		0
@@ -65,10 +72,14 @@
 #define cpu_has_64bit_addresses		0
 
 /* CPU cache info */
-#define cpu_icache_snoops_remote_store	1
 #define cpu_has_vtag_icache		0
 #define cpu_has_ic_fills_f_dc		0
+#ifdef CONFIG_MIPS_TC3262_1004K
+#define cpu_has_dc_aliases		0
+#else
+#define cpu_icache_snoops_remote_store	1
 #define cpu_has_dc_aliases		1
+#endif
 #define cpu_dcache_line_size()		32
 #define cpu_icache_line_size()		32
 

@@ -12,7 +12,7 @@
 #include <asm/smp-ops.h>
 #include <asm/mips-cm.h>
 #include <asm/mips-cpc.h>
-#include <asm/mips-boards/launch.h>
+#include <asm/tc3162/launch.h>
 #endif
 
 #include <asm/tc3162/prom.h>
@@ -66,8 +66,14 @@ char *prom_getenv(char *envname)
 const char *get_system_type(void)
 {
 #ifdef CONFIG_ECONET_EN7516
-	if (isEN751627)
+	if (isEN7516G)
 		return "EcoNet EN7516G SoC";
+#endif
+#ifdef CONFIG_ECONET_EN7527
+	if (isEN7527G)
+		return "EcoNet EN7527G SoC";
+	if (isEN7527H)
+		return "EcoNet EN7527H SoC";
 #endif
 #ifdef CONFIG_ECONET_EN7512
 	if (isEN7513G)
@@ -125,25 +131,16 @@ static inline void tc_mips_setup(void)
 
 #if defined(CONFIG_MIPS_CMP) || \
     defined(CONFIG_MIPS_CPS)
+phys_addr_t mips_cpc_default_phys_base(void)
+{
+	return RALINK_CPC_BASE;
+}
+
 static inline void prom_init_cm(void)
 {
 	/* early detection of CMP support */
 	mips_cm_probe();
 	mips_cpc_probe();
-
-#ifdef CONFIG_MIPS_CPS
-	if (mips_cm_numiocu()) {
-		/* Palmbus CM region */
-		write_gcr_reg0_base(CM_GCR_REG0_BASE_VALUE);
-		write_gcr_reg0_mask((CM_GCR_REG0_MASK_VALUE << 16) | CM_GCR_REGn_MASK_CMTGT_IOCU0);
-#ifdef CONFIG_PCI
-		/* PCIe CM region */
-		write_gcr_reg1_base(CM_GCR_REG1_BASE_VALUE);
-		write_gcr_reg1_mask((CM_GCR_REG1_MASK_VALUE << 16) | CM_GCR_REGn_MASK_CMTGT_IOCU0);
-#endif
-		__sync();
-	}
-#endif
 
 #ifdef CONFIG_MIPS_MT_SMP
 	if (register_cps_smp_ops() == 0)
@@ -157,7 +154,7 @@ static inline void prom_init_cm(void)
 
 bool plat_cpu_core_present(int core)
 {
-	struct cpulaunch *launch = (struct cpulaunch *)CKSEG0ADDR(CPULAUNCH);
+	struct cpulaunch *launch = (struct cpulaunch *)CPU_LAUNCH_BASE;
 
 	if (!core)
 		return true;
@@ -275,7 +272,7 @@ void __init mips_nmi_setup(void)
 		(void *)(ebase + 0x200 + VECTORSPACING * 64) :
 		(void *)(ebase + 0x380);
 
-	printk(KERN_INFO "NMI base is %p\n", base);
+	printk(KERN_INFO "NMI base is %08X\n", (unsigned int)base);
 
 	/*
 	 * Fill the NMI_Handler address in a register, which is a R/W register
@@ -310,7 +307,8 @@ void __init prom_init(void)
 	/* Test supported hardware */
 #if defined(CONFIG_ECONET_EN7512)
 	if (!isEN751221)
-#elif defined(CONFIG_ECONET_EN7516)
+#elif defined(CONFIG_ECONET_EN7516) || \
+      defined(CONFIG_ECONET_EN7527)
 	if (!isEN751627)
 #endif
 		BUG();
@@ -334,7 +332,7 @@ void __init prom_init(void)
 
 	ram_type = (VPint(CR_DMC_BASE + 0xE4) & (1 << 7)) ? "DDR3" : "DDR2";
 	memsize = (GET_DRAM_SIZE) << 20;
-	cpu_ratio = (isEN751627) ? 3 : 4;
+	cpu_ratio = 4;
 
 	if (memsize > 0x1c000000) {
 		/* 1. Normal region 0..448MB */
@@ -380,4 +378,3 @@ void __init prom_free_prom_memory(void)
 {
 	/* We do not have any memory to free */
 }
-

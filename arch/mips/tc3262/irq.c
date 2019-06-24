@@ -6,8 +6,6 @@
 #include <linux/interrupt.h>
 
 #include <asm/setup.h>
-//#include <asm/irq_cpu.h>
-
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 
@@ -19,9 +17,6 @@
 extern void vsmp_int_init(void);
 extern int plat_set_irq_affinity(struct irq_data *d,
 				 const struct cpumask *affinity, bool force);
-#ifdef CONFIG_TC3162_ADSL
-extern void stop_adsl_dmt(void);
-#endif
 
 static DEFINE_SPINLOCK(tc3262_irq_lock);
 
@@ -254,73 +249,6 @@ __BUILD_IRQ_DISPATCH_FUNC(38),
 __BUILD_IRQ_DISPATCH_FUNC(39),
 __BUILD_IRQ_DISPATCH_FUNC(40)
 };
-
-static irqreturn_t tc_watchdog_timer_interrupt(int irq, void *dev_id)
-{
-	unsigned int word;
-
-	word = VPint(CR_TIMER_CTL);
-	word &= 0xffc0ffff;
-	word |= 0x00200000;
-	VPint(CR_TIMER_CTL) = word;
-
-	printk(KERN_WARNING "watchdog timer interrupt\n");
-
-#ifdef CONFIG_TC3162_ADSL
-	/* stop adsl */
-	stop_adsl_dmt();
-#endif
-
-	dump_stack();
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t tc_bus_timeout_interrupt(int irq, void *dev_id)
-{
-	unsigned int addr;
-
-	/* write to clear interrupt */
-	VPint(CR_PRATIR) = 1;
-
-	addr = VPint(CR_ERR_ADDR);
-	addr &= ~((1 << 30) | (1 << 31));
-
-	printk(KERN_WARNING "bus timeout interrupt ERR ADDR=%08x\n",
-		addr);
-
-	dump_stack();
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction tc_watchdog_timer_irqaction = {
-	.handler	 = tc_watchdog_timer_interrupt,
-	.flags		 = IRQF_NO_THREAD,
-	.name		 = "watchdog",
-};
-
-static struct irqaction tc_bus_timeout_irqaction = {
-	.handler	 = tc_bus_timeout_interrupt,
-	.flags		 = IRQF_NO_THREAD,
-	.name		 = "bus timeout",
-};
-
-void tc_setup_watchdog_irq(void)
-{
-	if (cpu_has_vint)
-		set_vi_handler(TIMER5_INT, irq_dispatch_tab[TIMER5_INT]);
-
-	setup_irq(TIMER5_INT, &tc_watchdog_timer_irqaction);
-}
-
-void tc_setup_bus_timeout_irq(void)
-{
-	if (cpu_has_vint)
-		set_vi_handler(BUS_TOUT_INT, irq_dispatch_tab[BUS_TOUT_INT]);
-
-	setup_irq(BUS_TOUT_INT, &tc_bus_timeout_irqaction);
-}
 
 void tc_enable_irq(unsigned int irq)
 {

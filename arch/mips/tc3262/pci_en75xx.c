@@ -260,7 +260,9 @@ struct pci_controller en75xx_pci_controller = {
 	.io_offset	 = 0x00000000UL,
 };
 
-#if defined(CONFIG_ECONET_EN7516) || defined(CONFIG_PCIE_PORT1)
+#if defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527) || \
+    defined(CONFIG_PCIE_PORT1)
 static u32 en75xx_pcie_get_pos(u32 busn, u32 slot)
 {
 	u32 val, pos;
@@ -282,7 +284,8 @@ static u32 en75xx_pcie_get_pos(u32 busn, u32 slot)
 
 static inline void en75xx_pcie_rc0_retrain(void)
 {
-#ifdef CONFIG_ECONET_EN7516
+#if defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527)
 	u32 pos, ppos;
 	u32 linkcap, plinkcap, plinksta[2];
 	unsigned long flags;

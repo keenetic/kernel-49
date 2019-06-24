@@ -38,26 +38,35 @@
 //#define cpu_has_vint			1 // do not override, depend from CONFIG_CPU_MIPSR2_IRQ_VI
 #define cpu_has_veic			0
 #define cpu_has_userlocal		1
+#define cpu_has_perf_cntr_intr_bit	1
+#define cpu_has_rixi			0
 
 /* CPU ases */
 #define cpu_has_mips16			1
 #define cpu_has_mdmx			0
 #define cpu_has_mips3d			0
 #define cpu_has_smartmips		0
-#define cpu_has_rixi			0
 #define cpu_has_dsp			1
-#define cpu_has_dsp2			0
 #if defined(CONFIG_RALINK_MT7621)
 #define cpu_has_mipsmt			1
 #else
 #define cpu_has_mipsmt			0
 #endif
+#define cpu_has_dsp2			0
+#define cpu_has_vz			0
 
 /* CPU ISA level */
+#define cpu_has_mips_2			1
+#define cpu_has_mips_3			0
+#define cpu_has_mips_4			0
+#define cpu_has_mips_5			0
 #define cpu_has_mips32r1		1
 #define cpu_has_mips32r2		1
 #define cpu_has_mips64r1		0
 #define cpu_has_mips64r2		0
+
+#define cpu_has_mips32r6		0
+#define cpu_has_mips64r6		0
 
 #define cpu_has_64bits			0
 #define cpu_has_64bit_zero_reg		0

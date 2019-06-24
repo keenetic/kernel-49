@@ -817,7 +817,7 @@ int write_bbt_or_bmt_to_flash(void)
 int create_badblock_table_by_bbt(void)
 {
 	int i = 0, j = 0, k = 0;
-	int badblock_table_size = system_block_count - init_bbt.badblock_count;
+	int badblock_table_size = system_block_count;
 
 	for (i = 0; i < badblock_table_size; i++)
 		pBbt[i] = i;

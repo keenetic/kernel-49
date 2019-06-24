@@ -266,8 +266,10 @@ int r4k_clockevent_init(void)
 	if (!cpu_has_counter || !mips_hpt_frequency)
 		return -ENXIO;
 
+#ifndef CONFIG_MIPS_TC3262_1004K
 	if (!c0_compare_int_usable())
 		return -ENXIO;
+#endif
 
 	/*
 	 * With vectored interrupts things are getting platform specific.

@@ -161,6 +161,8 @@ static inline void regWrite32(uint32 reg, uint32 val)
 #define isEN7526c		(((VPint(0xbfb00064) & 0xffff0000)) == 0x00080000)
 #define isEN751221		((((VPint(0xbfb00064) & 0xffff0000)) == 0x00070000) || isEN7526c)
 #define isEN751627		(((VPint(0xbfb00064) & 0xffff0000)) == 0x00090000)
+#define isEN7580 		(((VPint(0xbfb00064) & 0xffff0000)) == 0x000A0000)
+
 /* Support old xDSL chips */
 #define isTC3162L2P2		((((unsigned char)(VPint(0xbfb0008c)>>12)&0xff)!=0)&&(((VPint(0xbfb00064)&0xffffffff))==0x00000000)?1:0)
 #define isTC3162L3P3		((((unsigned char)(VPint(0xbfb0008c)>>12)&0xff)==7)&&(((VPint(0xbfb00064)&0xffffffff))==0x00000000)?1:0)
@@ -176,8 +178,8 @@ static inline void regWrite32(uint32 reg, uint32 val)
 #define isRT63165		(((VPint(0xbfb00064)&0xffff0000))==0x00030000)
 
 #define PDIDR			(VPint(0xBFB0005C)&0xFFFF)
-#define isEN751221FPGA		((VPint(CR_AHB_HWCONF) & (1 << 29)) ? 0 : 1) //used for 7512/7521
-#define isGenernalFPGA		((VPint(CR_AHB_HWCONF) & (1 << 31)) ? 1 : 0) //used for 63365/751020
+#define isEN751221FPGA		((VPint(0xBFB0008C) & (1 << 29)) ? 0 : 1) //used for 7512/7521
+#define isGenernalFPGA		((VPint(0xBFB0008C) & (1 << 31)) ? 1 : 0) //used for 63365/751020
 #define isGenernalFPGA_2	(((VPint(CR_AHB_SSTR) & 0x1) == 0) ? 1 : 0) //used for EN7526c and later version
 #if defined(CONFIG_ECONET_EN7516)
 #define isFPGA			0 // GET_IS_FPGA
@@ -201,6 +203,8 @@ static inline void regWrite32(uint32 reg, uint32 val)
 #define EFUSE_EN7513		(0x5)
 #define EFUSE_EN7513G		(0x6)
 #define EFUSE_EN7516G		(0x80000)
+#define EFUSE_EN7527H		(0x40000)
+#define EFUSE_EN7527G		(0x0)
 
 #define isEN7512		(isEN751221 && \
 				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT)? \
@@ -221,6 +225,16 @@ static inline void regWrite32(uint32 reg, uint32 val)
 				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT)? \
 				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF) & EFUSE_PKG_MASK) == EFUSE_EN7516G): \
 				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK) == EFUSE_EN7516G)))
+
+#define isEN7527H		(isEN751627 && \
+				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT)? \
+				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF) &  EFUSE_PKG_MASK)== EFUSE_EN7527H): \
+				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK) == EFUSE_EN7527H)))
+
+#define isEN7527G		(isEN751627 && \
+				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT)? \
+				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF) & EFUSE_PKG_MASK) == EFUSE_EN7527G): \
+				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK) == EFUSE_EN7527G)))
 
 #define EFUSE_DDR3_BIT		(1 << 23)
 #define EFUSE_DDR3_REMARK_BIT	(1 << 24)
@@ -259,6 +273,12 @@ static inline void regWrite32(uint32 reg, uint32 val)
 
 #define IS_SPIFLASH			((~(VPint(0xBFA10114))) & 0x2)
 #define IS_NANDFLASH			   (VPint(0xBFA10114)   & 0x2)
+#ifdef TCSUPPORT_SPI_CONTROLLER_ECC
+#define isSpiControllerECC		(GET_IS_SPI_ECC)
+#else
+#define isSpiControllerECC		(0)
+#endif
+#define isSpiNandAndCtrlECC		(IS_NANDFLASH && isSpiControllerECC)
 
 /*****************************
  * RBUS CORE Module Registers *

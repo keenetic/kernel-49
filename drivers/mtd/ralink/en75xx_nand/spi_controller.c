@@ -78,27 +78,6 @@
 #define _SPI_CONTROLLER_REGS_NFI2SPI_EN			(_SPI_CONTROLLER_REGS_BASE + 0x0130)
 
 /* Register Value Definition */
-#define _SPI_CONTROLLER_VAL_OP_CSH			(0x00)
-#define _SPI_CONTROLLER_VAL_OP_CSL			(0x01)
-#define _SPI_CONTROLLER_VAL_OP_CK			(0x02)
-#define _SPI_CONTROLLER_VAL_OP_OUTS			(0x08)
-#define _SPI_CONTROLLER_VAL_OP_OUTD			(0x09)
-#define _SPI_CONTROLLER_VAL_OP_OUTQ			(0x0A)
-#define _SPI_CONTROLLER_VAL_OP_INS			(0x0C)
-#define _SPI_CONTROLLER_VAL_OP_INS0			(0x0D)
-#define _SPI_CONTROLLER_VAL_OP_IND			(0x0E)
-#define _SPI_CONTROLLER_VAL_OP_INQ			(0x0F)
-#define _SPI_CONTROLLER_VAL_OP_OS2IS			(0x10)
-#define _SPI_CONTROLLER_VAL_OP_OS2ID			(0x11)
-#define _SPI_CONTROLLER_VAL_OP_OS2IQ			(0x12)
-#define _SPI_CONTROLLER_VAL_OP_OD2IS			(0x13)
-#define _SPI_CONTROLLER_VAL_OP_OD2ID			(0x14)
-#define _SPI_CONTROLLER_VAL_OP_OD2IQ			(0x15)
-#define _SPI_CONTROLLER_VAL_OP_OQ2IS			(0x16)
-#define _SPI_CONTROLLER_VAL_OP_OQ2ID			(0x17)
-#define _SPI_CONTROLLER_VAL_OP_OQ2IQ			(0x18)
-#define _SPI_CONTROLLER_VAL_OP_OSNIS			(0x19)
-#define _SPI_CONTROLLER_VAL_OP_ODNID			(0x1A)
 #define _SPI_CONTROLLER_VAL_OP_LEN_MAX			(0x1ff)
 #define _SPI_CONTROLLER_VAL_OP_LEN_ONE			(1)
 #define _SPI_CONTROLLER_VAL_OP_LEN_TWO			(2)
@@ -355,6 +334,25 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Set_Configure( SPI_CONTROLLER_CONF_T *ptr_sp
 		WriteReg( _SPI_CONTROLLER_REGS_MANUAL_EN, _SPI_CONTROLLER_VAL_MANUAL_MANUALEN);
 	}
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
+	if( (ptr_spi_conf_t->mode) == SPI_CONTROLLER_MODE_DMA)
+	{
+		_SPI_CONTROLLER_DEBUG_PRINTF("SPI_CONTROLLER_Set_Configure: DMA Mode\n");
+
+		/* Switch into DMA circuit  */
+		if (isEN751627 || isEN7526c) {
+			WriteReg( _SPI_CONTROLLER_REGS_NFI2SPI_EN, _SPI_CONTROLLER_VAL_NFI2SPI_ENABLE);
+		}
+
+		/* manaul mode -> auto mode */
+		/*Set 0  to SF_MTX_MODE_TOG */
+		WriteReg( _SPI_CONTROLLER_REGS_MTX_MODE_TOG, _SPI_CONTROLLER_VAL_AUTO_MTXMODE);
+
+		/*Enable Auto Mode */
+		WriteReg( _SPI_CONTROLLER_REGS_MANUAL_EN, _SPI_CONTROLLER_VAL_MANUAL_MANUALDISABLE);
+	}
+#endif
+
 	/* Set dummy byte number */
 	WriteReg(_SPI_CONTROLLER_REGS_DUMMY, (ptr_spi_conf_t->dummy_byte_num) );
 
@@ -404,7 +402,7 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Enable_Manual_Mode( void )
 
 
 /*------------------------------------------------------------------------------------
- * FUNCTION: SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Write_One_Byte( u8  data )
+ * FUNCTION: SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Write_One_Byte_With_Cmd( u8  data )
  * PURPOSE : To provide interface for write one byte to SPI bus.
  * AUTHOR  : Chuck Kuo
  * CALLED BY
@@ -421,19 +419,24 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Enable_Manual_Mode( void )
  *
  *------------------------------------------------------------------------------------
  */
-SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Write_One_Byte( u8 data )
+SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Write_One_Byte_With_Cmd( u8 op_cmd, u8 data )
 {
 	SPI_CONTROLLER_RTN_T rtn_status = SPI_CONTROLLER_RTN_NO_ERROR;
 
 	_SPI_CONTROLLER_DEBUG_PRINTF("SPI_CONTROLLER_Write_One_Byte : data=0x%x\n", data);
 
 	/* 1. Set opcode to SPI Controller */
-	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_OUTS, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
+	spi_controller_set_opfifo( op_cmd, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
 
 	/* 2. Write data to SPI Controller */
 	spi_controller_write_data_fifo( &data, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
 
 	return (rtn_status);
+}
+
+SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Write_One_Byte( u8 data )
+{
+	return SPI_CONTROLLER_Write_One_Byte_With_Cmd(_SPI_CONTROLLER_VAL_OP_OUTS, data);
 }
 
 /*------------------------------------------------------------------------------------
@@ -597,7 +600,7 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Chip_Select_Low(void)
 	SPI_CONTROLLER_RTN_T rtn_status = SPI_CONTROLLER_RTN_NO_ERROR; 
 
 	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CSL, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
-	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CSL, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
+//	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CSL, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
 
 	return (rtn_status);
 }
@@ -625,7 +628,7 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Chip_Select_High(void)
 	SPI_CONTROLLER_RTN_T rtn_status = SPI_CONTROLLER_RTN_NO_ERROR; 
 
 	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CSH, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
-	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CK, _SPI_CONTROLLER_VAL_OP_LEN_FIVE);
+//	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CK, _SPI_CONTROLLER_VAL_OP_LEN_FIVE);
 
 	return (rtn_status);
 }

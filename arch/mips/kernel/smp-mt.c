@@ -21,7 +21,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
-#ifdef CONFIG_MIPS_GIC
+#ifndef CONFIG_IRQ_GIC
 #include <linux/irqchip/mips-gic.h>
 #endif
 #include <linux/compiler.h>

@@ -24,7 +24,7 @@
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
-#ifdef CONFIG_MIPS_GIC
+#ifndef CONFIG_IRQ_GIC
 #include <linux/irqchip/mips-gic.h>
 #endif
 

@@ -10,7 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
-#ifdef CONFIG_MIPS_GIC
+#ifndef CONFIG_IRQ_GIC
 #include <linux/irqchip/mips-gic.h>
 #endif
 #include <linux/sched.h>

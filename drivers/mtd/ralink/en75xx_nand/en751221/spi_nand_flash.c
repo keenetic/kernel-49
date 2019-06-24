@@ -48,8 +48,11 @@
 #include <asm/io.h>
 #include <asm/tc3162/tc3162.h>
 
-#include "bmt.h"
-#include "spi_controller.h"
+#include "../spi_controller.h"
+#if defined(TCSUPPORT_NAND_BMT) && !defined(LZMA_IMG)
+#include "../bmt.h"
+#endif
+
 #include "spi_nand_flash.h"
 
 /* enable flash chip HW ECC */

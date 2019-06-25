@@ -3611,6 +3611,10 @@ static int en75xx_spinand_probe(void)
 		goto out_err_free;
 	}
 
+	/* fill entire OOB cache by 0xff */
+	memset(_current_cache_page_oob, 0xff, sizeof(_current_cache_page_oob));
+	memset(_current_cache_page_oob_mapping, 0xff, sizeof(_current_cache_page_oob_mapping));
+
 	SPI_NAND_Flash_Init();
 
 	ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;

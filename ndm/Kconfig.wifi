@@ -145,12 +145,12 @@ config RT_SECOND_CARD
 	default 7615 if SECOND_IF_MT7615E
 
 config RT_FIRST_IF_RF_OFFSET
-	hex
+	hex "EEPROM offset of 1st card"
 	depends on ! FIRST_IF_NONE
 	default 0x0
 
 config RT_SECOND_IF_RF_OFFSET
-	hex
+	hex "EEPROM offset of 2nd card"
 	depends on ! SECOND_IF_NONE
 	default 0x8000
 

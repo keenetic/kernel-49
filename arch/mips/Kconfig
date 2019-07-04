@@ -186,7 +186,8 @@ config RALINK_MT7621
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_MIPS_CMP
 	select SYS_SUPPORTS_MIPS_CPS
-	select MIPS_GIC
+	select IRQ_GIC
+#	select MIPS_GIC
 	select WEAK_REORDERING_BEYOND_LLSC
 	help
 	  Ralink evaluation board based on MT7621

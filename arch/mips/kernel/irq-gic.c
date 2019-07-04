@@ -451,8 +451,8 @@ static struct irqaction irq_call = {
 
 static __init void gic_ipi_init_one(unsigned int irq, struct irqaction *action)
 {
-	irq_set_handler(irq, handle_percpu_irq);
-	setup_irq(irq, action);
+	irq_set_handler(gic_irq_base + irq, handle_percpu_irq);
+	setup_irq(gic_irq_base + irq, action);
 }
 
 static inline void gic_ipi_init(int intnumintrs, int numvpes)

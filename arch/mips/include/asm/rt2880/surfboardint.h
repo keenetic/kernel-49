@@ -26,7 +26,13 @@
 
 #if defined(CONFIG_RALINK_MT7621)
 
+#ifdef CONFIG_MIPS_GIC
 #include <linux/irqchip/mips-gic.h>
+#else
+#define GIC_NUM_LOCAL_INTRS	7
+#define GIC_SHARED_HWIRQ_BASE	GIC_NUM_LOCAL_INTRS
+#define GIC_SHARED_TO_HWIRQ(x)	(GIC_SHARED_HWIRQ_BASE + (x))
+#endif
 
 /* MIPS GIC controller */
 #define GIC_NUM_INTRS			64

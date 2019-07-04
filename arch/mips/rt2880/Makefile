@@ -15,9 +15,13 @@
 obj-y := reset.o init.o memory.o printf.o cmdline.o setup.o time.o
 
 ifdef CONFIG_MIPS_GIC
+obj-y += irqchip-gic.o
+else
+ifdef CONFIG_IRQ_GIC
 obj-y += irq-gic.o
 else
 obj-y += irq.o
+endif
 endif
 
 obj-$(CONFIG_MIPS_CMP) += malta-amon.o

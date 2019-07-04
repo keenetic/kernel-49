@@ -170,13 +170,18 @@ config MTD_NDM_BOOT_UPDATE
 	depends on MTD_NDM_PARTS
 	select XZ_DEC
 
+config MTD_NDM_CONFIG_SIZE
+	hex "\"Config\" partition size"
+	default 0x0
+	depends on MTD_NDM_PARTS
+
 config MTD_NDM_DUMP_SIZE
-	hex "Dump partition size"
+	hex "\"Dump\" partition size"
 	default 0x0
 	depends on MTD_NDM_PARTS
 
 config MTD_NDM_STORAGE_SIZE
-	hex "Storage partition size"
+	hex "\"Storage\" partition size"
 	default 0x100000
 	depends on MTD_NDM_PARTS
 

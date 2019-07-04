@@ -600,7 +600,10 @@ static int create_mtd_partitions(struct mtd_info *m,
 	parts[PART_KERNEL_1].offset = parts_offset_end(PART_RF_EEPROM);
 	parts[PART_FIRMWARE_1].offset = parts[PART_KERNEL_1].offset;
 
-	parts[PART_CONFIG_1].size = parts_size_default_get(PART_CONFIG_1, m);
+	if (CONFIG_MTD_NDM_CONFIG_SIZE)
+		parts[PART_CONFIG_1].size = CONFIG_MTD_NDM_CONFIG_SIZE;
+	else
+		parts[PART_CONFIG_1].size = parts_size_default_get(PART_CONFIG_1, m);
 
 	if (use_storage) {
 		parts[PART_STORAGE].skip = false;

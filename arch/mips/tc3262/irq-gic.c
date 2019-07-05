@@ -159,14 +159,29 @@ void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
 	int i;
 
 	/* irqVec starts from 1 and ends at 63 */
-	for (i = gic_irq_base + 1; i < (gic_irq_base + irqs); i++)
-		irq_set_chip(i, irq_controller);
+	for (i = 1; i < INTR_SOURCES_NUM; i++)
+		irq_set_chip(gic_irq_base + i, irq_controller);
+
+	/* Initialize IRQ action handlers */
+	for (i = 1; i < INTR_SOURCES_NUM; i++) {
+		if (i >= IPI_RESCHED_INT0)
+			break;
+
+		if (i == SI_TIMER_INT)
+			irq_set_handler(gic_irq_base + i, handle_percpu_irq);
+		else if (i == GIC_EDGE_NMI)
+			irq_set_handler(gic_irq_base + i, handle_edge_irq);
+		else
+			irq_set_handler(gic_irq_base + i, handle_level_irq);
+	}
+
+	/* bind watchdog Intr to CPU1 */
+	GIC_SH_MAP_TO_VPE_SMASK(get_gic_shared_intr(TIMER5_INT), 1);
 }
 
 void __init arch_init_irq(void)
 {
 	phys_addr_t gic_base = RALINK_GIC_BASE;
-	unsigned int i;
 
 	/* Disable all hardware interrupts */
 	clear_c0_status(ST0_IM);
@@ -177,28 +192,12 @@ void __init arch_init_irq(void)
 
 		write_gcr_gic_base(gic_base | CM_GCR_GIC_BASE_GICEN_MSK);
 		__sync();
-
-		gic_present = 1;
 	}
 
-	if (gic_present) {
-		gic_init(gic_base, RALINK_GIC_ADDRSPACE_SZ, gic_intr_map,
-				ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
+	gic_present = true;
 
-		/* bind watchdog Intr to CPU1 */
-		GIC_SH_MAP_TO_VPE_SMASK(get_gic_shared_intr(TIMER5_INT), 1);
-	}
-
-	/* Initialize IRQ action handlers */
-	for (i = 1; i < NR_IRQS; i++) {
-		if (i >= IPI_RESCHED_INT0)
-			break;
-
-		if (i == SI_TIMER_INT)
-			irq_set_handler(i, handle_percpu_irq);
-		else
-			irq_set_handler(i, handle_level_irq);
-	}
+	gic_init(gic_base, RALINK_GIC_ADDRSPACE_SZ, gic_intr_map,
+			ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
 }
 
 asmlinkage void plat_irq_dispatch(void)

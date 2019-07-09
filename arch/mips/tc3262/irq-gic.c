@@ -143,6 +143,34 @@ void tc_disable_irq_all(void)
 	local_irq_restore(flags);
 }
 
+static irqreturn_t cpu_cm_err_interrupt(int irq, void *dev_id)
+{
+	/* clear CM2 error cause */
+	VPint(KSEG1ADDR(RALINK_GCMP_BASE) + 0x0048) = 0;
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cpu_cm_pcint_interrupt(int irq, void *dev_id)
+{
+	/* clear CM2 Performance Counter Overflow Status Register */
+	VPint(KSEG1ADDR(RALINK_GCMP_BASE) + 0x6120) = 0x7;
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction cpu_cm_err_irqaction = {
+	.handler	 = cpu_cm_err_interrupt,
+	.flags		 = IRQF_NO_THREAD,
+	.name		 = "cpu_cm_err",
+};
+
+static struct irqaction cpu_cm_pcint_irqaction = {
+	.handler	 = cpu_cm_pcint_interrupt,
+	.flags		 = IRQF_NO_THREAD,
+	.name		 = "cpu_cm_pcint",
+};
+
 unsigned int get_c0_compare_int(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -198,6 +226,9 @@ void __init arch_init_irq(void)
 
 	gic_init(gic_base, RALINK_GIC_ADDRSPACE_SZ, gic_intr_map,
 			ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
+
+	setup_irq(CPU_CM_ERR, &cpu_cm_err_irqaction);
+	setup_irq(CPU_CM_PCINT, &cpu_cm_pcint_irqaction);
 }
 
 asmlinkage void plat_irq_dispatch(void)

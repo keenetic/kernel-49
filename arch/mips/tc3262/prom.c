@@ -229,6 +229,14 @@ static inline void tc_dmt_setup(void)
 	/* disable DMT clock to power save */
 	VPint(CR_AHB_DMTCR) = 0x3;
 #endif
+
+#if defined(CONFIG_ECONET_EN7512)
+	/* Power down SIMLDO */
+	VPint(0xBFA20168) |= (1 << 8);
+#endif
+
+	/* Power down PON PHY since xPON is not supported */
+	VPint(CR_AHB_BASE + 0x830) |= 0x1;
 }
 
 static inline void tc_fe_setup(void)

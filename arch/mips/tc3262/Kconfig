@@ -32,4 +32,18 @@ config TC3262_CPU_TIMER
 	bool "Use CPU External Timer (per-VPE)"
 	default y
 
+choice
+	prompt "HWFQ flat buffer allocation mode"
+	default TC3262_HWFQ_ALLOC
+
+	config TC3262_HWFQ_ALLOC
+		bool "Use dma_alloc_coherent (fragmentation issue)"
+	config TC3262_HWFQ_MAP_4M
+		bool "Map 4MB beyond RAM size"
+	config TC3262_HWFQ_MAP_8M
+		bool "Map 8MB beyond RAM size"
+	config TC3262_HWFQ_MAP_16M
+		bool "Map 16MB beyond RAM size"
+endchoice
+
 endif # MIPS_TC3262

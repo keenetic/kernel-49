@@ -300,7 +300,7 @@ static inline void cpu_dma_round_robin(int mode)
 
 void __init prom_init(void)
 {
-	unsigned long memsize;
+	unsigned long memsize, memresv, memregn, memoffs;
 	unsigned int bus_freq, cpu_freq, cpu_ratio;
 	const char *ram_type;
 
@@ -334,16 +334,34 @@ void __init prom_init(void)
 	memsize = (GET_DRAM_SIZE) << 20;
 	cpu_ratio = 4;
 
+	memresv = 0;
+#if defined(CONFIG_TC3262_HWFQ_MAP_4M)
+	memresv = 4 << 20;
+#elif defined(CONFIG_TC3262_HWFQ_MAP_8M)
+	memresv = 8 << 20;
+#elif defined(CONFIG_TC3262_HWFQ_MAP_16M)
+	memresv = 16 << 20;
+#endif
+
+#if defined(CONFIG_ECONET_EN7512)
+	memoffs = 0x20000;
+#else
+	memoffs = 0x02000;
+#endif
+
 	if (memsize > 0x1c000000) {
 		/* 1. Normal region 0..448MB */
-		add_memory_region(0x20000, 0x1c000000 - 0x20000, BOOT_MEM_RAM);
+		memregn = 0x1c000000 - memoffs - memresv;
+		add_memory_region(memoffs, memregn, BOOT_MEM_RAM);
 #ifdef CONFIG_HIGHMEM
 		/* 2. Highmem region 0x40000000..0x44000000 */
-		add_memory_region(EN75XX_HIGHMEM_START, (memsize - 0x1c000000),
-			BOOT_MEM_RAM);
+		memregn = memsize - 0x1c000000;
+		add_memory_region(EN75XX_HIGHMEM_START, memregn, BOOT_MEM_RAM);
 #endif
-	} else
-		add_memory_region(0x20000, memsize - 0x20000, BOOT_MEM_RAM);
+	} else {
+		memregn = memsize - memoffs - memresv;
+		add_memory_region(memoffs, memregn, BOOT_MEM_RAM);
+	}
 
 	bus_freq = SYS_HCLK;
 	cpu_freq = bus_freq * cpu_ratio;

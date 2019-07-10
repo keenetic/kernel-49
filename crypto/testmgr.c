@@ -2236,6 +2236,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 					hmac_sha1_aes_cbc_enc_tv_temp,
 					.count =
 					HMAC_SHA1_AES_CBC_ENC_TEST_VEC
+				},
+				.dec = {
+					.vecs = hmac_sha1_aes_cbc_dec_tv_temp,
+					.count = 2
 				}
 			}
 		}

@@ -16449,7 +16449,7 @@ static struct cipher_testvec cast6_xts_dec_tv_template[] = {
 #define HMAC_MD5_ECB_CIPHER_NULL_DEC_TEST_VECTORS 2
 #define HMAC_SHA1_ECB_CIPHER_NULL_ENC_TEST_VEC 2
 #define HMAC_SHA1_ECB_CIPHER_NULL_DEC_TEST_VEC 2
-#define HMAC_SHA1_AES_CBC_ENC_TEST_VEC 7
+#define HMAC_SHA1_AES_CBC_ENC_TEST_VEC 8
 #define HMAC_SHA256_AES_CBC_ENC_TEST_VEC 7
 #define HMAC_SHA512_AES_CBC_ENC_TEST_VEC 7
 #define AES_LRW_ENC_TEST_VECTORS 8
@@ -17345,6 +17345,66 @@ static struct aead_testvec hmac_md5_ecb_cipher_null_dec_tv_template[] = {
 	},
 };
 
+static struct aead_testvec hmac_sha1_aes_cbc_dec_tv_temp[] = {
+	{ /* RFC 3602 Case 1 */
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x10"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00"
+			  "\x06\xa9\x21\x40\x36\xb8\xa1\x5b"
+			  "\x51\x2e\x03\xd5\x34\x12\x00\x06",
+		.klen   = 8 + 20 + 16,
+		.iv     = "\x3d\xaf\xba\x42\x9d\x9e\xb4\x30"
+			  "\xb4\x22\xda\x80\x2c\x9f\xac\x41",
+		.assoc	= "\x3d\xaf\xba\x42\x9d\x9e\xb4\x30"
+			  "\xb4\x22\xda\x80\x2c\x9f\xac\x41",
+		.alen	= 16,
+		.input	= "\xe3\x53\x77\x9c\x10\x79\xae\xb8"
+			  "\x27\x08\x94\x2d\xbe\x77\x18\x1a"
+			  "\x1b\x13\xcb\xaf\x89\x5e\xe1\x2c"
+			  "\x13\xc5\x2e\xa3\xcc\xed\xdc\xb5"
+			  "\x03\x71\xa2\x06",
+		.ilen   = 16 + 20,
+		.result = "Single block msg",
+		.rlen   = 16,
+	},
+	{ /* RFC 3602 Case 1 (ICV = 96 bits) */
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x10"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00"
+			  "\x06\xa9\x21\x40\x36\xb8\xa1\x5b"
+			  "\x51\x2e\x03\xd5\x34\x12\x00\x06",
+		.klen   = 8 + 20 + 16,
+		.iv     = "\x3d\xaf\xba\x42\x9d\x9e\xb4\x30"
+			  "\xb4\x22\xda\x80\x2c\x9f\xac\x41",
+		.assoc	= "\x3d\xaf\xba\x42\x9d\x9e\xb4\x30"
+			  "\xb4\x22\xda\x80\x2c\x9f\xac\x41",
+		.alen	= 16,
+		.input	= "\xe3\x53\x77\x9c\x10\x79\xae\xb8"
+			  "\x27\x08\x94\x2d\xbe\x77\x18\x1a"
+			  "\x1b\x13\xcb\xaf\x89\x5e\xe1\x2c"
+			  "\x13\xc5\x2e\xa3",
+		.ilen   = 16 + 12,
+		.result = "Single block msg",
+		.rlen   = 16,
+	}
+};
+
 static struct aead_testvec hmac_sha1_aes_cbc_enc_tv_temp[] = {
 	{ /* RFC 3602 Case 1 */
 #ifdef __LITTLE_ENDIAN
@@ -17374,6 +17434,33 @@ static struct aead_testvec hmac_sha1_aes_cbc_enc_tv_temp[] = {
 			  "\x13\xc5\x2e\xa3\xcc\xed\xdc\xb5"
 			  "\x03\x71\xa2\x06",
 		.rlen   = 16 + 20,
+	}, { /* RFC 3602 Case 1 (ICV = 96 bits) */
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x10"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00"
+			  "\x06\xa9\x21\x40\x36\xb8\xa1\x5b"
+			  "\x51\x2e\x03\xd5\x34\x12\x00\x06",
+		.klen   = 8 + 20 + 16,
+		.iv     = "\x3d\xaf\xba\x42\x9d\x9e\xb4\x30"
+			  "\xb4\x22\xda\x80\x2c\x9f\xac\x41",
+		.assoc	= "\x3d\xaf\xba\x42\x9d\x9e\xb4\x30"
+			  "\xb4\x22\xda\x80\x2c\x9f\xac\x41",
+		.alen	= 16,
+		.input  = "Single block msg",
+		.ilen   = 16,
+		.result = "\xe3\x53\x77\x9c\x10\x79\xae\xb8"
+			  "\x27\x08\x94\x2d\xbe\x77\x18\x1a"
+			  "\x1b\x13\xcb\xaf\x89\x5e\xe1\x2c"
+			  "\x13\xc5\x2e\xa3",
+		.rlen   = 16 + 12,
 	}, { /* RFC 3602 Case 2 */
 #ifdef __LITTLE_ENDIAN
 		.key    = "\x08\x00"		/* rta length */

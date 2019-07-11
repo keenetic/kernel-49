@@ -2227,6 +2227,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "authenc(hmac(md5),cbc(aes))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = hmac_md5_aes_cbc_enc_tv_temp,
+					.count = 2
+				},
+				.dec = {
+					.vecs = hmac_md5_aes_cbc_dec_tv_temp,
+					.count = 2
+				}
+			}
+		}
+	}, {
 		.alg = "authenc(hmac(sha1),cbc(aes))",
 		.test = alg_test_aead,
 		.suite = {

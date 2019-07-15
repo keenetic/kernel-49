@@ -121,6 +121,10 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 	if (!mtk->has_ippc)
 		return 0;
 
+#if defined(CONFIG_ECONET_EN75XX_MP)
+	xhci_plat_uphy_init(mtk);
+#endif
+
 	/* power on host ip */
 	value = readl(&ippc->ip_pw_ctr1);
 	value &= ~CTRL1_IP_HOST_PDN;
@@ -158,13 +162,13 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 		check_val |= STS1_U3_MAC_RST;
 
 	ret = readl_poll_timeout(&ippc->ip_pw_sts1, value,
-			  (check_val == (value & check_val)), 100, 20000);
+			  (check_val == (value & check_val)), 100, 100000);
 	if (ret) {
 		dev_err(mtk->dev, "clocks are not stable (0x%x)\n", value);
 		return ret;
 	}
 
-#if defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ECONET_EN75XX_MP)
+#if defined(CONFIG_RALINK_MT7621)
 	xhci_plat_uphy_init(mtk);
 #endif
 	return 0;
@@ -639,7 +643,12 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		mtk->num_phys = 0;
 	}
 
-#if defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ECONET_EN75XX_MP)
+#ifdef CONFIG_USB_XHCI_NO_USB3
+	mtk->u3p_dis_msk = 0xf;
+#endif
+
+#if defined(CONFIG_RALINK_MT7621) || \
+    defined(CONFIG_ECONET_EN75XX_MP)
 	xhci_plat_caps_fill(mtk);
 #endif
 	pm_runtime_enable(dev);

@@ -164,6 +164,19 @@ static int store_flush(struct net_bridge_port *p, unsigned long v)
 }
 static BRPORT_ATTR(flush, S_IWUSR, NULL, store_flush);
 
+static int store_stp_reset(struct net_bridge_port *p, unsigned long v)
+{
+	if (netif_running(p->br->dev)) {
+		if (netif_oper_up(p->dev))
+			br_stp_enable_port(p);
+		else
+			br_stp_disable_port(p);
+	}
+
+	return 0;
+}
+static BRPORT_ATTR(stp_reset, S_IWUSR, NULL, store_stp_reset);
+
 BRPORT_ATTR_FLAG(hairpin_mode, BR_HAIRPIN_MODE);
 BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
@@ -207,6 +220,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_forward_delay_timer,
 	&brport_attr_hold_timer,
 	&brport_attr_flush,
+	&brport_attr_stp_reset,
 	&brport_attr_hairpin_mode,
 	&brport_attr_bpdu_guard,
 	&brport_attr_root_block,

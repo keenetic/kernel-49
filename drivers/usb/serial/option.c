@@ -1097,7 +1097,7 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, YUGA_PRODUCT_CLM920_NC5),
 	  .driver_info = RSVD(1) | RSVD(4) },
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x9025),
-	  .driver_info = RSVD(0) | RSVD(1) | RSVD(3) | RSVD(4) },
+	  .driver_info = RSVD(1) | RSVD(4) | RSVD(5) },
 	{ USB_DEVICE(KEENETIC_VENDOR_ID, KEENETIC_PRODUCT_LTE_MDM9207),
 	  .driver_info = RSVD(0) | RSVD(2) | RSVD(3) },
 	/* u-blox products using Qualcomm vendor ID */

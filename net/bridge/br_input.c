@@ -298,6 +298,34 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 
 	p = br_port_get_rcu(skb->dev);
 
+#if IS_ENABLED(CONFIG_USB_NET_KPDSL)
+	if (skb->protocol == htons(ETH_P_EBM)) {
+		struct net_bridge *br = p->br;
+		struct net_device *brdev = br->dev;
+		const u8 state = p->state;
+
+		/* accept packets from microbridge interfaces only */
+		if (!(p->dev->priv_flags & IFF_UBRIDGE))
+			goto drop;
+
+		/* update the FDB despite on a port state */
+		p->state = BR_STATE_FORWARDING;
+		br_fdb_update(br, p, eth_hdr(skb)->h_source, 0, false);
+		p->state = state;
+
+		if (ether_addr_equal(brdev->dev_addr, dest))
+			skb->pkt_type = PACKET_HOST;
+
+		skb->dev = brdev;
+		BR_INPUT_SKB_CB(skb)->brdev = brdev;
+
+		nbp_switchdev_frame_mark(p, skb);
+		br_netif_receive_skb(NULL, NULL, skb);
+
+		return RX_HANDLER_CONSUMED;
+	}
+#endif
+
 	if (unlikely(is_link_local_ether_addr(dest))) {
 		u16 fwd_mask = p->br->group_fwd_mask_required;
 

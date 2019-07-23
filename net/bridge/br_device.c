@@ -63,6 +63,19 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
+#if IS_ENABLED(CONFIG_USB_NET_KPDSL)
+	if (eth_hdr(skb)->h_proto == htons(ETH_P_EBM)) {
+		dst = __br_fdb_get(br, dest, 0);
+
+		if (dst)
+			br_forward_ebm(dst->dst, skb);
+		else
+			br_flood_ebm(br, skb);
+
+		goto out;
+	}
+#endif
+
 	if (likely(1
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 	    && !FOE_SKB_IS_KEEPALIVE(skb)

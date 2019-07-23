@@ -158,6 +158,70 @@ void br_forward(const struct net_bridge_port *to,
 }
 EXPORT_SYMBOL_GPL(br_forward);
 
+#if IS_ENABLED(CONFIG_USB_NET_KPDSL)
+/**
+ * br_forward_ebm - forward an EBM packet to a specific port
+ * @to: destination port
+ * @skb: packet being forwarded
+ *
+ * Should be called with rcu_read_lock.
+ */
+void br_forward_ebm(const struct net_bridge_port *to, struct sk_buff *skb)
+{
+	/* forward packets to microbridge interfaces only */
+	if (!(to->dev->priv_flags & IFF_UBRIDGE)) {
+		kfree_skb(skb);
+		return;
+	}
+
+#ifdef CONFIG_NETPOLL
+	if (unlikely(netpoll_tx_running(to->br->dev))) {
+		skb_push(skb, ETH_HLEN);
+		if (!is_skb_forwardable(skb->dev, skb))
+			kfree_skb(skb);
+		else
+			br_netpoll_send_skb(to, skb);
+		return;
+	}
+#endif
+
+	skb->dev = to->dev;
+	br_dev_queue_push_xmit(NULL, NULL, skb);
+}
+EXPORT_SYMBOL_GPL(br_forward_ebm);
+
+/* called under rcu_read_lock */
+void br_flood_ebm(struct net_bridge *br, struct sk_buff *skb)
+{
+	struct net_bridge_port *prev = NULL;
+	struct net_bridge_port *p;
+
+	list_for_each_entry_rcu(p, &br->port_list, list) {
+		/* flood to microbridge interfaces only */
+		if (!(p->dev->priv_flags & IFF_UBRIDGE))
+			continue;
+
+		if (prev) {
+			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
+
+			if (!skb2)
+				goto out;
+
+			br_forward_ebm(prev, skb2);
+		}
+
+		prev = p;
+	}
+
+out:
+	if (prev)
+		br_forward_ebm(prev, skb);
+	else
+		kfree_skb(skb);
+}
+EXPORT_SYMBOL_GPL(br_flood_ebm);
+#endif
+
 static struct net_bridge_port *maybe_deliver(
 	struct net_bridge_port *prev, struct net_bridge_port *p,
 	struct sk_buff *skb, bool local_orig)

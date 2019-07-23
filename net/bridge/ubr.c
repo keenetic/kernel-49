@@ -44,8 +44,6 @@
 
 #include "ubridge_private.h"
 
-#define EBM_ETH_TYPE	0x6120
-
 #define MAC_FORCED	0
 
 #define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
@@ -79,12 +77,15 @@ static rx_handler_result_t ubr_handle_frame(struct sk_buff **pskb)
 
 	ustats = this_cpu_ptr(ubr->stats);
 
-	if (likely(skb->protocol != htons(EBM_ETH_TYPE)
+	if (likely(1
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	    && !SWNAT_KA_CHECK_MARK(skb)
 #endif
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 	    && !FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+#if IS_ENABLED(CONFIG_USB_NET_KPDSL)
+	    && skb->protocol != htons(ETH_P_EBM)
 #endif
 		)) {
 		u64_stats_update_begin(&ustats->syncp);
@@ -274,6 +275,7 @@ static netdev_tx_t ubr_xmit(struct sk_buff *skb,
 {
 	struct ubr_private *ubr = netdev_priv(dev);
 	struct net_device *slave_dev = ubr->slave_dev;
+	struct ethhdr *eth = (struct ethhdr *)skb->data;
 	struct pcpu_sw_netstats *ustats;
 
 	if (!slave_dev) {
@@ -282,7 +284,6 @@ static netdev_tx_t ubr_xmit(struct sk_buff *skb,
 	}
 
 	if (is_netdev_rawip(slave_dev)) {
-		struct ethhdr *eth = (struct ethhdr *)skb->data;
 		unsigned int maclen = 0;
 
 		switch (ntohs(eth->h_proto)) {
@@ -325,12 +326,15 @@ static netdev_tx_t ubr_xmit(struct sk_buff *skb,
 
 	ustats = this_cpu_ptr(ubr->stats);
 
-	if (likely(skb->protocol != htons(EBM_ETH_TYPE)
+	if (likely(1
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	    && !SWNAT_KA_CHECK_MARK(skb)
 #endif
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 	    && !FOE_SKB_IS_KEEPALIVE(skb)
+#endif
+#if IS_ENABLED(CONFIG_USB_NET_KPDSL)
+	    && eth->h_proto != htons(ETH_P_EBM)
 #endif
 		)) {
 		u64_stats_update_begin(&ustats->syncp);

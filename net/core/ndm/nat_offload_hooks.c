@@ -46,6 +46,19 @@ void (*prebind_from_pppoetx)(struct sk_buff *skb,
 			     struct sock *sock,
 			     __be16 sid) = NULL;
 EXPORT_SYMBOL(prebind_from_pppoetx);
+
+
+int (*fnat_rt_cache_in_func)(u_int8_t pf,
+				  struct sk_buff *skb,
+				  const int inif) = NULL;
+EXPORT_SYMBOL(fnat_rt_cache_in_func);
+
+int (*fnat_pptp_rcv_func)(struct sk_buff *skb) = NULL;
+EXPORT_SYMBOL(fnat_pptp_rcv_func);
+
+int (*fnat_pptp_lookup_callid)(u16 call_id, __be32 s_addr) = NULL;
+EXPORT_SYMBOL(fnat_pptp_lookup_callid);
+
 #endif
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)

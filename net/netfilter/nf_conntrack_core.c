@@ -65,6 +65,7 @@
 #include <net/ip.h>
 #include <net/fast_nat.h>
 #include <net/fast_vpn.h>
+#include <net/pptp.h>
 #endif
 
 #include <linux/ntc_shaper_hooks.h>
@@ -88,6 +89,12 @@ EXPORT_SYMBOL_GPL(nf_conntrack_hash);
 #if IS_ENABLED(CONFIG_FAST_NAT)
 int nf_fastnat_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastnat_control);
+int nf_fastnat_xfrm_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastnat_xfrm_control);
+int nf_fastnat_esp_bypass_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastnat_esp_bypass_control);
+int nf_fastnat_pptp_bypass_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastnat_pptp_bypass_control);
 #endif
 
 struct conntrack_gc_work {
@@ -808,15 +815,7 @@ static inline void nf_ct_acct_update(struct nf_conn *ct,
 				     enum ip_conntrack_info ctinfo,
 				     unsigned int len)
 {
-	struct nf_conn_acct *acct;
-
-	acct = nf_conn_acct_find(ct);
-	if (acct) {
-		struct nf_conn_counter *counter = acct->counter;
-
-		atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
-		atomic64_add(len, &counter[CTINFO2DIR(ctinfo)].bytes);
-	}
+	nf_ct_acct_add_packet_len(ct, ctinfo, len);
 }
 
 static void nf_ct_acct_merge(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
@@ -1658,7 +1657,12 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	}
 
 	help = nfct_help(ct);
-	if ((help && help->helper) || skb_sec_path(skb)) {
+	if ((help && help->helper) ||
+		(
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		nf_fastnat_xfrm_control && 
+#endif
+		skb_sec_path(skb))) {
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 		FOE_ALG_MARK(skb);
 #endif
@@ -1786,6 +1790,127 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		else
 			skb->mark = oldmark;
 #endif
+	} else
+#ifdef CONFIG_XFRM
+	if (nf_fastnat_esp_bypass_control &&
+		pf == PF_INET &&
+		(protonum == IPPROTO_UDP || protonum == IPPROTO_ESP) &&
+		(ctinfo == IP_CT_ESTABLISHED || ctinfo == IP_CT_ESTABLISHED_REPLY) &&
+	     hooknum == NF_INET_PRE_ROUTING &&
+		!SWNAT_KA_CHECK_MARK(skb) &&
+	     is_nf_connection_has_no_nat(ct)) {
+		const size_t skb_len = skb->len;
+		const int rv = fast_nat_esp_recv(skb, dataoff, protonum);
+
+		if (rv != NF_ACCEPT) {
+			nf_ct_acct_add_packet_len(ct, ctinfo, skb_len);
+			ret = rv;
+		}
+	} else
+#endif /* CONFIG_XFRM */
+	if (nf_fastnat_pptp_bypass_control &&
+		pf == PF_INET &&
+		protonum == IPPROTO_GRE &&
+		(ctinfo == IP_CT_ESTABLISHED || ctinfo == IP_CT_ESTABLISHED_REPLY) &&
+	     hooknum == NF_INET_PRE_ROUTING &&
+		!SWNAT_KA_CHECK_MARK(skb) &&
+	     is_nf_connection_has_no_nat(ct) &&
+	     (skb->len >= sizeof(struct iphdr) + sizeof(struct pptp_gre_header))) {
+		unsigned char _l4hdr[2 * sizeof(u32)];
+		const struct pptp_gre_header *greh = skb_header_pointer(
+			skb, dataoff, 2 * sizeof(u32), _l4hdr);
+
+		if ( greh->gre_hd.protocol == GRE_PROTO_PPP &&
+			!GRE_IS_CSUM(greh->gre_hd.flags) &&
+			!GRE_IS_ROUTING(greh->gre_hd.flags) &&
+			 GRE_IS_KEY(greh->gre_hd.flags) &&
+			!(greh->gre_hd.flags & GRE_FLAGS)) {
+			typeof(fnat_pptp_lookup_callid) pptp_lookup_callid_hook;
+
+			pptp_lookup_callid_hook = rcu_dereference(fnat_pptp_lookup_callid);
+
+			if (pptp_lookup_callid_hook &&
+				pptp_lookup_callid_hook(
+					htons(greh->call_id), ip_hdr(skb)->saddr)) {
+				typeof(fnat_pptp_rcv_func) pptp_rcv;
+
+				pptp_rcv = rcu_dereference(fnat_pptp_rcv_func);
+
+				if (likely(pptp_rcv)) {
+					const size_t skb_len = skb->len;
+
+					skb->pkt_type = PACKET_HOST;
+					skb_pull(skb, dataoff);
+					skb_reset_transport_header(skb);
+					pptp_rcv(skb);
+
+					nf_ct_acct_add_packet_len(ct, ctinfo, skb_len);
+					ret = NF_STOLEN;
+				}
+			}
+		}
+	} else
+	if (pf == PF_INET &&
+	    (protonum == IPPROTO_UDP || protonum == IPPROTO_TCP) &&
+	    (ctinfo == IP_CT_ESTABLISHED || ctinfo == IP_CT_ESTABLISHED_REPLY) &&
+	    hooknum == NF_INET_PRE_ROUTING &&
+	   !ct->fast_ext &&
+	    ct->fast_bind_reached &&
+	    nf_fastnat_control &&
+	   !SWNAT_KA_CHECK_MARK(skb) &&
+	    is_nf_connection_has_no_nat(ct)) {
+		const int iif = (skb->dev != NULL) ? skb->dev->ifindex : 0;
+		typeof(fnat_rt_cache_in_func) fast_nat_rtcache_in;
+
+		fast_nat_rtcache_in = rcu_dereference(fnat_rt_cache_in_func);
+
+		if (likely(fast_nat_rtcache_in &&
+			fast_nat_rtcache_in(PF_INET, skb, iif))) {
+
+			ntc_shaper_hook_fn *ntc_ingress;
+
+#ifdef CONFIG_NF_CONNTRACK_MARK
+			if (ct->mark != 0)
+				skb->mark = ct->mark;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+			if (ct->ndm_mark != 0)
+				skb->ndm_mark = ct->ndm_mark;
+#endif
+#endif
+			/* Simple bypass to exit, no real nat */
+			ret = NF_FAST_NAT;
+
+			/* Change skb owner to output device */
+			skb->dev = skb_dst(skb)->dev;
+
+			/* from ntc.ko */
+			ntc_ingress = ntc_shaper_ingress_hook_get();
+			if (ntc_ingress) {
+				const struct ntc_shaper_fwd_t fwd = {
+					.saddr_ext		= ntohl(ip_hdr(skb)->saddr),
+					.daddr_ext		= 0,
+					.okfn_nf		= fast_nat_path,
+					.okfn_custom	= NULL,
+					.data			= NULL,
+					.net			= net,
+					.sk				= skb->sk
+				};
+				unsigned int ntc_retval;
+
+				ntc_retval = ntc_ingress(skb, &fwd);
+				if (ntc_retval == NF_ACCEPT) {
+					/* Shaper skipped that packet */
+					ret = NF_FAST_NAT;
+				} else if (ntc_retval == NF_DROP) {
+					/* Shaper tell us to drop it */
+					ret = NF_DROP;
+				} else if (ntc_retval == NF_STOLEN) {
+					/* Shaper queued packet and will handle it's destiny */
+					ret = NF_STOLEN;
+				}
+			}
+			ntc_shaper_ingress_hook_put();
+		}
 	}
 #endif
 

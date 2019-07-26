@@ -9,6 +9,9 @@
 #define FAST_NAT_BIND_PKT_DIR_HALF	200
 
 extern int nf_fastnat_control;
+extern int nf_fastnat_xfrm_control;
+extern int nf_fastnat_esp_bypass_control;
+extern int nf_fastnat_pptp_bypass_control;
 
 /* ip_output.c */
 int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb);
@@ -21,6 +24,8 @@ int fast_nat_do_bind(struct nf_conn *ct,
 		     enum ip_conntrack_info ctinfo);
 
 int fast_nat_path(struct net *net, struct sock *sk, struct sk_buff *skb);
+
+int fast_nat_esp_recv(struct sk_buff *skb, int dataoff, uint8_t protonum);
 
 /*
  * nf_conntrack helpers
@@ -47,5 +52,30 @@ is_nf_connection_has_nat(struct nf_conn *ct)
 		  t1->dst.u.all == t2->src.u.all &&
 		  t1->src.u.all == t2->dst.u.all));
 }
+
+static inline bool
+is_nf_connection_has_no_nat(struct nf_conn *ct)
+{
+	struct nf_conntrack_tuple *t1, *t2;
+
+	t1 = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+	t2 = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+
+	return (t1->dst.u3.ip != t1->src.u3.ip &&
+		  t1->dst.u3.ip == t2->src.u3.ip &&
+		  t1->src.u3.ip == t2->dst.u3.ip &&
+		  t1->dst.u.all == t2->src.u.all &&
+		  t1->src.u.all == t2->dst.u.all);
+}
+
+/* Routing cache hook */
+extern int (*fnat_rt_cache_in_func)(u_int8_t pf,
+				  struct sk_buff *skb,
+				  const int inif);
+
+/* PPTP input hook */
+extern int (*fnat_pptp_rcv_func)(struct sk_buff *skb);
+/* PPTP lookup hook */
+extern int (*fnat_pptp_lookup_callid)(u16 call_id, __be32 s_addr);
 
 #endif /*__FAST_NAT_H_ */

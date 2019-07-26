@@ -29,6 +29,10 @@
 #include <net/netfilter/nf_nat_l4proto.h>
 #include <linux/netfilter/nf_conntrack_common.h>
 
+#ifdef CONFIG_XFRM
+#include <net/xfrm.h>
+#endif
+
 #include <linux/ntc_shaper_hooks.h>
 #include <net/fast_nat.h>
 #include <net/fast_vpn.h>
@@ -91,18 +95,7 @@ int fast_nat_path(struct net *net, struct sock *sk, struct sk_buff *skb)
 		enum ip_conntrack_info ctinfo;
 
 		ct = nf_ct_get(skb, &ctinfo);
-		if (likely(ct != NULL)) {
-			struct nf_conn_acct *acct = nf_conn_acct_find(ct);
-
-			if (likely(acct != NULL)) {
-				struct nf_conn_counter *counter = acct->counter;
-				enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-
-				atomic64_inc(&counter[dir].packets);
-				atomic64_add(
-					skb->len - skb_network_offset(skb), &counter[dir].bytes);
-			}
-		}
+		nf_ct_acct_add_packet(ct, ctinfo, skb);
 	}
 
 	shaper_egress = ntc_shaper_egress_hook_get();
@@ -196,9 +189,83 @@ int fast_nat_do_bind(struct nf_conn *ct,
 	return NF_FAST_NAT;
 }
 
+static inline int __attribute__((hot, always_inline))
+fast_nat_esp_recv_final(struct sk_buff *skb, int esphoff, int encap_type)
+{
+	unsigned char _esph[sizeof(__be32)];
+	const struct ip_esp_hdr *esph = skb_header_pointer(
+			skb, esphoff,
+			sizeof(__be32), _esph);
+	const struct iphdr *iph = ip_hdr(skb);
+	const struct xfrm_state *x = xfrm_state_lookup(
+			dev_net(skb->dev), skb->mark,
+			(xfrm_address_t *)&iph->daddr, esph->spi,
+			IPPROTO_ESP, AF_INET);
+
+	if (x) {
+		skb->pkt_type = PACKET_HOST;
+		skb_pull(skb, esphoff);
+		skb_reset_transport_header(skb);
+		xfrm4_rcv_spi_encap(skb, IPPROTO_ESP, encap_type);
+
+		return NF_STOLEN;
+	}
+
+	return NF_ACCEPT;
+}
+
+int fast_nat_esp_recv(struct sk_buff *skb, int dataoff, uint8_t protonum)
+{
+#ifdef CONFIG_XFRM
+	unsigned char _l4hdr[sizeof(struct udphdr) + 3 * sizeof(__be32)];
+
+	if (protonum == IPPROTO_UDP && skb->len >
+			(sizeof(struct udphdr) + sizeof(struct iphdr))) {
+		const int len = skb->len - sizeof(struct udphdr) - sizeof(struct iphdr);
+		const struct udphdr *udph = skb_header_pointer(
+			skb, dataoff,
+			sizeof(struct udphdr) + min(len, (int)(3 * sizeof(__be32))),
+			_l4hdr);
+
+		/* perform input bypass only on NAT-T UDP/4500 */
+
+		if (udph && udph->dest == htons(4500)) {
+			__u8 *udpdata = (__u8 *)udph + sizeof(struct udphdr);
+			__be32 *udpdata32 = (__be32 *)udpdata;
+
+			if (unlikely(len == 1 && udpdata[0] == 0xff))
+				return NF_DROP; /* NAT-T keepalive */
+
+			/* rfc 3948 p 2.1 */
+			if (len > sizeof(struct ip_esp_hdr) && udpdata32[0] != 0)
+				return fast_nat_esp_recv_final(skb,
+					dataoff + sizeof(struct udphdr),
+					UDP_ENCAP_ESPINUDP);
+
+			/* draft-ietf-ipsec-udp-encaps-00, p 2.1, dirty old crap */
+			if (len > (sizeof(struct ip_esp_hdr) + 2 * sizeof(__be32)) &&
+				udpdata32[0] == 0 && udpdata32[1] == 0 &&
+				udpdata32[2] != 0)
+					return fast_nat_esp_recv_final(skb,
+						dataoff + sizeof(struct udphdr) + 2 * sizeof(__be32),
+						UDP_ENCAP_ESPINUDP_NON_IKE);
+		}
+	} else
+	if (protonum == IPPROTO_ESP && skb->len >
+			(sizeof(struct ip_esp_hdr) + sizeof(struct iphdr)))
+		return fast_nat_esp_recv_final(skb, dataoff, 0);
+
+#endif /* CONFIG_XFRM */
+
+	return NF_ACCEPT;
+}
+
 static int __init fast_nat_init(void)
 {
 	nf_fastnat_control = 1;
+	nf_fastnat_xfrm_control = 0;
+	nf_fastnat_esp_bypass_control = 1;
+	nf_fastnat_pptp_bypass_control = 1;
 	printk(KERN_INFO "Fast NAT loaded\n");
 	return 0;
 }
@@ -206,6 +273,9 @@ static int __init fast_nat_init(void)
 static void __exit fast_nat_fini(void)
 {
 	nf_fastnat_control = 0;
+	nf_fastnat_xfrm_control = 0;
+	nf_fastnat_esp_bypass_control = 0;
+	nf_fastnat_pptp_bypass_control = 0;
 	printk(KERN_INFO "Fast NAT unloaded\n");
 }
 

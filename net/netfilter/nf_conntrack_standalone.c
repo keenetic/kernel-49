@@ -614,6 +614,29 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	{
+		.procname	= "nf_conntrack_fastnat_xfrm",
+		.data		= &nf_fastnat_xfrm_control,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_fastnat_esp_bypass",
+		.data		= &nf_fastnat_esp_bypass_control,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_fastnat_pptp_bypass",
+		.data		= &nf_fastnat_pptp_bypass_control,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 	{ }
 };
 

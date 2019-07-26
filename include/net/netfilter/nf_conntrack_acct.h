@@ -48,6 +48,34 @@ struct nf_conn_acct *nf_ct_acct_ext_add(struct nf_conn *ct, gfp_t gfp)
 	return acct;
 };
 
+static inline void nf_ct_acct_add_packet(struct nf_conn *ct,
+	const enum ip_conntrack_info ctinfo, struct sk_buff *skb)
+{
+	struct nf_conn_acct *acct = nf_conn_acct_find(ct);
+
+	if (likely(acct != NULL)) {
+		struct nf_conn_counter *counter = acct->counter;
+		const enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+
+		atomic64_inc(&counter[dir].packets);
+		atomic64_add(skb->len - skb_network_offset(skb), &counter[dir].bytes);
+	}
+}
+
+static inline void nf_ct_acct_add_packet_len(struct nf_conn *ct,
+	const enum ip_conntrack_info ctinfo, const size_t len)
+{
+	struct nf_conn_acct *acct = nf_conn_acct_find(ct);
+
+	if (likely(acct != NULL)) {
+		struct nf_conn_counter *counter = acct->counter;
+		const enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+
+		atomic64_inc(&counter[dir].packets);
+		atomic64_add(len, &counter[dir].bytes);
+	}
+}
+
 unsigned int seq_print_acct(struct seq_file *s, const struct nf_conn *ct,
 			    int dir);
 

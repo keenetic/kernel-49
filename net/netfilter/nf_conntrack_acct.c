@@ -130,32 +130,17 @@ static unsigned int do_conntrack_acct(
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 		|| FOE_SKB_IS_KEEPALIVE(skb)
 #endif
-		)) {
+		))
 		return NF_ACCEPT;
-	}
 
 	{
-		struct nf_conn_counter *counters;
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-		struct nf_conn_acct *acct;
 
 		if (unlikely(ct == NULL))
 			return NF_ACCEPT;
 
-		acct = nf_conn_acct_find(ct);
-
-		if (unlikely(acct == NULL))
-			return NF_ACCEPT;
-
-		counters = acct->counter;
-
-		if (likely(acct != NULL)) {
-			atomic64_inc(&counters[CTINFO2DIR(ctinfo)].packets);
-			atomic64_add(
-				skb->len - skb_network_offset(skb),
-				&counters[CTINFO2DIR(ctinfo)].bytes);
-		}
+		nf_ct_acct_add_packet(ct, ctinfo, skb);
 	}
 
 	return NF_ACCEPT;

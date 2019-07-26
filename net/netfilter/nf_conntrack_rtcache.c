@@ -29,6 +29,10 @@
 #include <net/ip6_fib.h>
 #endif
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_nat.h>
+#endif
+
 static void __nf_conn_rtcache_destroy(struct nf_conn_rtcache *rtc,
 				      enum ip_conntrack_dir dir)
 {
@@ -175,6 +179,59 @@ static unsigned int nf_rtcache_in(u_int8_t pf,
 		nf_conn_rtcache_dst_obsolete(rtc, dir);
 
 	return NF_ACCEPT;
+}
+
+static int nf_rtcache_in_hook(u_int8_t pf,
+				  struct sk_buff *skb,
+				  const int inif)
+{
+	struct nf_conn_rtcache *rtc;
+	enum ip_conntrack_info ctinfo;
+	enum ip_conntrack_dir dir;
+	struct dst_entry *dst;
+	struct nf_conn *ct;
+	int iif;
+	u32 cookie;
+
+	if (skb_dst(skb) || skb->sk)
+		return 1;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct)
+		return 0;
+
+	rtc = nf_ct_rtcache_find_usable(ct);
+	if (!rtc)
+		return 0;
+
+	/* if iif changes, don't use cache and let ip stack
+	 * do route lookup.
+	 *
+	 * If rp_filter is enabled it might toss skb, so
+	 * we don't want to avoid these checks.
+	 */
+	dir = CTINFO2DIR(ctinfo);
+	iif = nf_conn_rtcache_iif_get(rtc, dir);
+	if (inif != iif) {
+		pr_debug("ct %p, iif %d, cached iif %d, skip cached entry\n",
+			 ct, iif, inif);
+		return 0;
+	}
+	dst = nf_conn_rtcache_dst_get(rtc, dir);
+	if (dst == NULL)
+		return 0;
+
+	cookie = nf_rtcache_get_cookie(pf, dst);
+
+	dst = dst_check(dst, cookie);
+	pr_debug("obtained dst %p for skb %p, cookie %d\n", dst, skb, cookie);
+	if (likely(dst)) {
+		skb_dst_set_noref(skb, dst);
+
+		return 1;
+	}
+
+	return 0;
 }
 
 static unsigned int nf_rtcache_forward(u_int8_t pf,
@@ -337,6 +394,8 @@ static int __init nf_conntrack_rtcache_init(void)
 		nf_ct_extend_unregister(&rtcache_extend);
 	}
 
+	rcu_assign_pointer(fnat_rt_cache_in_func, nf_rtcache_in_hook);
+
 	return ret;
 }
 
@@ -379,6 +438,8 @@ static void __exit nf_conntrack_rtcache_fini(void)
 {
 	struct net *net;
 	int count = 0;
+
+	RCU_INIT_POINTER(fnat_rt_cache_in_func, NULL);
 
 	/* remove hooks so no new connections get rtcache extension */
 	nf_unregister_hooks(rtcache_ops, ARRAY_SIZE(rtcache_ops));

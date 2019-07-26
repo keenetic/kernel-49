@@ -1547,6 +1547,16 @@ static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 	return xfrm_input(skb, nexthdr, spi, 0);
 }
 
+static inline int xfrm4_rcv_spi_encap(
+		struct sk_buff *skb, int nexthdr, int encap_type)
+{
+	XFRM_TUNNEL_SKB_CB(skb)->tunnel.ip4 = NULL;
+	XFRM_SPI_SKB_CB(skb)->family = AF_INET;
+	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct iphdr, daddr);
+	return xfrm_input(skb, nexthdr, 0, encap_type);
+}
+
+
 int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb);

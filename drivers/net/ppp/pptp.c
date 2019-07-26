@@ -42,6 +42,7 @@
 #include <linux/uaccess.h>
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_nat.h>
 #include <net/fast_vpn.h>
 #endif
 
@@ -64,6 +65,23 @@ static const struct ppp_channel_ops pptp_chan_ops;
 static const struct proto_ops pptp_ops;
 
 static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
+
+int pptp_lookup_callid(u16 call_id, __be32 s_addr)
+{
+	struct pppox_sock *sock;
+	struct pptp_opt *opt;
+	int ret = 0;
+
+	rcu_read_lock();
+	sock = rcu_dereference(callid_sock[call_id]);
+	if (sock) {
+		opt = &sock->proto.pptp;
+		ret = (opt->dst_addr.sin_addr.s_addr == s_addr);
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
 
 static struct pppox_sock *lookup_chan(u16 call_id, __be32 s_addr)
 {
@@ -490,7 +508,7 @@ drop:
 	return NET_RX_DROP;
 }
 
-static int pptp_rcv(struct sk_buff *skb)
+int pptp_rcv(struct sk_buff *skb)
 {
 	struct pppox_sock *po;
 	struct pptp_gre_header *header;
@@ -832,6 +850,9 @@ static int __init pptp_init_module(void)
 		goto out_unregister_sk_proto;
 	}
 
+	rcu_assign_pointer(fnat_pptp_rcv_func, pptp_rcv);
+	rcu_assign_pointer(fnat_pptp_lookup_callid, pptp_lookup_callid);
+
 	return 0;
 
 out_unregister_sk_proto:
@@ -846,6 +867,9 @@ out_mem_free:
 
 static void __exit pptp_exit_module(void)
 {
+	RCU_INIT_POINTER(fnat_pptp_rcv_func, NULL);
+	RCU_INIT_POINTER(fnat_pptp_lookup_callid, NULL);
+
 	unregister_pppox_proto(PX_PROTO_PPTP);
 	proto_unregister(&pptp_sk_proto);
 	gre_del_protocol(&gre_pptp_protocol, GREPROTO_PPTP);

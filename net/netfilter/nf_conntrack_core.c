@@ -92,6 +92,11 @@ EXPORT_SYMBOL_GPL(nf_fastnat_control);
 int nf_fastpath_pptp_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastpath_pptp_control);
 #endif
+
+#ifdef CONFIG_XFRM
+int nf_fastpath_esp_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastpath_esp_control);
+#endif
 #endif
 
 struct conntrack_gc_work {
@@ -1819,8 +1824,30 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 				ret = NF_STOLEN;
 			}
 		}
+
+		goto fast_nat_exit;
 	}
 #endif /* CONFIG_PPTP */
+
+#ifdef CONFIG_XFRM
+	/* check IPsec ESP fastpath condition */
+	if ((protonum == IPPROTO_UDP || protonum == IPPROTO_ESP) &&
+	    nf_fastpath_esp_control &&
+	    is_nf_connection_has_no_nat(ct)) {
+		unsigned int len = skb->len;
+		int rv = nf_fastpath_esp4_in(net, skb, dataoff, protonum);
+
+		if (rv == NF_ACCEPT) {
+			/* for non NAT-T UDP we must pass next */
+			if (protonum == IPPROTO_ESP)
+				goto fast_nat_exit;
+		} else {
+			ret = rv;
+			if (rv == NF_STOLEN)
+				nf_ct_acct_add_packet_len(ct, ctinfo, len);
+		}
+	}
+#endif /* CONFIG_XFRM */
 
 fast_nat_exit:
 #endif

@@ -29,6 +29,10 @@
 #include <net/netfilter/nf_nat_l4proto.h>
 #include <linux/netfilter/nf_conntrack_common.h>
 
+#ifdef CONFIG_XFRM
+#include <net/xfrm.h>
+#endif
+
 #include <linux/ntc_shaper_hooks.h>
 #include <net/fast_nat.h>
 #include <net/fast_vpn.h>
@@ -189,11 +193,96 @@ int fast_nat_do_bind(struct nf_conn *ct,
 	return NF_FAST_NAT;
 }
 
+#ifdef CONFIG_XFRM
+static int
+__xfrm4_in(struct net *net, struct sk_buff *skb, int esphoff, int encap_type)
+{
+	u8 _esph[sizeof(__be32)];
+	const struct ip_esp_hdr *esph;
+
+	esph = skb_header_pointer(skb, esphoff, sizeof(_esph), _esph);
+	if (esph) {
+		const struct iphdr *iph = ip_hdr(skb);
+		struct xfrm_state *x;
+
+		x = xfrm_state_lookup(net, skb->mark,
+				      (const xfrm_address_t *)&iph->daddr,
+				      esph->spi, IPPROTO_ESP, AF_INET);
+		if (x) {
+			skb->pkt_type = PACKET_HOST;
+			__skb_pull(skb, esphoff);
+			skb_reset_transport_header(skb);
+			xfrm4_rcv_spi_encap(skb, IPPROTO_ESP, encap_type);
+
+			return NF_STOLEN;
+		}
+	}
+
+	return NF_ACCEPT;
+}
+
+int nf_fastpath_esp4_in(struct net *net, struct sk_buff *skb,
+			unsigned int dataoff, uint8_t protonum)
+{
+	unsigned int min_len;
+
+	if (protonum == IPPROTO_UDP) {
+		u8 _l4hdr[sizeof(struct udphdr) + 3 * sizeof(__be32)];
+
+		min_len = sizeof(struct iphdr) + sizeof(struct udphdr);
+
+		if (skb->len > min_len) {
+			unsigned int esp_len = skb->len - min_len;
+			int hlen = sizeof(struct udphdr);
+			const struct udphdr *uh;
+
+			hlen += min(esp_len, 3 * sizeof(__be32));
+			uh = skb_header_pointer(skb, dataoff, hlen, _l4hdr);
+
+			/* perform input bypass only on NAT-T UDP/4500 */
+			if (uh && uh->dest == htons(4500)) {
+				u8 *udpdata = (u8 *)uh + sizeof(struct udphdr);
+				__be32 *udpdata32 = (__be32 *)udpdata;
+				int esphoff = dataoff + sizeof(struct udphdr);
+
+				/* check NAT-T keepalive */
+				if (unlikely(esp_len == 1 && udpdata[0] == 0xff))
+					return NF_DROP;
+
+				/* rfc 3948 p 2.1 */
+				min_len = sizeof(struct ip_esp_hdr);
+				if (esp_len > min_len && udpdata32[0] != 0)
+					return __xfrm4_in(net, skb, esphoff,
+							  UDP_ENCAP_ESPINUDP);
+
+				/* draft-ietf-ipsec-udp-encaps-00, p 2.1 */
+				min_len += 2 * sizeof(__be32);
+				if (esp_len > min_len && udpdata32[2] != 0 &&
+				    udpdata32[0] == 0 && udpdata32[1] == 0)
+					return __xfrm4_in(net, skb,
+						esphoff + 2 * sizeof(__be32),
+						UDP_ENCAP_ESPINUDP_NON_IKE);
+			}
+		}
+	} else if (protonum == IPPROTO_ESP) {
+		min_len = sizeof(struct iphdr) + sizeof(struct ip_esp_hdr);
+
+		if (skb->len > min_len)
+			return __xfrm4_in(net, skb, dataoff, 0);
+	}
+
+	return NF_ACCEPT;
+}
+#endif /* CONFIG_XFRM */
+
 static int __init fast_nat_init(void)
 {
 	nf_fastnat_control = 1;
 #if IS_ENABLED(CONFIG_PPTP)
 	nf_fastpath_pptp_control = 1;
+#endif
+#ifdef CONFIG_XFRM
+	nf_fastpath_esp_control = 1;
 #endif
 	printk(KERN_INFO "Fast NAT loaded\n");
 	return 0;
@@ -204,6 +293,9 @@ static void __exit fast_nat_fini(void)
 	nf_fastnat_control = 0;
 #if IS_ENABLED(CONFIG_PPTP)
 	nf_fastpath_pptp_control = 0;
+#endif
+#ifdef CONFIG_XFRM
+	nf_fastpath_esp_control = 0;
 #endif
 	printk(KERN_INFO "Fast NAT unloaded\n");
 }

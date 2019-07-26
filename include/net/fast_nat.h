@@ -19,6 +19,13 @@ extern int (*nf_fastpath_pptp_in)(struct sk_buff *skb,
 				  u16 call_id);
 #endif
 
+#ifdef CONFIG_XFRM
+extern int nf_fastpath_esp_control;
+
+int nf_fastpath_esp4_in(struct net *net, struct sk_buff *skb,
+			unsigned int dataoff, uint8_t protonum);
+#endif
+
 /* ip_output.c */
 int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 

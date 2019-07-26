@@ -606,6 +606,15 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
+#ifdef CONFIG_XFRM
+	{
+		.procname	= "nf_conntrack_fastpath_esp",
+		.data		= &nf_fastpath_esp_control,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 #endif
 #ifdef CONFIG_NAT_CONE
 	{

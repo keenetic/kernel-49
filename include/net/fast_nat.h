@@ -20,6 +20,7 @@ extern int (*nf_fastpath_pptp_in)(struct sk_buff *skb,
 #endif
 
 #ifdef CONFIG_XFRM
+extern int nf_fastnat_xfrm_control;
 extern int nf_fastpath_esp_control;
 
 int nf_fastpath_esp4_in(struct net *net, struct sk_buff *skb,

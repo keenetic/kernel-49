@@ -96,6 +96,9 @@ EXPORT_SYMBOL_GPL(nf_fastpath_pptp_control);
 #ifdef CONFIG_XFRM
 int nf_fastpath_esp_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastpath_esp_control);
+
+int nf_fastnat_xfrm_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastnat_xfrm_control);
 #endif
 #endif
 
@@ -1693,12 +1696,20 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	}
 
 	help = nfct_help(ct);
-	if ((help && help->helper) || skb_sec_path(skb)) {
+	if (help && help->helper) {
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 		FOE_ALG_MARK(skb);
 #endif
 #if IS_ENABLED(CONFIG_FAST_NAT)
 		ct->fast_ext = 1;
+#endif
+	} else if (skb_sec_path(skb)) {
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		FOE_ALG_MARK(skb);
+#endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		if (!nf_fastnat_xfrm_control)
+			ct->fast_ext = 1;
 #endif
 	}
 

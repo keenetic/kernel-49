@@ -283,6 +283,7 @@ static int __init fast_nat_init(void)
 #endif
 #ifdef CONFIG_XFRM
 	nf_fastpath_esp_control = 1;
+	nf_fastnat_xfrm_control = 1;
 #endif
 	printk(KERN_INFO "Fast NAT loaded\n");
 	return 0;
@@ -296,6 +297,7 @@ static void __exit fast_nat_fini(void)
 #endif
 #ifdef CONFIG_XFRM
 	nf_fastpath_esp_control = 0;
+	nf_fastnat_xfrm_control = 0;
 #endif
 	printk(KERN_INFO "Fast NAT unloaded\n");
 }

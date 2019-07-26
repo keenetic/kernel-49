@@ -88,6 +88,11 @@ EXPORT_SYMBOL_GPL(nf_conntrack_hash);
 int nf_fastnat_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastnat_control);
 
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+int nf_fastroute_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastroute_control);
+#endif
+
 #if IS_ENABLED(CONFIG_PPTP)
 int nf_fastpath_pptp_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastpath_pptp_control);
@@ -1856,9 +1861,42 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			ret = rv;
 			if (rv == NF_STOLEN)
 				nf_ct_acct_add_packet_len(ct, ctinfo, len);
+
+			goto fast_nat_exit;
 		}
 	}
 #endif /* CONFIG_XFRM */
+
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+	/* check pure fastroute condition */
+	if ((protonum == IPPROTO_UDP || protonum == IPPROTO_TCP) &&
+	    skb->dev &&
+	   !ct->fast_ext &&
+	    ct->fast_bind_reached &&
+	    nf_fastroute_control &&
+	    is_nf_connection_has_no_nat(ct)) {
+		int ifindex = skb->dev->ifindex;
+		typeof(nf_fastroute_rtcache_in) do_rtcache_in;
+
+		do_rtcache_in = rcu_dereference(nf_fastroute_rtcache_in);
+
+		if (do_rtcache_in && do_rtcache_in(pf, skb, ifindex)) {
+#ifdef CONFIG_NF_CONNTRACK_MARK
+			if (ct->mark != 0)
+				skb->mark = ct->mark;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+			if (ct->ndm_mark != 0)
+				skb->ndm_mark = ct->ndm_mark;
+#endif
+#endif
+			/* Change skb owner to output device */
+			skb->dev = skb_dst(skb)->dev;
+
+			/* Simple bypass to exit, no real NAT */
+			ret = fast_nat_ntc_ingress(net, skb, ip_hdr(skb)->saddr);
+		}
+	}
+#endif /* CONFIG_NF_CONNTRACK_RTCACHE */
 
 fast_nat_exit:
 #endif

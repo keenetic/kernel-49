@@ -11,6 +11,14 @@
 
 extern int nf_fastnat_control;
 
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+extern int nf_fastroute_control;
+
+extern int (*nf_fastroute_rtcache_in)(u_int8_t pf,
+				      struct sk_buff *skb,
+				      int ifindex);
+#endif
+
 #if IS_ENABLED(CONFIG_PPTP)
 extern int nf_fastpath_pptp_control;
 
@@ -26,6 +34,7 @@ extern int nf_fastpath_esp_control;
 int nf_fastpath_esp4_in(struct net *net, struct sk_buff *skb,
 			unsigned int dataoff, uint8_t protonum);
 #endif
+
 
 /* ip_output.c */
 int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb);

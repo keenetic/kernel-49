@@ -278,6 +278,9 @@ int nf_fastpath_esp4_in(struct net *net, struct sk_buff *skb,
 static int __init fast_nat_init(void)
 {
 	nf_fastnat_control = 1;
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+	nf_fastroute_control = 1;
+#endif
 #if IS_ENABLED(CONFIG_PPTP)
 	nf_fastpath_pptp_control = 1;
 #endif
@@ -292,6 +295,9 @@ static int __init fast_nat_init(void)
 static void __exit fast_nat_fini(void)
 {
 	nf_fastnat_control = 0;
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+	nf_fastroute_control = 0;
+#endif
 #if IS_ENABLED(CONFIG_PPTP)
 	nf_fastpath_pptp_control = 0;
 #endif

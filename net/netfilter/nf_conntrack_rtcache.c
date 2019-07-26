@@ -29,6 +29,10 @@
 #include <net/ip6_fib.h>
 #endif
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_nat.h>
+#endif
+
 static void __nf_conn_rtcache_destroy(struct nf_conn_rtcache *rtc,
 				      enum ip_conntrack_dir dir)
 {
@@ -125,9 +129,7 @@ static void nf_conn_rtcache_dst_obsolete(struct nf_conn_rtcache *rtc,
 	rtc->cached_dst[dir].iif = -1;
 }
 
-static unsigned int nf_rtcache_in(u_int8_t pf,
-				  struct sk_buff *skb,
-				  const struct nf_hook_state *state)
+static int do_rtcache_in(u_int8_t pf, struct sk_buff *skb, int ifindex)
 {
 	struct nf_conn_rtcache *rtc;
 	enum ip_conntrack_info ctinfo;
@@ -137,16 +139,19 @@ static unsigned int nf_rtcache_in(u_int8_t pf,
 	int iif;
 	u32 cookie;
 
-	if (skb_dst(skb) || skb->sk)
-		return NF_ACCEPT;
+	if (skb->sk)
+		return 0;
+
+	if (skb_dst(skb))
+		return 1;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
-		return NF_ACCEPT;
+		return 0;
 
 	rtc = nf_ct_rtcache_find_usable(ct);
 	if (!rtc)
-		return NF_ACCEPT;
+		return 0;
 
 	/* if iif changes, don't use cache and let ip stack
 	 * do route lookup.
@@ -156,23 +161,33 @@ static unsigned int nf_rtcache_in(u_int8_t pf,
 	 */
 	dir = CTINFO2DIR(ctinfo);
 	iif = nf_conn_rtcache_iif_get(rtc, dir);
-	if (state->in->ifindex != iif) {
+	if (ifindex != iif) {
 		pr_debug("ct %p, iif %d, cached iif %d, skip cached entry\n",
-			 ct, iif, state->in->ifindex);
-		return NF_ACCEPT;
+			 ct, iif, ifindex);
+		return 0;
 	}
 	dst = nf_conn_rtcache_dst_get(rtc, dir);
 	if (dst == NULL)
-		return NF_ACCEPT;
+		return 0;
 
 	cookie = nf_rtcache_get_cookie(pf, dst);
 
 	dst = dst_check(dst, cookie);
 	pr_debug("obtained dst %p for skb %p, cookie %d\n", dst, skb, cookie);
-	if (likely(dst))
+	if (likely(dst)) {
 		skb_dst_set_noref(skb, dst);
-	else
+		return 1;
+	} else
 		nf_conn_rtcache_dst_obsolete(rtc, dir);
+
+	return 0;
+}
+
+static inline unsigned int nf_rtcache_in(u_int8_t pf,
+					 struct sk_buff *skb,
+					 const struct nf_hook_state *state)
+{
+	do_rtcache_in(pf, skb, state->in->ifindex);
 
 	return NF_ACCEPT;
 }
@@ -335,7 +350,12 @@ static int __init nf_conntrack_rtcache_init(void)
 	if (ret) {
 		nf_unregister_hooks(rtcache_ops, ARRAY_SIZE(rtcache_ops));
 		nf_ct_extend_unregister(&rtcache_extend);
+		return ret;
 	}
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	rcu_assign_pointer(nf_fastroute_rtcache_in, do_rtcache_in);
+#endif
 
 	return ret;
 }
@@ -379,6 +399,10 @@ static void __exit nf_conntrack_rtcache_fini(void)
 {
 	struct net *net;
 	int count = 0;
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	RCU_INIT_POINTER(nf_fastroute_rtcache_in, NULL);
+#endif
 
 	/* remove hooks so no new connections get rtcache extension */
 	nf_unregister_hooks(rtcache_ops, ARRAY_SIZE(rtcache_ops));

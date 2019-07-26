@@ -597,6 +597,15 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+	{
+		.procname	= "nf_conntrack_fastroute",
+		.data		= &nf_fastroute_control,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 #if IS_ENABLED(CONFIG_PPTP)
 	{
 		.procname	= "nf_conntrack_fastpath_pptp",

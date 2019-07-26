@@ -51,6 +51,13 @@ int (*nf_fastpath_pptp_in)(struct sk_buff *skb,
 			   unsigned int dataoff,
 			   u16 call_id) = NULL;
 EXPORT_SYMBOL(nf_fastpath_pptp_in);
+
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+int (*nf_fastroute_rtcache_in)(u_int8_t pf,
+			       struct sk_buff *skb,
+			       int ifindex) = NULL;
+EXPORT_SYMBOL(nf_fastroute_rtcache_in);
+#endif
 #endif
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)

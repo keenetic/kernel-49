@@ -192,6 +192,9 @@ int fast_nat_do_bind(struct nf_conn *ct,
 static int __init fast_nat_init(void)
 {
 	nf_fastnat_control = 1;
+#if IS_ENABLED(CONFIG_PPTP)
+	nf_fastpath_pptp_control = 1;
+#endif
 	printk(KERN_INFO "Fast NAT loaded\n");
 	return 0;
 }
@@ -199,6 +202,9 @@ static int __init fast_nat_init(void)
 static void __exit fast_nat_fini(void)
 {
 	nf_fastnat_control = 0;
+#if IS_ENABLED(CONFIG_PPTP)
+	nf_fastpath_pptp_control = 0;
+#endif
 	printk(KERN_INFO "Fast NAT unloaded\n");
 }
 

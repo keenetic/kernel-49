@@ -42,6 +42,7 @@
 #include <linux/uaccess.h>
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_nat.h>
 #include <net/fast_vpn.h>
 #endif
 
@@ -525,6 +526,30 @@ drop:
 	return NET_RX_DROP;
 }
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+/* return 1 on packet stolen */
+static int pptp_in(struct sk_buff *skb, unsigned int dataoff, u16 call_id)
+{
+	struct pppox_sock *sock;
+
+	sock = rcu_dereference(callid_sock[call_id]);
+	if (sock) {
+		struct pptp_opt *opt = &sock->proto.pptp;
+
+		if (opt->dst_addr.sin_addr.s_addr == ip_hdr(skb)->saddr) {
+			skb->pkt_type = PACKET_HOST;
+			__skb_pull(skb, dataoff);
+			skb_reset_transport_header(skb);
+			pptp_rcv(skb);
+
+			return 1;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 static int pptp_bind(struct socket *sock, struct sockaddr *uservaddr,
 	int sockaddr_len)
 {
@@ -835,6 +860,10 @@ static int __init pptp_init_module(void)
 		goto out_unregister_sk_proto;
 	}
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	rcu_assign_pointer(nf_fastpath_pptp_in, pptp_in);
+#endif
+
 	return 0;
 
 out_unregister_sk_proto:
@@ -849,6 +878,10 @@ out_mem_free:
 
 static void __exit pptp_exit_module(void)
 {
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	RCU_INIT_POINTER(nf_fastpath_pptp_in, NULL);
+	synchronize_rcu();
+#endif
 	unregister_pppox_proto(PX_PROTO_PPTP);
 	proto_unregister(&pptp_sk_proto);
 	gre_del_protocol(&gre_pptp_protocol, GREPROTO_PPTP);

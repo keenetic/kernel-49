@@ -11,6 +11,14 @@
 
 extern int nf_fastnat_control;
 
+#if IS_ENABLED(CONFIG_PPTP)
+extern int nf_fastpath_pptp_control;
+
+extern int (*nf_fastpath_pptp_in)(struct sk_buff *skb,
+				  unsigned int dataoff,
+				  u16 call_id);
+#endif
+
 /* ip_output.c */
 int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 
@@ -47,6 +55,21 @@ is_nf_connection_has_nat(struct nf_conn *ct)
 		  t1->src.u3.ip == t2->dst.u3.ip &&
 		  t1->dst.u.all == t2->src.u.all &&
 		  t1->src.u.all == t2->dst.u.all));
+}
+
+static inline bool
+is_nf_connection_has_no_nat(struct nf_conn *ct)
+{
+	struct nf_conntrack_tuple *t1, *t2;
+
+	t1 = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+	t2 = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+
+	return (t1->dst.u3.ip != t1->src.u3.ip &&
+		  t1->dst.u3.ip == t2->src.u3.ip &&
+		  t1->src.u3.ip == t2->dst.u3.ip &&
+		  t1->dst.u.all == t2->src.u.all &&
+		  t1->src.u.all == t2->dst.u.all);
 }
 
 static inline int

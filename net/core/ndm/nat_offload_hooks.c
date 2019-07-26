@@ -46,6 +46,11 @@ void (*prebind_from_pppoetx)(struct sk_buff *skb,
 			     struct sock *sock,
 			     __be16 sid) = NULL;
 EXPORT_SYMBOL(prebind_from_pppoetx);
+
+int (*nf_fastpath_pptp_in)(struct sk_buff *skb,
+			   unsigned int dataoff,
+			   u16 call_id) = NULL;
+EXPORT_SYMBOL(nf_fastpath_pptp_in);
 #endif
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)

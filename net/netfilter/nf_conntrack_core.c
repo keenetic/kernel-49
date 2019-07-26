@@ -87,6 +87,11 @@ EXPORT_SYMBOL_GPL(nf_conntrack_hash);
 #if IS_ENABLED(CONFIG_FAST_NAT)
 int nf_fastnat_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastnat_control);
+
+#if IS_ENABLED(CONFIG_PPTP)
+int nf_fastpath_pptp_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastpath_pptp_control);
+#endif
 #endif
 
 struct conntrack_gc_work {
@@ -1786,7 +1791,36 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		else
 			skb->mark = oldmark;
 #endif
+		goto fast_nat_exit;
 	}
+
+#if IS_ENABLED(CONFIG_PPTP)
+	/* check PPTP GRE fastpath condition */
+	if (protonum == IPPROTO_GRE &&
+	    nf_fastpath_pptp_control &&
+	    is_nf_connection_has_no_nat(ct)) {
+		const struct pptp_gre_header *pgh;
+		u8 _l4hdr[2 * sizeof(u32)];
+
+		pgh = skb_header_pointer(skb, dataoff, sizeof(_l4hdr), _l4hdr);
+
+		if (pgh && pgh->gre_hd.protocol == GRE_PROTO_PPP &&
+		    !GRE_IS_CSUM(pgh->gre_hd.flags) &&
+		    !GRE_IS_ROUTING(pgh->gre_hd.flags) &&
+		     GRE_IS_KEY(pgh->gre_hd.flags) &&
+		    !(pgh->gre_hd.flags & GRE_FLAGS)) {
+			unsigned int len = skb->len;
+			typeof(nf_fastpath_pptp_in) pptp_in;
+
+			pptp_in = rcu_dereference(nf_fastpath_pptp_in);
+			if (pptp_in &&
+			    pptp_in(skb, dataoff, ntohs(pgh->call_id))) {
+				nf_ct_acct_add_packet_len(ct, ctinfo, len);
+				ret = NF_STOLEN;
+			}
+		}
+	}
+#endif /* CONFIG_PPTP */
 
 fast_nat_exit:
 #endif

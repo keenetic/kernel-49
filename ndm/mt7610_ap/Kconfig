@@ -44,6 +44,16 @@ config MT7610_MAP_SUPPORT
 	bool "Multi-AP Support"
 	default y
 
+config MT7610_WPA3_SUPPORT
+	bool "WPA3 auth support"
+	select MT7610_DOT11W_PMF_SUPPORT
+	default y
+
+config MT7610_OWE_SUPPORT
+	bool "Enhanced OPEN(OWE) auth support"
+	depends on MT7610_WPA3_SUPPORT
+	default y
+
 config MT7610_BAND_STEERING
 	bool "Band Steering"
 	default n
@@ -82,6 +92,10 @@ config MT7610_WSC_INCLUDED
 config MT7610_WSC_V2_SUPPORT
 	bool "WSC 2.0 (WiFi Simple Config 2.0)"
 	depends on MT7610_WSC_INCLUDED
+	default y
+
+config MT7610_DOT11W_PMF_SUPPORT
+	bool "802.11w PMF (Protected Management Frames)"
 	default y
 
 config MT7610_DOT11_VHT_AC

@@ -61,6 +61,7 @@ config MT7628_MAP_SUPPORT
 
 config MT7628_WPA3_SUPPORT
 	bool "WPA3 auth support"
+	select MT7628_DOT11W_PMF_SUPPORT
 	default y
 
 config MT7628_OWE_SUPPORT

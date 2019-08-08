@@ -57,6 +57,7 @@ config MT7603_MAP_SUPPORT
 
 config MT7603_WPA3_SUPPORT
 	bool "WPA3 auth support"
+	select MT7603_DOT11W_PMF_SUPPORT
 	default y
 
 config MT7603_OWE_SUPPORT

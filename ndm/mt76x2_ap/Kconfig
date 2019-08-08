@@ -77,6 +77,16 @@ config MAP_SUPPORT
 	bool "Multi-AP Support"
 	default y
 
+config WPA3_SUPPORT
+	bool "WPA3 auth support"
+	select DOT11W_PMF_SUPPORT
+	default y
+
+config OWE_SUPPORT
+	bool "Enhanced OPEN(OWE) auth support"
+	depends on WPA3_SUPPORT
+	default y
+
 config BAND_STEERING
 	bool "Band Steering"
 	default n

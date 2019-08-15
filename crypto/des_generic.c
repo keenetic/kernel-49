@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
+#include <linux/fips.h>
 
 #include <crypto/des.h>
 
@@ -950,6 +951,65 @@ static void des3_ede_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	d[0] = cpu_to_le32(R);
 	d[1] = cpu_to_le32(L);
 }
+
+static int des_expand_key(struct des_ctx *ctx, const u8 *key, unsigned int keylen)
+{
+	if (keylen != DES_KEY_SIZE)
+		return -EINVAL;
+
+	return des_ekey(ctx->expkey, key) ? 0 : -ENOKEY;
+}
+
+int verify_skcipher_des_key(struct crypto_tfm *tfm, const u8 *key)
+{
+	struct des_ctx tmp;
+	int err;
+
+	err = des_expand_key(&tmp, key, DES_KEY_SIZE);
+	if (err == -ENOKEY) {
+		if (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_WEAK_KEY)
+			err = -EINVAL;
+		else
+			err = 0;
+	}
+
+	if (err)
+		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
+
+	memzero_explicit(&tmp, sizeof(tmp));
+	return err;
+}
+EXPORT_SYMBOL_GPL(verify_skcipher_des_key);
+
+int verify_skcipher_des3_key(struct crypto_tfm *tfm, const u8 *key)
+{
+	int ret = fips_enabled ? -EINVAL : -ENOKEY;
+	bool check_weak;
+	u32 K[6];
+
+	check_weak = crypto_tfm_get_flags(tfm) &
+		     CRYPTO_TFM_REQ_WEAK_KEY;
+
+	memcpy(K, key, DES3_EDE_KEY_SIZE);
+
+	if ((!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
+	     !((K[2] ^ K[4]) | (K[3] ^ K[5]))) &&
+	    (fips_enabled || check_weak))
+		goto bad;
+
+	if ((!((K[0] ^ K[4]) | (K[1] ^ K[5]))) && fips_enabled)
+		goto bad;
+
+	ret = 0;
+bad:
+	memzero_explicit(K, DES3_EDE_KEY_SIZE);
+
+	if (ret)
+		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(verify_skcipher_des3_key);
 
 static struct crypto_alg des_algs[2] = { {
 	.cra_name		=	"des",

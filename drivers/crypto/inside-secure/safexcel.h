@@ -554,10 +554,13 @@ struct safexcel_ring {
 	struct crypto_async_request *backlog;
 };
 
+/* EIP integration context flags */
 enum safexcel_eip_version {
-	EIP97IES = BIT(0),
-	EIP197B  = BIT(1),
-	EIP197D  = BIT(2),
+	/* Platform (EIP integration context) specifier */
+	EIP97IES_MRVL,
+	EIP197B_MRVL,
+	EIP197D_MRVL,
+	EIP197_DEVBRD
 };
 
 struct safexcel_register_offsets {

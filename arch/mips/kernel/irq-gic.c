@@ -238,6 +238,23 @@ static void gic_mask_ack_irq(struct irq_data *d)
 		GICWRITE(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_CLR(intr));
 }
 
+static void gic_ack_irq(struct irq_data *d)
+{
+	int intr = (d->irq - gic_irq_base);
+#ifdef CONFIG_IRQ_GIC_EIC
+	struct gic_shared_intr_map *map_ptr;
+
+	map_ptr = &gic_shared_intr_map[intr];
+	if (map_ptr->shared_intr_flags & GIC_FLAG_PERCPU)
+		intr = map_ptr->shared_intr_list[smp_processor_id()];
+	else
+		intr = map_ptr->shared_intr_list[0];
+#endif
+	/* clear edge detector */
+	if (gic_irq_flags[intr] & GIC_TRIG_EDGE)
+		GICWRITE(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_CLR(intr));
+}
+
 #ifdef CONFIG_SMP
 static DEFINE_SPINLOCK(gic_lock);
 
@@ -285,7 +302,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 
 static struct irq_chip gic_irq_controller = {
 	.name			= "MIPS GIC",
-	.irq_ack		= gic_mask_ack_irq,
+	.irq_ack		= gic_ack_irq,
 	.irq_mask		= gic_mask_irq,
 	.irq_mask_ack		= gic_mask_ack_irq,
 	.irq_unmask		= gic_unmask_irq,

@@ -1034,6 +1034,7 @@ static int safexcel_skcipher_aes_ecb_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_ecb_aes = {
 	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_AES,
 	.alg.skcipher = {
 		.setkey = safexcel_skcipher_aes_setkey,
 		.encrypt = safexcel_encrypt,
@@ -1068,6 +1069,7 @@ static int safexcel_skcipher_aes_cbc_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_cbc_aes = {
 	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_AES,
 	.alg.skcipher = {
 		.setkey = safexcel_skcipher_aes_setkey,
 		.encrypt = safexcel_encrypt,
@@ -1141,6 +1143,7 @@ static int safexcel_skcipher_aes_ctr_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_ctr_aes = {
 	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_AES,
 	.alg.skcipher = {
 		.setkey = safexcel_skcipher_aesctr_setkey,
 		.encrypt = safexcel_encrypt,
@@ -1198,6 +1201,7 @@ static int safexcel_skcipher_des_cbc_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_cbc_des = {
 	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_DES,
 	.alg.skcipher = {
 		.setkey = safexcel_des_setkey,
 		.encrypt = safexcel_encrypt,
@@ -1233,6 +1237,7 @@ static int safexcel_skcipher_des_ecb_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_ecb_des = {
 	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_DES,
 	.alg.skcipher = {
 		.setkey = safexcel_des_setkey,
 		.encrypt = safexcel_encrypt,
@@ -1291,6 +1296,7 @@ static int safexcel_skcipher_des3_cbc_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_cbc_des3_ede = {
 	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_DES,
 	.alg.skcipher = {
 		.setkey = safexcel_des3_ede_setkey,
 		.encrypt = safexcel_encrypt,
@@ -1326,6 +1332,7 @@ static int safexcel_skcipher_des3_ecb_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_ecb_des3_ede = {
 	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_DES,
 	.alg.skcipher = {
 		.setkey = safexcel_des3_ede_setkey,
 		.encrypt = safexcel_encrypt,
@@ -1394,6 +1401,7 @@ static int safexcel_aead_sha1_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA1,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1428,6 +1436,7 @@ static int safexcel_aead_sha256_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_cbc_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA2_256,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1462,6 +1471,7 @@ static int safexcel_aead_sha224_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_cbc_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA2_256,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1496,6 +1506,7 @@ static int safexcel_aead_sha512_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_cbc_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA2_512,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1530,6 +1541,7 @@ static int safexcel_aead_sha384_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_cbc_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA2_512,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1563,6 +1575,7 @@ static int safexcel_aead_sha1_des3_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_des3_ede = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_DES | SAFEXCEL_ALG_SHA1,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1596,6 +1609,7 @@ static int safexcel_aead_sha1_ctr_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_ctr_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA1,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1629,6 +1643,7 @@ static int safexcel_aead_sha256_ctr_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_ctr_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA2_256,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1662,6 +1677,7 @@ static int safexcel_aead_sha224_ctr_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_ctr_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA2_256,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1695,6 +1711,7 @@ static int safexcel_aead_sha512_ctr_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_ctr_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA2_512,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1728,6 +1745,7 @@ static int safexcel_aead_sha384_ctr_cra_init(struct crypto_tfm *tfm)
 
 struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_ctr_aes = {
 	.type = SAFEXCEL_ALG_TYPE_AEAD,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_SHA2_512,
 	.alg.aead = {
 		.setkey = safexcel_aead_setkey,
 		.encrypt = safexcel_aead_encrypt,
@@ -1841,6 +1859,7 @@ static int safexcel_decrypt_xts(struct skcipher_request *req)
 
 struct safexcel_alg_template safexcel_alg_xts_aes = {
 	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.algo_mask = SAFEXCEL_ALG_AES | SAFEXCEL_ALG_AES_XTS,
 	.alg.skcipher = {
 		.setkey = safexcel_skcipher_aesxts_setkey,
 		.encrypt = safexcel_encrypt_xts,

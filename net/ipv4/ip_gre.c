@@ -540,6 +540,9 @@ static netdev_tx_t gre_eoip_xmit(struct sk_buff *skb,
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 
+	if (gre_handle_offloads(skb, false))
+		goto free_skb;
+
 	if (skb_cow_head(skb, dev->needed_headroom))
 		goto free_skb;
 

@@ -470,14 +470,23 @@ release_fw:
 
 static int safexcel_hw_setup_cdesc_rings(struct safexcel_crypto_priv *priv)
 {
-	u32 hdw, cd_size_rnd, val;
-	int i;
+	u32 cd_size_rnd, val;
+	int i, cd_fetch_cnt;
 
-	hdw = readl(EIP197_HIA_AIC_G(priv) + EIP197_HIA_OPTIONS);
-	hdw &= GENMASK(27, 25);
-	hdw >>= 25;
-
-	cd_size_rnd = (priv->config.cd_size + (BIT(hdw) - 1)) >> hdw;
+	cd_size_rnd  = (priv->config.cd_size +
+			(BIT(priv->hwconfig.hwdataw) - 1)) >>
+		       priv->hwconfig.hwdataw;
+	/* determine number of CD's we can fetch into the CD FIFO as 1 block */
+	if (priv->flags & SAFEXCEL_HW_EIP197) {
+		/* EIP197: try to fetch enough in 1 go to keep all pipes busy */
+		cd_fetch_cnt = (1 << priv->hwconfig.hwcfsize) / cd_size_rnd;
+		cd_fetch_cnt = min_t(uint, cd_fetch_cnt,
+				     (priv->config.pes * EIP197_FETCH_DEPTH));
+	} else {
+		/* for the EIP97, just fetch all that fits minus 1 */
+		cd_fetch_cnt = ((1 << priv->hwconfig.hwcfsize) /
+				cd_size_rnd) - 1;
+	}
 
 	for (i = 0; i < priv->config.rings; i++) {
 		/* ring base address */
@@ -489,8 +498,9 @@ static int safexcel_hw_setup_cdesc_rings(struct safexcel_crypto_priv *priv)
 		writel(EIP197_xDR_DESC_MODE_64BIT | EIP197_CDR_DESC_MODE_ADCP |
 		       (priv->config.cd_offset << 14) | priv->config.cd_size,
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_DESC_SIZE);
-		writel(((EIP197_FETCH_COUNT * (cd_size_rnd << hdw)) << 16) |
-		       (EIP197_FETCH_COUNT * (priv->config.cd_offset / sizeof(u32))),
+		writel(((cd_fetch_cnt *
+			 (cd_size_rnd << priv->hwconfig.hwdataw)) << 16) |
+		       (cd_fetch_cnt * (priv->config.cd_offset / sizeof(u32))),
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_CFG);
 
 		/* Configure DMA tx control */
@@ -1448,6 +1458,9 @@ static int safexcel_probe_generic(void *pdev,
 
 		priv->hwconfig.hwdataw  = (hiaopt >> EIP197_HWDATAW_OFFSET) &
 					  EIP197_HWDATAW_MASK;
+		priv->hwconfig.hwcfsize = ((hiaopt >> EIP197_CFSIZE_OFFSET) &
+					   EIP197_CFSIZE_MASK) +
+					  EIP197_CFSIZE_ADJUST;
 		priv->hwconfig.hwnumpes	= (hiaopt >> EIP197_N_PES_OFFSET) &
 					  EIP197_N_PES_MASK;
 		priv->hwconfig.hwnumrings = (hiaopt >> EIP197_N_RINGS_OFFSET) &
@@ -1465,6 +1478,8 @@ static int safexcel_probe_generic(void *pdev,
 		/* EIP97 */
 		priv->hwconfig.hwdataw  = (hiaopt >> EIP197_HWDATAW_OFFSET) &
 					  EIP97_HWDATAW_MASK;
+		priv->hwconfig.hwcfsize = (hiaopt >> EIP97_CFSIZE_OFFSET) &
+					  EIP97_CFSIZE_MASK;
 		priv->hwconfig.hwnumpes	= 1; /* by definition */
 		priv->hwconfig.hwnumrings = (hiaopt >> EIP197_N_RINGS_OFFSET) &
 					    EIP197_N_RINGS_MASK;
@@ -1489,10 +1504,11 @@ static int safexcel_probe_generic(void *pdev,
 				    EIP197_PE_EIP96_OPTIONS(0));
 
 	/* Print single info line describing what we just detected */
-	dev_info(priv->dev, "EIP%d:%x(%d,%d,%d,%d)-HIA:%x,PE:%x/%x,alg:%08x\n",
+	dev_info(priv->dev, "EIP%d:%x(%d,%d,%d,%d)-HIA:%x(%d,%d),PE:%x/%x,alg:%08x\n",
 		 peid, priv->hwconfig.hwver, hwctg, priv->hwconfig.hwnumpes,
 		 priv->hwconfig.hwnumrings, priv->hwconfig.hwnumraic,
-		 priv->hwconfig.hiaver, priv->hwconfig.ppver,
+		 priv->hwconfig.hiaver, priv->hwconfig.hwdataw,
+		 priv->hwconfig.hwcfsize, priv->hwconfig.ppver,
 		 priv->hwconfig.pever, priv->hwconfig.algo_flags);
 
 	safexcel_configure(priv);

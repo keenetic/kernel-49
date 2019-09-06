@@ -43,7 +43,6 @@
 #define EIP197_EMB_TOKENS			4 /* Pad CD to 16 dwords */
 #define EIP197_MAX_TOKENS			16
 #define EIP197_MAX_RINGS			4
-#define EIP197_FETCH_COUNT			1
 #define EIP197_FETCH_DEPTH			2
 #define EIP197_MAX_BATCH_SZ			64
 #define EIP197_MAX_RING_AIC			14
@@ -241,6 +240,11 @@
 #define EIP97_CFSIZE_OFFSET			8
 #define EIP197_CFSIZE_MASK			GENMASK(3, 0)
 #define EIP97_CFSIZE_MASK			GENMASK(4, 0)
+#define EIP197_RFSIZE_OFFSET			12
+#define EIP197_RFSIZE_ADJUST			4
+#define EIP97_RFSIZE_OFFSET			12
+#define EIP197_RFSIZE_MASK			GENMASK(3, 0)
+#define EIP97_RFSIZE_MASK			GENMASK(4, 0)
 
 /* EIP197_HIA_AIC_R_ENABLE_CTRL */
 #define EIP197_CDR_IRQ(n)			BIT((n) * 2)
@@ -753,6 +757,7 @@ struct safexcel_hwconfig {
 	int pever;
 	int hwdataw;
 	int hwcfsize;
+	int hwrfsize;
 	int hwnumpes;
 	int hwnumrings;
 	int hwnumraic;

@@ -102,6 +102,9 @@
 #define SSUSB_U3_PORT_NUM(p)		(p & 0xff)
 #define SSUSB_U2_PORT_NUM(p)		((p >> 8) & 0xff)
 
+/* SSUSB_IP_SPAR0 */
+#define REG_SSUSB_IP_SPAR0		(ADDR_SIFSLV_IPPC_BASE + 0x0c8)
+
 static atomic_t uphy_init_instance = ATOMIC_INIT(0);
 
 static inline u32
@@ -207,6 +210,18 @@ u2_slew_rate_calibration(int port_id, u32 u2_phy_reg_base)
 	uphy_write32(u2_phy_reg_base + OFS_U2_PHY_ACR0, reg_val);
 }
 
+static void
+u2_phy_init(u32 u2_phy_reg_base)
+{
+	u32 reg_val;
+
+	/* set SW PLL Stable mode to 1 for U2 LPM device remote wakeup */
+	reg_val = uphy_read32(u2_phy_reg_base + OFS_U2_PHY_DCR1);
+	reg_val &= ~(0x3 << 18);
+	reg_val |=  (0x1 << 18);
+	uphy_write32(u2_phy_reg_base + OFS_U2_PHY_DCR1, reg_val);
+}
+
 static inline void
 uphy_setup_25mhz_xtal(void)
 {
@@ -288,6 +303,13 @@ void uphy_init(void)
 	printk(KERN_INFO "%s USB PHY config\n", "EN7516G");
 
 #endif
+
+	/* doorbell handling */
+	uphy_write32(REG_SSUSB_IP_SPAR0, 0x1);
+
+	/* init UPHY */
+	u2_phy_init(ADDR_U2_PHY_P0_BASE);
+	u2_phy_init(ADDR_U2_PHY_P1_BASE);
 
 	/* calibrate UPHY */
 	u2_slew_rate_calibration(0, ADDR_U2_PHY_P0_BASE);

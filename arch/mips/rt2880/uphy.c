@@ -47,6 +47,9 @@
 #define SSUSB_U3_PORT_NUM(p)		(p & 0xff)
 #define SSUSB_U2_PORT_NUM(p)		((p >> 8) & 0xff)
 
+/* SSUSB_IP_SPAR0 */
+#define REG_SSUSB_IP_SPAR0		(ADDR_SIFSLV_IPPC_BASE+0x0c8)
+
 #elif defined(CONFIG_RALINK_MT7628)
 
 #define ADDR_SIFSLV_FMREG_BASE		(RALINK_USB_DEV_BASE+0xf00)
@@ -182,11 +185,29 @@ u2_slew_rate_calibration(int port_id, u32 u2_phy_reg_base)
 
 #if defined(CONFIG_RALINK_MT7621)
 
+static void
+u2_phy_init(u32 u2_phy_reg_base)
+{
+	u32 reg_val;
+
+	/* set SW PLL Stable mode to 1 for U2 LPM device remote wakeup */
+	reg_val = sysRegRead(u2_phy_reg_base + OFS_U2_PHY_DCR1);
+	reg_val &= ~(0x3 << 18);
+	reg_val |=  (0x1 << 18);
+	sysRegWrite(u2_phy_reg_base + OFS_U2_PHY_DCR1, reg_val);
+}
+
 void
 uphy_init(void)
 {
 	if (atomic_inc_return(&uphy_init_instance) != 1)
 		return;
+
+	/* doorbell handling */
+	sysRegWrite(REG_SSUSB_IP_SPAR0, 0x1);
+
+	u2_phy_init(ADDR_U2_PHY_P0_BASE);
+	u2_phy_init(ADDR_U2_PHY_P1_BASE);
 
 	u2_slew_rate_calibration(0, ADDR_U2_PHY_P0_BASE);
 	u2_slew_rate_calibration(1, ADDR_U2_PHY_P1_BASE);

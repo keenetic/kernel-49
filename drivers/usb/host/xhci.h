@@ -34,6 +34,11 @@
 #include	"xhci-ext-caps.h"
 #include "pci-quirks.h"
 
+#if defined(CONFIG_RALINK_MT7621) || \
+    defined(CONFIG_ECONET_EN75XX_MP)
+#define XHCI_MTK_HOST_MIPS
+#endif
+
 /* xHCI PCI Configuration Registers */
 #define XHCI_SBRN_OFFSET	(0x60)
 

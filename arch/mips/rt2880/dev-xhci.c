@@ -14,7 +14,7 @@
 static struct resource mt7621_xhci_resources[] = {
 	[0] = {
 		.start  = RALINK_USB_HOST_BASE,
-		.end    = RALINK_USB_HOST_BASE + 0xfff,
+		.end    = RALINK_USB_HOST_BASE + 0xffff,
 		.flags  = IORESOURCE_MEM,
 		.name   = "mac",
 	},

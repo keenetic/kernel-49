@@ -13,7 +13,7 @@
 static struct resource en75xx_xhci_resources[] = {
 	[0] = {
 		.start  = RALINK_USB_HOST_BASE,
-		.end    = RALINK_USB_HOST_BASE + 0xfff,
+		.end    = RALINK_USB_HOST_BASE + 0xffff,
 		.flags  = IORESOURCE_MEM,
 		.name   = "mac",
 	},

@@ -20,6 +20,10 @@
 
 #include "xhci.h"
 
+#define XHCI_MTK_SYNC_HS_EOF	0x938
+#define XHCI_MTK_HDMA_CFG	0x950
+#define XHCI_MTK_LTSSM_TIMING_PARAMETER3	0x2514
+
 /**
  * XHCI MTK should disable UPDATE_XACT_NUMP_INTIME
  *   and enable SCH_IN_ACK_RTY_EN

@@ -32,7 +32,7 @@
 #include "xhci.h"
 #include "xhci-mtk.h"
 
-#if defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ECONET_EN75XX_MP)
+#ifdef XHCI_MTK_HOST_MIPS
 #include <soc/ralink/dev_xhci.h>
 #endif
 
@@ -92,7 +92,7 @@ enum ssusb_wakeup_src {
 	SSUSB_WK_LINE_STATE = 2,
 };
 
-#if defined(CONFIG_RALINK_MT7621) || defined(CONFIG_ECONET_EN75XX_MP)
+#ifdef XHCI_MTK_HOST_MIPS
 static void xhci_plat_uphy_init(struct xhci_hcd_mtk *mtk)
 {
 	struct xhci_mtk_pdata *pdata = dev_get_platdata(mtk->dev);
@@ -120,10 +120,6 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 
 	if (!mtk->has_ippc)
 		return 0;
-
-#if defined(CONFIG_ECONET_EN75XX_MP)
-	xhci_plat_uphy_init(mtk);
-#endif
 
 	/* power on host ip */
 	value = readl(&ippc->ip_pw_ctr1);
@@ -168,9 +164,6 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 		return ret;
 	}
 
-#if defined(CONFIG_RALINK_MT7621)
-	xhci_plat_uphy_init(mtk);
-#endif
 	return 0;
 }
 
@@ -246,6 +239,10 @@ static int xhci_mtk_ssusb_config(struct xhci_hcd_mtk *mtk)
 	mtk->num_u2_ports = CAP_U2_PORT_NUM(value);
 	dev_dbg(mtk->dev, "%s u2p:%d, u3p:%d\n", __func__,
 			mtk->num_u2_ports, mtk->num_u3_ports);
+
+#ifdef XHCI_MTK_HOST_MIPS
+	xhci_plat_uphy_init(mtk);
+#endif
 
 	return xhci_mtk_host_enable(mtk);
 }
@@ -535,7 +532,6 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
 	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
-	u32 value;
 
 	/*
 	 * As of now platform drivers don't provide MSI support so we ensure
@@ -551,12 +547,35 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 	xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
 	if (mtk->lpm_support)
 		xhci->quirks |= XHCI_LPM_SUPPORT;
+}
 
-	/* Disable nump and enable retry behavior */
+static void xhci_mtk_init_regs(struct usb_hcd *hcd)
+{
+	u32 value;
+
+#ifdef CONFIG_ARCH_MEDIATEK
+	/* disable nump and enable retry behavior */
 	value = readl(hcd->regs + XHCI_MTK_HSCH_CFG1);
 	value &= ~XHCI_MTK_UPDATE_XACT_NUMP_INTIME;
 	value |=  XHCI_MTK_SCH_IN_ACK_RTY_EN;
 	writel(value, hcd->regs + XHCI_MTK_HSCH_CFG1);
+#endif
+
+#ifdef XHCI_MTK_HOST_MIPS
+	/* set DMA burst size to 128B */
+	value = 0x10e0e0c;
+	writel(value, hcd->regs + XHCI_MTK_HDMA_CFG);
+
+#ifndef CONFIG_USB_XHCI_NO_USB3
+	/* extend U3 LTSSM Polling.LFPS timeout value */
+	value = 0x3e8012c;
+	writel(value, hcd->regs + XHCI_MTK_LTSSM_TIMING_PARAMETER3);
+#endif
+
+	/* EOF */
+	value = 0x201f3;
+	writel(value, hcd->regs + XHCI_MTK_SYNC_HS_EOF);
+#endif
 }
 
 /* called during probe() after chip reset completes */
@@ -576,6 +595,7 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 		return ret;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
+		xhci_mtk_init_regs(hcd);
 		ret = xhci_mtk_sch_init(mtk);
 		if (ret)
 			return ret;
@@ -647,8 +667,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	mtk->u3p_dis_msk = 0xf;
 #endif
 
-#if defined(CONFIG_RALINK_MT7621) || \
-    defined(CONFIG_ECONET_EN75XX_MP)
+#ifdef XHCI_MTK_HOST_MIPS
 	xhci_plat_caps_fill(mtk);
 #endif
 	pm_runtime_enable(dev);

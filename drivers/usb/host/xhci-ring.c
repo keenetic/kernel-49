@@ -203,6 +203,7 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		if (!chain && !more_trbs_coming)
 			break;
 
+#if !IS_ENABLED(CONFIG_USB_XHCI_MTK)
 		/* If we're not dealing with 0.95 hardware or isoc rings on
 		 * AMD 0.96 host, carry over the chain bit of the previous TRB
 		 * (which may mean the chain bit is cleared).
@@ -213,6 +214,10 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 			next->link.control &= cpu_to_le32(~TRB_CHAIN);
 			next->link.control |= cpu_to_le32(chain);
 		}
+#else
+		next->link.control &= cpu_to_le32(~TRB_CHAIN);
+		next->link.control |= cpu_to_le32(chain);
+#endif
 		/* Give this link TRB to the hardware */
 		wmb();
 		next->link.control ^= cpu_to_le32(TRB_CYCLE);
@@ -660,10 +665,12 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 	if (urb_priv->td_cnt == urb_priv->length) {
 		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
 			xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
+#if !IS_ENABLED(CONFIG_USB_XHCI_MTK)
 			if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs	== 0) {
 				if (xhci->quirks & XHCI_AMD_PLL_FIX)
 					usb_amd_quirk_pll_enable();
 			}
+#endif
 		}
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
 
@@ -1943,10 +1950,12 @@ td_cleanup:
 		ret = 1;
 		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
 			xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
+#if !IS_ENABLED(CONFIG_USB_XHCI_MTK)
 			if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs == 0) {
 				if (xhci->quirks & XHCI_AMD_PLL_FIX)
 					usb_amd_quirk_pll_enable();
 			}
+#endif
 		}
 	}
 
@@ -2918,6 +2927,7 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	}
 
 	while (trb_is_link(ep_ring->enqueue)) {
+#if !IS_ENABLED(CONFIG_USB_XHCI_MTK)
 		/* If we're not dealing with 0.95 hardware or isoc rings
 		 * on AMD 0.96 host, clear the chain bit.
 		 */
@@ -2929,6 +2939,9 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		else
 			ep_ring->enqueue->link.control |=
 				cpu_to_le32(TRB_CHAIN);
+#else
+		ep_ring->enqueue->link.control &= cpu_to_le32(~TRB_CHAIN);
+#endif
 
 		wmb();
 		ep_ring->enqueue->link.control ^= cpu_to_le32(TRB_CYCLE);
@@ -3144,9 +3157,11 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 {
 	u32 maxp, total_packet_count;
 
+#if !IS_ENABLED(CONFIG_USB_XHCI_MTK)
 	/* MTK xHCI 0.96 contains some features from 1.0 */
 	if (xhci->hci_version < 0x100 && !(xhci->quirks & XHCI_MTK_HOST))
 		return ((td_total_len - transferred) >> 10);
+#endif
 
 	/* One TRB with a zero-length data packet. */
 	if (!more_trbs_coming || (transferred == 0 && trb_buff_len == 0) ||
@@ -3809,10 +3824,12 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (HCC_CFC(xhci->hcc_params))
 		xep->next_frame_id = urb->start_frame + num_tds * urb->interval;
 
+#if !IS_ENABLED(CONFIG_USB_XHCI_MTK)
 	if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs == 0) {
 		if (xhci->quirks & XHCI_AMD_PLL_FIX)
 			usb_amd_quirk_pll_disable();
 	}
+#endif
 	xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs++;
 
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,

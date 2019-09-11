@@ -121,12 +121,14 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 		val = le32_to_cpu(prev->trbs[TRBS_PER_SEGMENT-1].link.control);
 		val &= ~TRB_TYPE_BITMASK;
 		val |= TRB_TYPE(TRB_LINK);
+#if !IS_ENABLED(CONFIG_USB_XHCI_MTK)
 		/* Always set the chain bit with 0.95 hardware */
 		/* Set chain bit for isoc rings on AMD 0.96 host */
 		if (xhci_link_trb_quirk(xhci) ||
 				(type == TYPE_ISOC &&
 				 (xhci->quirks & XHCI_AMD_0x96_HOST)))
 			val |= TRB_CHAIN;
+#endif
 		prev->trbs[TRBS_PER_SEGMENT-1].link.control = cpu_to_le32(val);
 	}
 }

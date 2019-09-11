@@ -211,7 +211,7 @@ int xhci_reset(struct xhci_hcd *xhci)
 	return ret;
 }
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(XHCI_MTK_HOST_MIPS)
 static int xhci_free_msi(struct xhci_hcd *xhci)
 {
 	int i;

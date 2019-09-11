@@ -1542,6 +1542,16 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	if ((xhci->hci_version > 0x100) && HCC2_LEC(xhci->hcc_params2))
 		mult = 0;
 
+#ifdef XHCI_MTK_HOST_MIPS
+	if (udev->speed == USB_SPEED_HIGH ||
+	    udev->speed == USB_SPEED_FULL ||
+	    udev->speed == USB_SPEED_LOW) {
+		if ((max_packet % 4 == 2) && (max_packet % 16 != 14) &&
+		    (max_burst == 0) && usb_endpoint_dir_in(&ep->desc))
+			max_packet += 2;
+	}
+#endif
+
 	/* Set up the endpoint ring */
 	virt_dev->eps[ep_index].new_ring =
 		xhci_ring_alloc(xhci, 2, 1, ring_type, max_packet, mem_flags);

@@ -1697,8 +1697,13 @@ struct xhci_hcd {
 	/* Compliance Mode Recovery Data */
 	struct timer_list	comp_mode_recovery_timer;
 	u32			port_status_u0;
+#ifdef XHCI_MTK_HOST_MIPS
+/* Compliance Mode Timer Triggered every 5 seconds */
+#define COMP_MODE_RCVRY_MSECS 5000
+#else
 /* Compliance Mode Timer Triggered every 2 seconds */
 #define COMP_MODE_RCVRY_MSECS 2000
+#endif
 
 	/* platform-specific data -- must come last */
 	unsigned long		priv[0] __aligned(sizeof(s64));

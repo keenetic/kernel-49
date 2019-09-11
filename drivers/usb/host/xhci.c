@@ -459,6 +459,11 @@ static void compliance_mode_recovery(unsigned long arg)
 					"Attempting compliance mode recovery");
 			hcd = xhci->shared_hcd;
 
+#ifdef XHCI_MTK_HOST_MIPS
+			temp |= (1u << 31);
+			writel(temp, xhci->usb3_ports[i]);
+#endif
+
 			if (hcd->state == HC_STATE_SUSPENDED)
 				usb_hcd_resume_root_hub(hcd);
 
@@ -502,6 +507,9 @@ static void compliance_mode_recovery_timer_init(struct xhci_hcd *xhci)
  */
 static bool xhci_compliance_mode_recovery_timer_quirk_check(void)
 {
+#ifdef XHCI_MTK_HOST_MIPS
+	return true;
+#else
 	const char *dmi_product_name, *dmi_sys_vendor;
 
 	dmi_product_name = dmi_get_system_info(DMI_PRODUCT_NAME);
@@ -519,6 +527,7 @@ static bool xhci_compliance_mode_recovery_timer_quirk_check(void)
 		return true;
 
 	return false;
+#endif
 }
 
 static int xhci_all_ports_seen_u0(struct xhci_hcd *xhci)

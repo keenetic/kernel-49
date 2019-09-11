@@ -547,6 +547,10 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 	xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
 	if (mtk->lpm_support)
 		xhci->quirks |= XHCI_LPM_SUPPORT;
+
+#ifdef XHCI_MTK_HOST_MIPS
+	hcd->self.no_stop_on_short = 0;
+#endif
 }
 
 static void xhci_mtk_init_regs(struct usb_hcd *hcd)

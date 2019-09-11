@@ -234,16 +234,18 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 static inline int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		unsigned int num_trbs)
 {
-	int num_trbs_in_deq_seg;
-
 	if (ring->num_trbs_free < num_trbs)
 		return 0;
 
+#ifndef XHCI_MTK_HOST_MIPS
 	if (ring->type != TYPE_COMMAND && ring->type != TYPE_EVENT) {
+		int num_trbs_in_deq_seg;
+
 		num_trbs_in_deq_seg = ring->dequeue - ring->deq_seg->trbs;
 		if (ring->num_trbs_free < num_trbs + num_trbs_in_deq_seg)
 			return 0;
 	}
+#endif
 
 	return 1;
 }
@@ -3063,6 +3065,9 @@ static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 		start_trb->field[3] |= cpu_to_le32(start_cycle);
 	else
 		start_trb->field[3] &= cpu_to_le32(~TRB_CYCLE);
+#ifdef XHCI_MTK_HOST_MIPS
+	wmb();
+#endif
 	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
 }
 
@@ -3752,7 +3757,11 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				td->last_trb = ep_ring->enqueue;
 				field |= TRB_IOC;
 				/* set BEI, except for the last TD */
+#ifndef XHCI_MTK_HOST_MIPS
 				if (xhci->hci_version >= 0x100 &&
+#else
+				if (1 &&
+#endif
 				    !(xhci->quirks & XHCI_AVOID_BEI) &&
 				    i < num_tds - 1)
 					field |= TRB_BEI;

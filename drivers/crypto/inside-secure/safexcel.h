@@ -332,6 +332,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES192	(0x6 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES256	(0x7 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_CHACHA20	(0x8 << 17)
+#define CONTEXT_CONTROL_DIGEST_INITIAL		(0x0 << 21)
 #define CONTEXT_CONTROL_DIGEST_PRECOMPUTED	(0x1 << 21)
 #define CONTEXT_CONTROL_DIGEST_XCM		(0x2 << 21)
 #define CONTEXT_CONTROL_DIGEST_HMAC		(0x3 << 21)
@@ -346,6 +347,10 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_ALG_XCBC128	(0x1 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_XCBC192	(0x2 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_XCBC256	(0x3 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA3_256	(0xb << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA3_224	(0xc << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA3_512	(0xd << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA3_384	(0xe << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_POLY1305	(0xf << 23)
 #define CONTEXT_CONTROL_INV_FR			(0x5 << 24)
 #define CONTEXT_CONTROL_INV_TR			(0x6 << 24)
@@ -851,5 +856,9 @@ extern struct safexcel_alg_template safexcel_alg_cmac;
 extern struct safexcel_alg_template safexcel_alg_chacha20;
 extern struct safexcel_alg_template safexcel_alg_chachapoly;
 extern struct safexcel_alg_template safexcel_alg_chachapoly_esp;
+extern struct safexcel_alg_template safexcel_alg_sha3_224;
+extern struct safexcel_alg_template safexcel_alg_sha3_256;
+extern struct safexcel_alg_template safexcel_alg_sha3_384;
+extern struct safexcel_alg_template safexcel_alg_sha3_512;
 
 #endif

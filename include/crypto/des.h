@@ -41,6 +41,15 @@ int verify_skcipher_des_key(struct crypto_tfm *tfm, const u8 *key);
  */
 int verify_skcipher_des3_key(struct crypto_tfm *tfm, const u8 *key);
 
+static inline int verify_aead_des_key(struct crypto_tfm *tfm, const u8 *key,
+				      int keylen)
+{
+	if (keylen != DES_KEY_SIZE)
+		return -EINVAL;
+
+	return verify_skcipher_des_key(tfm, key);
+}
+
 static inline int verify_aead_des3_key(struct crypto_tfm *tfm, const u8 *key,
 				       int keylen)
 {

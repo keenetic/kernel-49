@@ -26,4 +26,37 @@ static inline int crypto_gcm_check_authsize(unsigned int authsize)
 	return 0;
 }
 
+/*
+ * validate authentication tag for RFC4106
+ */
+static inline int crypto_rfc4106_check_authsize(unsigned int authsize)
+{
+	switch (authsize) {
+	case 8:
+	case 12:
+	case 16:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * validate assoclen for RFC4106/RFC4543
+ */
+static inline int crypto_ipsec_check_assoclen(unsigned int assoclen)
+{
+	switch (assoclen) {
+	case 16:
+	case 20:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 #endif

@@ -25,6 +25,7 @@
 #define CHACHA20_KEY_SIZE	32
 #define CHACHA_BLOCK_SIZE	64
 #define CHACHA20_BLOCK_SIZE	64
+#define CHACHAPOLY_IV_SIZE	12
 
 /* 192-bit nonce, then 64-bit stream position */
 #define XCHACHA_IV_SIZE		32

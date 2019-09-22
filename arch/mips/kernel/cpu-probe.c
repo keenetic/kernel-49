@@ -32,6 +32,12 @@
 #include <asm/spram.h>
 #include <asm/uaccess.h>
 
+#if defined(CONFIG_RALINK_MT7621) || \
+    defined(CONFIG_RALINK_MT7628) || \
+    defined(CONFIG_MIPS_TC3262)
+#define PROBE_ONLY_ARCH_MIPS
+#endif
+
 /* Hardware capabilities */
 unsigned int elf_hwcap __read_mostly;
 
@@ -1152,6 +1158,7 @@ static inline void cpu_probe_vz(struct cpuinfo_mips *c)
 #define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
 		| MIPS_CPU_COUNTER)
 
+#ifndef PROBE_ONLY_ARCH_MIPS
 static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	switch (c->processor_id & PRID_IMP_MASK) {
@@ -1510,6 +1517,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		break;
 	}
 }
+#endif /* !PROBE_ONLY_ARCH_MIPS */
 
 static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 {
@@ -1640,6 +1648,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	spram_config();
 }
 
+#ifndef PROBE_ONLY_ARCH_MIPS
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
@@ -1931,6 +1940,7 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 	}
 	c->kscratch_mask = 0xf;
 }
+#endif /* !PROBE_ONLY_ARCH_MIPS */
 
 #ifdef CONFIG_64BIT
 /* For use by uaccess.h */
@@ -1956,12 +1966,15 @@ void cpu_probe(void)
 
 	c->processor_id = read_c0_prid();
 	switch (c->processor_id & PRID_COMP_MASK) {
+#ifndef PROBE_ONLY_ARCH_MIPS
 	case PRID_COMP_LEGACY:
 		cpu_probe_legacy(c, cpu);
 		break;
+#endif /* !PROBE_ONLY_ARCH_MIPS */
 	case PRID_COMP_MIPS:
 		cpu_probe_mips(c, cpu);
 		break;
+#ifndef PROBE_ONLY_ARCH_MIPS
 	case PRID_COMP_ALCHEMY:
 		cpu_probe_alchemy(c, cpu);
 		break;
@@ -1991,6 +2004,7 @@ void cpu_probe(void)
 	case PRID_COMP_NETLOGIC:
 		cpu_probe_netlogic(c, cpu);
 		break;
+#endif /* !PROBE_ONLY_ARCH_MIPS */
 	}
 
 	BUG_ON(!__cpu_name[cpu]);

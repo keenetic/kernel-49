@@ -836,9 +836,11 @@ build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 
 	if (pgd_reg != -1) {
 		/* pgd is in pgd_reg */
+#ifdef CONFIG_CPU_LOONGSON3
 		if (cpu_has_ldpte)
 			UASM_i_MFC0(p, ptr, C0_PWBASE);
 		else
+#endif
 			UASM_i_MFC0(p, ptr, c0_kscratch(), pgd_reg);
 	} else {
 #if defined(CONFIG_MIPS_PGD_C0_CONTEXT)
@@ -1456,6 +1458,7 @@ static void build_r4000_tlb_refill_handler(void)
 	dump_handler("r4000_tlb_refill", (u32 *)ebase, 64);
 }
 
+#ifdef CONFIG_CPU_LOONGSON3
 static void setup_pw(void)
 {
 	unsigned long pgd_i, pgd_w;
@@ -1557,6 +1560,7 @@ static void build_loongson3_tlb_refill_handler(void)
 	local_flush_icache_range(ebase + 0x80, ebase + 0x100);
 	dump_handler("loongson3_tlb_refill", (u32 *)(ebase + 0x80), 32);
 }
+#endif
 
 extern u32 handle_tlbl[], handle_tlbl_end[];
 extern u32 handle_tlbs[], handle_tlbs_end[];
@@ -1605,9 +1609,11 @@ static void build_setup_pgd(void)
 		uasm_i_ehb(&p);
 	} else {
 		/* PGD in c0_KScratch */
+#ifdef CONFIG_CPU_LOONGSON3
 		if (cpu_has_ldpte)
 			UASM_i_MTC0(&p, a0, C0_PWBASE);
 		else
+#endif
 			UASM_i_MTC0(&p, a0, c0_kscratch(), pgd_reg);
 		uasm_i_jr(&p, 31);
 		uasm_i_ehb(&p);
@@ -2486,9 +2492,9 @@ static void config_htw_params(void)
 	print_htw_config();
 }
 
+#ifdef CONFIG_XPA
 static void config_xpa_params(void)
 {
-#ifdef CONFIG_XPA
 	unsigned int pagegrain;
 
 	if (mips_xpa_disabled) {
@@ -2505,8 +2511,8 @@ static void config_xpa_params(void)
 		pr_info("Extended Physical Addressing (XPA) enabled\n");
 	else
 		panic("Extended Physical Addressing (XPA) disabled");
-#endif
 }
+#endif
 
 static void check_pabits(void)
 {
@@ -2600,8 +2606,10 @@ void build_tlb_refill_handler(void)
 
 #endif /* !CONFIG_CPU_MIPS32_R2 */
 	default:
+#ifdef CONFIG_CPU_LOONGSON3
 		if (cpu_has_ldpte)
 			setup_pw();
+#endif
 
 		if (!run_once) {
 			scratch_reg = allocate_kscratch();
@@ -2609,17 +2617,22 @@ void build_tlb_refill_handler(void)
 			build_r4000_tlb_load_handler();
 			build_r4000_tlb_store_handler();
 			build_r4000_tlb_modify_handler();
+#ifdef CONFIG_CPU_LOONGSON3
 			if (cpu_has_ldpte)
 				build_loongson3_tlb_refill_handler();
-			else if (!cpu_has_local_ebase)
+			else
+#endif
+			if (!cpu_has_local_ebase)
 				build_r4000_tlb_refill_handler();
 			flush_tlb_handlers();
 			run_once++;
 		}
 		if (cpu_has_local_ebase)
 			build_r4000_tlb_refill_handler();
+#ifdef CONFIG_XPA
 		if (cpu_has_xpa)
 			config_xpa_params();
+#endif
 		if (cpu_has_htw)
 			config_htw_params();
 	}

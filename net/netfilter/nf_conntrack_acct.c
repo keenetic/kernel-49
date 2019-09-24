@@ -118,43 +118,24 @@ static void nf_conntrack_acct_fini_sysctl(struct net *net)
 }
 #endif
 
-static unsigned int do_conntrack_acct(
-		void *priv,
-		struct sk_buff *skb,
-		const struct nf_hook_state *state)
+static unsigned int do_conntrack_acct(void *priv, struct sk_buff *skb,
+				      const struct nf_hook_state *state)
 {
-	if (unlikely( 0
+	if (likely(1
 #if IS_ENABLED(CONFIG_FAST_NAT)
-		|| SWNAT_KA_CHECK_MARK(skb)
+		&& !SWNAT_KA_CHECK_MARK(skb)
 #endif
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
-		|| FOE_SKB_IS_KEEPALIVE(skb)
+		&& !FOE_SKB_IS_KEEPALIVE(skb)
 #endif
-		)) {
-		return NF_ACCEPT;
-	}
-
-	{
-		struct nf_conn_counter *counters;
+	    )) {
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-		struct nf_conn_acct *acct;
 
-		if (unlikely(ct == NULL))
-			return NF_ACCEPT;
+		if (likely(ct != NULL)) {
+			unsigned int len = skb->len - skb_network_offset(skb);
 
-		acct = nf_conn_acct_find(ct);
-
-		if (unlikely(acct == NULL))
-			return NF_ACCEPT;
-
-		counters = acct->counter;
-
-		if (likely(acct != NULL)) {
-			atomic64_inc(&counters[CTINFO2DIR(ctinfo)].packets);
-			atomic64_add(
-				skb->len - skb_network_offset(skb),
-				&counters[CTINFO2DIR(ctinfo)].bytes);
+			nf_ct_acct_add_packet_len(ct, ctinfo, len);
 		}
 	}
 

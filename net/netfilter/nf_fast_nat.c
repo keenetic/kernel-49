@@ -92,16 +92,9 @@ int fast_nat_path(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 		ct = nf_ct_get(skb, &ctinfo);
 		if (likely(ct != NULL)) {
-			struct nf_conn_acct *acct = nf_conn_acct_find(ct);
+			unsigned int len = skb->len - skb_network_offset(skb);
 
-			if (likely(acct != NULL)) {
-				struct nf_conn_counter *counter = acct->counter;
-				enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-
-				atomic64_inc(&counter[dir].packets);
-				atomic64_add(
-					skb->len - skb_network_offset(skb), &counter[dir].bytes);
-			}
+			nf_ct_acct_add_packet_len(ct, ctinfo, len);
 		}
 	}
 

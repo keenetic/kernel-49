@@ -1693,14 +1693,21 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	}
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
-	if (pf == PF_INET &&
-	    (protonum == IPPROTO_UDP || protonum == IPPROTO_TCP) &&
-	    (ctinfo == IP_CT_ESTABLISHED || ctinfo == IP_CT_ESTABLISHED_REPLY) &&
-	    hooknum == NF_INET_PRE_ROUTING &&
+	/* check IPv4 condition */
+	if (pf != PF_INET)
+		goto fast_nat_exit;
+
+	/* check fastpath condition */
+	if (!(hooknum == NF_INET_PRE_ROUTING &&
+	      (ctinfo == IP_CT_ESTABLISHED || ctinfo == IP_CT_ESTABLISHED_REPLY) &&
+	      !SWNAT_KA_CHECK_MARK(skb)))
+		goto fast_nat_exit;
+
+	/* check fastnat condition */
+	if ((protonum == IPPROTO_UDP || protonum == IPPROTO_TCP) &&
 	   !ct->fast_ext &&
 	    ct->fast_bind_reached &&
 	    nf_fastnat_control &&
-	   !SWNAT_KA_CHECK_MARK(skb) &&
 	    is_nf_connection_ready_nat(ct) &&
 	    is_nf_connection_has_nat(ct)) {
 #ifdef CONFIG_NTCE_MODULE
@@ -1708,16 +1715,14 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		typeof(ntce_enq_pkt_hook_func) ntce_enq_pkt_hook;
 		unsigned int ntce_skip_swnat = 1;
 #endif
-		const struct iphdr *iph;
-		unsigned char _l4hdr[4];
+		u8 _l4hdr[4];
 		__be32 orig_src, new_src;
 		__be16 orig_port = 0;
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		u32 oldmark = skb->mark;
 #endif
 
-		iph = ip_hdr(skb);
-		orig_src = iph->saddr;
+		orig_src = ip_hdr(skb)->saddr;
 
 		if (protonum == IPPROTO_TCP) {
 			const struct tcphdr *tcph;
@@ -1756,8 +1761,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #endif
 		ret = fast_nat_do_bind(ct, skb, l3proto, l4proto, ctinfo);
 
-		iph = ip_hdr(skb);
-		new_src = iph->saddr;
+		new_src = ip_hdr(skb)->saddr;
 
 		/* Get rid of junky binds, do swnat only when src IP changed */
 		if (orig_src != new_src
@@ -1783,6 +1787,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			skb->mark = oldmark;
 #endif
 	}
+
+fast_nat_exit:
 #endif
 
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {

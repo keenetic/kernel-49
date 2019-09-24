@@ -68,8 +68,6 @@
 #include <net/fast_vpn.h>
 #endif
 
-#include <linux/ntc_shaper_hooks.h>
-
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
 int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
@@ -1778,37 +1776,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 				swnat_prebind(skb, orig_src, orig_port, ct, ctinfo);
 		}
 
-		if (ret == NF_FAST_NAT && orig_src != new_src) {
-			ntc_shaper_hook_fn *ntc_ingress;
-
-			/* from ntc.ko */
-			ntc_ingress = ntc_shaper_ingress_hook_get();
-			if (ntc_ingress) {
-				const struct ntc_shaper_fwd_t fwd = {
-					.saddr_ext	= ntohl(orig_src),
-					.daddr_ext	= 0,
-					.okfn_nf	= fast_nat_path,
-					.okfn_custom	= NULL,
-					.data		= NULL,
-					.net		= net,
-					.sk		= skb->sk
-				};
-				unsigned int ntc_retval;
-
-				ntc_retval = ntc_ingress(skb, &fwd);
-				if (ntc_retval == NF_ACCEPT) {
-					/* Shaper skipped that packet */
-					ret = NF_FAST_NAT;
-				} else if (ntc_retval == NF_DROP) {
-					/* Shaper tell us to drop it */
-					ret = NF_DROP;
-				} else if (ntc_retval == NF_STOLEN) {
-					/* Shaper queued packet and will handle it's destiny */
-					ret = NF_STOLEN;
-				}
-			}
-			ntc_shaper_ingress_hook_put();
-		}
+		if (ret == NF_FAST_NAT && orig_src != new_src)
+			ret = fast_nat_ntc_ingress(net, skb, orig_src);
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		else
 			skb->mark = oldmark;

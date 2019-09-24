@@ -4,6 +4,7 @@
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
+#include <linux/ntc_shaper_hooks.h>
 
 #define FAST_NAT_BIND_PKT_DIR_BOTH	5
 #define FAST_NAT_BIND_PKT_DIR_HALF	200
@@ -46,6 +47,40 @@ is_nf_connection_has_nat(struct nf_conn *ct)
 		  t1->src.u3.ip == t2->dst.u3.ip &&
 		  t1->dst.u.all == t2->src.u.all &&
 		  t1->src.u.all == t2->dst.u.all));
+}
+
+static inline int
+fast_nat_ntc_ingress(struct net *net, struct sk_buff *skb, __be32 saddr)
+{
+	ntc_shaper_hook_fn *ntc_ingress;
+	int ret = NF_FAST_NAT;
+
+	ntc_ingress = ntc_shaper_ingress_hook_get();
+
+	if (ntc_ingress) {
+		const struct ntc_shaper_fwd_t fwd = {
+			.saddr_ext	= ntohl(saddr),
+			.daddr_ext	= 0,
+			.okfn_nf	= fast_nat_path,
+			.okfn_custom	= NULL,
+			.data		= NULL,
+			.net		= net,
+			.sk		= skb->sk
+		};
+		unsigned int ntc_retval = ntc_ingress(skb, &fwd);
+
+		if (ntc_retval == NF_DROP) {
+			/* Shaper tell us to drop it */
+			ret = NF_DROP;
+		} else if (ntc_retval == NF_STOLEN) {
+			/* Shaper queued packet and will handle it's destiny */
+			ret = NF_STOLEN;
+		}
+	}
+
+	ntc_shaper_ingress_hook_put();
+
+	return ret;
 }
 
 #endif /*__FAST_NAT_H_ */

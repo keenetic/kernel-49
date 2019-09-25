@@ -279,13 +279,13 @@ static int __init fast_nat_init(void)
 {
 	nf_fastnat_control = 1;
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
-	nf_fastroute_control = 1;
+	nf_fastroute_control = 0;
 #endif
 #if IS_ENABLED(CONFIG_PPTP)
-	nf_fastpath_pptp_control = 1;
+	nf_fastpath_pptp_control = 0;
 #endif
 #ifdef CONFIG_XFRM
-	nf_fastpath_esp_control = 1;
+	nf_fastpath_esp_control = 0;
 	nf_fastnat_xfrm_control = 1;
 #endif
 	printk(KERN_INFO "Fast NAT loaded\n");

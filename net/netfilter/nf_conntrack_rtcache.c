@@ -139,11 +139,8 @@ static int do_rtcache_in(u_int8_t pf, struct sk_buff *skb, int ifindex)
 	int iif;
 	u32 cookie;
 
-	if (skb->sk)
+	if (skb->sk || skb_dst(skb))
 		return 0;
-
-	if (skb_dst(skb))
-		return 1;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)

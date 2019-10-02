@@ -74,12 +74,21 @@ int fast_nat_path(struct net *net, struct sock *sk, struct sk_buff *skb)
 	int retval = 0;
 
 	if (!skb_valid_dst(skb)) {
-		const struct iphdr *iph = ip_hdr(skb);
 		struct net_device *dev = skb->dev;
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+		typeof(nf_fastroute_rtcache_in) do_rtcache_in;
 
-		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev)) {
-			kfree_skb(skb);
-			return -EPERM;
+		do_rtcache_in = rcu_dereference(nf_fastroute_rtcache_in);
+		if (!do_rtcache_in || !do_rtcache_in(PF_INET, skb, dev->ifindex))
+#endif
+		{
+			const struct iphdr *iph = ip_hdr(skb);
+
+			if (ip_route_input(skb, iph->daddr, iph->saddr,
+					   iph->tos, dev)) {
+				kfree_skb(skb);
+				return -EPERM;
+			}
 		}
 
 		/*  Change skb owner to output device */

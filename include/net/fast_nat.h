@@ -27,6 +27,13 @@ extern int (*nf_fastpath_pptp_in)(struct sk_buff *skb,
 				  u16 call_id);
 #endif
 
+#if IS_ENABLED(CONFIG_PPPOL2TP)
+extern int nf_fastpath_l2tp_control;
+
+extern int (*nf_fastpath_l2tp_in)(struct sk_buff *skb,
+				  unsigned int dataoff);
+#endif
+
 #ifdef CONFIG_XFRM
 extern int nf_fastnat_xfrm_control;
 extern int nf_fastpath_esp_control;

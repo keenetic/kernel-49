@@ -64,6 +64,10 @@
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_nat.h>
+#endif
+
 #include "l2tp_core.h"
 
 #define L2TP_DRV_VERSION	"V2.0"
@@ -1058,6 +1062,63 @@ pass_up:
 }
 EXPORT_SYMBOL_GPL(l2tp_udp_encap_recv);
 
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+/* return 1 on packet stolen */
+static int l2tp_in(struct sk_buff *skb, unsigned int dataoff)
+{
+	u8 _l4hdr[L2TP_HDR_SIZE_MAX];
+	const struct udphdr *udph;
+	const struct inet_sock *inet;
+	struct l2tp_tunnel *tunnel;
+	u8 *ptr;
+	u16 hdrflags;
+	__be16 dport;
+
+	if (!pskb_may_pull(skb, dataoff + sizeof(struct udphdr) +
+			   L2TP_HDR_SIZE_MAX))
+		return 0;
+
+	/* actually only need first 4 bytes to get ports. */
+	udph = skb_header_pointer(skb, dataoff, 4, _l4hdr);
+	if (!udph)
+		return 0;
+
+	dport = udph->dest;
+
+	ptr = skb_header_pointer(skb, dataoff + sizeof(struct udphdr),
+				 sizeof(_l4hdr), _l4hdr);
+	if (!ptr)
+		return 0;
+
+	hdrflags = ntohs(*(__be16 *)ptr);
+
+	if ((hdrflags & L2TP_HDR_VER_MASK) != L2TP_HDR_VER_2 ||
+	     hdrflags & L2TP_HDRFLAG_T)
+		return 0;
+
+	ptr += sizeof(u16) * ((hdrflags & L2TP_HDRFLAG_L) ? 2 : 1);
+
+	tunnel = l2tp_tunnel_find(dev_net(skb->dev), ntohs(*(__be16 *)ptr));
+	if (tunnel == NULL || tunnel->sock == NULL)
+		return 0;
+
+	inet = inet_sk(tunnel->sock);
+	if (ip_hdr(skb)->daddr != inet->inet_saddr ||
+	    dport != inet->inet_sport)
+		return 0;
+
+	__skb_pull(skb, dataoff);
+
+	if (l2tp_udp_recv_core(tunnel, skb) == 0)
+		return 1;
+
+	__skb_push(skb, dataoff);
+
+	return 0;
+}
+#endif
+
 /************************************************************************
  * Transmit handling
  ***********************************************************************/
@@ -1966,6 +2027,10 @@ static int __init l2tp_init(void)
 		goto out;
 	}
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	rcu_assign_pointer(nf_fastpath_l2tp_in, l2tp_in);
+#endif
+
 	pr_info("L2TP core driver, %s\n", L2TP_DRV_VERSION);
 
 out:
@@ -1974,6 +2039,10 @@ out:
 
 static void __exit l2tp_exit(void)
 {
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	RCU_INIT_POINTER(nf_fastpath_l2tp_in, NULL);
+	synchronize_rcu();
+#endif
 	unregister_pernet_device(&l2tp_net_ops);
 	if (l2tp_wq) {
 		destroy_workqueue(l2tp_wq);

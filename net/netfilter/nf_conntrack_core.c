@@ -98,6 +98,11 @@ int nf_fastpath_pptp_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastpath_pptp_control);
 #endif
 
+#if IS_ENABLED(CONFIG_PPPOL2TP)
+int nf_fastpath_l2tp_control __read_mostly;
+EXPORT_SYMBOL_GPL(nf_fastpath_l2tp_control);
+#endif
+
 #ifdef CONFIG_XFRM
 int nf_fastpath_esp_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastpath_esp_control);
@@ -1815,11 +1820,18 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		goto fast_nat_exit;
 	}
 
+#if defined(CONFIG_XFRM) || \
+    IS_ENABLED(CONFIG_PPTP) || \
+    IS_ENABLED(CONFIG_PPPOL2TP) || \
+    IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+	if (!is_nf_connection_has_no_nat(ct))
+		goto fast_nat_exit;
+#endif
+
 #if IS_ENABLED(CONFIG_PPTP)
 	/* check PPTP GRE fastpath condition */
 	if (protonum == IPPROTO_GRE &&
-	    nf_fastpath_pptp_control &&
-	    is_nf_connection_has_no_nat(ct)) {
+	    nf_fastpath_pptp_control) {
 		const struct pptp_gre_header *pgh;
 		u8 _l4hdr[2 * sizeof(u32)];
 
@@ -1848,8 +1860,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #ifdef CONFIG_XFRM
 	/* check IPsec ESP fastpath condition */
 	if ((protonum == IPPROTO_UDP || protonum == IPPROTO_ESP) &&
-	    nf_fastpath_esp_control &&
-	    is_nf_connection_has_no_nat(ct)) {
+	    nf_fastpath_esp_control) {
 		unsigned int len = skb->len;
 		int rv = nf_fastpath_esp4_in(net, skb, dataoff, protonum);
 
@@ -1867,14 +1878,30 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	}
 #endif /* CONFIG_XFRM */
 
+#if IS_ENABLED(CONFIG_PPPOL2TP)
+	/* check L2TP fastpath condition */
+	if (protonum == IPPROTO_UDP &&
+	    nf_fastpath_l2tp_control) {
+		unsigned int len = skb->len;
+		typeof(nf_fastpath_l2tp_in) l2tp_in;
+
+		l2tp_in = rcu_dereference(nf_fastpath_l2tp_in);
+		if (l2tp_in && l2tp_in(skb, dataoff)) {
+			nf_ct_acct_add_packet_len(ct, ctinfo, len);
+			ret = NF_STOLEN;
+
+			goto fast_nat_exit;
+		}
+	}
+#endif /* CONFIG_PPPOL2TP */
+
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
 	/* check pure fastroute condition */
 	if ((protonum == IPPROTO_UDP || protonum == IPPROTO_TCP) &&
 	    skb->dev &&
 	   !ct->fast_ext &&
 	    ct->fast_bind_reached &&
-	    nf_fastroute_control &&
-	    is_nf_connection_has_no_nat(ct)) {
+	    nf_fastroute_control) {
 		int ifindex = skb->dev->ifindex;
 		typeof(nf_fastroute_rtcache_in) do_rtcache_in;
 

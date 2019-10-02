@@ -615,6 +615,15 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
+#if IS_ENABLED(CONFIG_PPPOL2TP)
+	{
+		.procname	= "nf_conntrack_fastpath_l2tp",
+		.data		= &nf_fastpath_l2tp_control,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 #ifdef CONFIG_XFRM
 	{
 		.procname	= "nf_conntrack_fastpath_esp",

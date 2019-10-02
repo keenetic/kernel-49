@@ -293,6 +293,9 @@ static int __init fast_nat_init(void)
 #if IS_ENABLED(CONFIG_PPTP)
 	nf_fastpath_pptp_control = 0;
 #endif
+#if IS_ENABLED(CONFIG_PPPOL2TP)
+	nf_fastpath_l2tp_control = 0;
+#endif
 #ifdef CONFIG_XFRM
 	nf_fastpath_esp_control = 0;
 	nf_fastnat_xfrm_control = 1;
@@ -309,6 +312,9 @@ static void __exit fast_nat_fini(void)
 #endif
 #if IS_ENABLED(CONFIG_PPTP)
 	nf_fastpath_pptp_control = 0;
+#endif
+#if IS_ENABLED(CONFIG_PPPOL2TP)
+	nf_fastpath_l2tp_control = 0;
 #endif
 #ifdef CONFIG_XFRM
 	nf_fastpath_esp_control = 0;

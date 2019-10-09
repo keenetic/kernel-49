@@ -597,6 +597,7 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#ifdef CONFIG_FAST_NAT_V2
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
 	{
 		.procname	= "nf_conntrack_fastroute",
@@ -640,7 +641,8 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-#endif
+#endif /* CONFIG_FAST_NAT_V2 */
+#endif /* CONFIG_FAST_NAT */
 #ifdef CONFIG_NAT_CONE
 	{
 		.procname	= "nf_conntrack_nat_mode",

@@ -8,6 +8,12 @@ config FAST_NAT
 	depends on NETFILTER
 	default y
 
+config FAST_NAT_V2
+	bool "netfilter fastpath PPTP/L2TP/ESP, fastroute TCP/UDP"
+	depends on NETFILTER
+	depends on FAST_NAT
+	default y
+
 config NTCE_MODULE
 	tristate "NTCE module support"
 	default y

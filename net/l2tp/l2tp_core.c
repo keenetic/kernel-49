@@ -1062,8 +1062,7 @@ pass_up:
 }
 EXPORT_SYMBOL_GPL(l2tp_udp_encap_recv);
 
-
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 /* return 1 on packet stolen */
 static int l2tp_in(struct sk_buff *skb, unsigned int dataoff)
 {
@@ -2027,7 +2026,7 @@ static int __init l2tp_init(void)
 		goto out;
 	}
 
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 	rcu_assign_pointer(nf_fastpath_l2tp_in, l2tp_in);
 #endif
 
@@ -2039,7 +2038,7 @@ out:
 
 static void __exit l2tp_exit(void)
 {
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 	RCU_INIT_POINTER(nf_fastpath_l2tp_in, NULL);
 	synchronize_rcu();
 #endif

@@ -75,11 +75,13 @@ int fast_nat_path(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	if (!skb_valid_dst(skb)) {
 		struct net_device *dev = skb->dev;
+#ifdef CONFIG_FAST_NAT_V2
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
 		typeof(nf_fastroute_rtcache_in) do_rtcache_in;
 
 		do_rtcache_in = rcu_dereference(nf_fastroute_rtcache_in);
 		if (!do_rtcache_in || !do_rtcache_in(PF_INET, skb, dev->ifindex))
+#endif
 #endif
 		{
 			const struct iphdr *iph = ip_hdr(skb);
@@ -202,6 +204,7 @@ int fast_nat_do_bind(struct nf_conn *ct,
 	return NF_FAST_NAT;
 }
 
+#ifdef CONFIG_FAST_NAT_V2
 #ifdef CONFIG_XFRM
 static int
 __xfrm4_in(struct net *net, struct sk_buff *skb, int esphoff, int encap_type)
@@ -283,23 +286,26 @@ int nf_fastpath_esp4_in(struct net *net, struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 #endif /* CONFIG_XFRM */
+#endif /* CONFIG_FAST_NAT_V2 */
 
 static int __init fast_nat_init(void)
 {
 	nf_fastnat_control = 1;
+#ifdef CONFIG_FAST_NAT_V2
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
-	nf_fastroute_control = 0;
+	nf_fastroute_control = 1;
 #endif
 #if IS_ENABLED(CONFIG_PPTP)
-	nf_fastpath_pptp_control = 0;
+	nf_fastpath_pptp_control = 1;
 #endif
 #if IS_ENABLED(CONFIG_PPPOL2TP)
-	nf_fastpath_l2tp_control = 0;
+	nf_fastpath_l2tp_control = 1;
 #endif
 #ifdef CONFIG_XFRM
-	nf_fastpath_esp_control = 0;
+	nf_fastpath_esp_control = 1;
 	nf_fastnat_xfrm_control = 1;
 #endif
+#endif /* CONFIG_FAST_NAT_V2 */
 	printk(KERN_INFO "Fast NAT loaded\n");
 	return 0;
 }
@@ -307,6 +313,7 @@ static int __init fast_nat_init(void)
 static void __exit fast_nat_fini(void)
 {
 	nf_fastnat_control = 0;
+#ifdef CONFIG_FAST_NAT_V2
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
 	nf_fastroute_control = 0;
 #endif
@@ -320,6 +327,7 @@ static void __exit fast_nat_fini(void)
 	nf_fastpath_esp_control = 0;
 	nf_fastnat_xfrm_control = 0;
 #endif
+#endif /* CONFIG_FAST_NAT_V2 */
 	printk(KERN_INFO "Fast NAT unloaded\n");
 }
 

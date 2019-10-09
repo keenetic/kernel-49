@@ -29,7 +29,7 @@
 #include <net/ip6_fib.h>
 #endif
 
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 #include <net/fast_nat.h>
 #endif
 
@@ -350,7 +350,7 @@ static int __init nf_conntrack_rtcache_init(void)
 		return ret;
 	}
 
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 	rcu_assign_pointer(nf_fastroute_rtcache_in, do_rtcache_in);
 #endif
 
@@ -397,7 +397,7 @@ static void __exit nf_conntrack_rtcache_fini(void)
 	struct net *net;
 	int count = 0;
 
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 	RCU_INIT_POINTER(nf_fastroute_rtcache_in, NULL);
 #endif
 

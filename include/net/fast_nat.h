@@ -11,6 +11,7 @@
 
 extern int nf_fastnat_control;
 
+#ifdef CONFIG_FAST_NAT_V2
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
 extern int nf_fastroute_control;
 
@@ -41,7 +42,7 @@ extern int nf_fastpath_esp_control;
 int nf_fastpath_esp4_in(struct net *net, struct sk_buff *skb,
 			unsigned int dataoff, uint8_t protonum);
 #endif
-
+#endif /* CONFIG_FAST_NAT_V2 */
 
 /* ip_output.c */
 int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb);

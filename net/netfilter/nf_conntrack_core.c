@@ -88,6 +88,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_hash);
 int nf_fastnat_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastnat_control);
 
+#ifdef CONFIG_FAST_NAT_V2
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
 int nf_fastroute_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastroute_control);
@@ -110,7 +111,8 @@ EXPORT_SYMBOL_GPL(nf_fastpath_esp_control);
 int nf_fastnat_xfrm_control __read_mostly;
 EXPORT_SYMBOL_GPL(nf_fastnat_xfrm_control);
 #endif
-#endif
+#endif /* CONFIG_FAST_NAT_V2 */
+#endif /* CONFIG_FAST_NAT */
 
 struct conntrack_gc_work {
 	struct delayed_work	dwork;
@@ -1718,7 +1720,9 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		FOE_ALG_MARK(skb);
 #endif
 #if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 		if (!nf_fastnat_xfrm_control)
+#endif /* CONFIG_FAST_NAT_V2 */
 			ct->fast_ext = 1;
 #endif
 	}
@@ -1820,6 +1824,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		goto fast_nat_exit;
 	}
 
+#ifdef CONFIG_FAST_NAT_V2
 #if defined(CONFIG_XFRM) || \
     IS_ENABLED(CONFIG_PPTP) || \
     IS_ENABLED(CONFIG_PPPOL2TP) || \
@@ -1924,6 +1929,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		}
 	}
 #endif /* CONFIG_NF_CONNTRACK_RTCACHE */
+#endif /* CONFIG_FAST_NAT_V2 */
 
 fast_nat_exit:
 #endif

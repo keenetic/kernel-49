@@ -47,6 +47,7 @@ void (*prebind_from_pppoetx)(struct sk_buff *skb,
 			     __be16 sid) = NULL;
 EXPORT_SYMBOL(prebind_from_pppoetx);
 
+#ifdef CONFIG_FAST_NAT_V2
 int (*nf_fastpath_pptp_in)(struct sk_buff *skb,
 			   unsigned int dataoff,
 			   u16 call_id) = NULL;
@@ -62,7 +63,8 @@ int (*nf_fastroute_rtcache_in)(u_int8_t pf,
 			       int ifindex) = NULL;
 EXPORT_SYMBOL(nf_fastroute_rtcache_in);
 #endif
-#endif
+#endif /* CONFIG_FAST_NAT_V2 */
+#endif /* CONFIG_FAST_NAT */
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 int (*ra_sw_nat_hook_rx)(struct sk_buff *skb) = NULL;

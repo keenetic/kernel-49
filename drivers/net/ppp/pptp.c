@@ -526,7 +526,7 @@ drop:
 	return NET_RX_DROP;
 }
 
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 /* return 1 on packet stolen */
 static int pptp_in(struct sk_buff *skb, unsigned int dataoff, u16 call_id)
 {
@@ -860,7 +860,7 @@ static int __init pptp_init_module(void)
 		goto out_unregister_sk_proto;
 	}
 
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 	rcu_assign_pointer(nf_fastpath_pptp_in, pptp_in);
 #endif
 
@@ -878,7 +878,7 @@ out_mem_free:
 
 static void __exit pptp_exit_module(void)
 {
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#ifdef CONFIG_FAST_NAT_V2
 	RCU_INIT_POINTER(nf_fastpath_pptp_in, NULL);
 	synchronize_rcu();
 #endif

@@ -33,7 +33,7 @@ int ra_mtd_write_nm(char *name, loff_t to, size_t len, const u_char *buf)
 
 	mtd = get_mtd_device_nm(name);
 	if (IS_ERR(mtd))
-		return (int)mtd;
+		return PTR_ERR(mtd);
 
 	ret = 0;
 
@@ -142,7 +142,7 @@ int ra_mtd_read_nm(char *name, loff_t from, size_t len, u_char *buf)
 
 	mtd = get_mtd_device_nm(name);
 	if (IS_ERR(mtd))
-		return (int)mtd;
+		return PTR_ERR(mtd);
 
 	mutex_lock(&ra_mtd_mutex);
 	ret = mtd_read(mtd, from, len, &r_len, buf);
@@ -154,7 +154,7 @@ int ra_mtd_read_nm(char *name, loff_t from, size_t len, u_char *buf)
 	}
 
 	if (r_len != len)
-		printk("%s: read len (%u) is not equal to requested len (%u)\n",
+		printk("%s: read len (%zu) is not equal to requested len (%zu)\n",
 			__func__, r_len, len);
 out:
 	put_mtd_device(mtd);

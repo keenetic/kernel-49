@@ -511,7 +511,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 				 struct mtd_part_parser_data *data)
 {
 	bool use_dump, use_storage;
-	int i, j, ret;
+	int i, j;
 	uint32_t offs_uboot = 0;
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 	int boot_active = 0, boot_backup = 0;
@@ -553,6 +553,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 	if (ndmpart_di_is_enabled) {
+		int ret;
+
 		off_si = flash_size >> 1;
 
 		/* offset must be aligned */

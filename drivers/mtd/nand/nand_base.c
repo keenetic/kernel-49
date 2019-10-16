@@ -4110,7 +4110,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 						  int *maf_id, int *dev_id,
 						  struct nand_flash_dev *type)
 {
-	int busw;
+	int busw = 0;
 	int i, maf_idx;
 	u8 id_data[8];
 

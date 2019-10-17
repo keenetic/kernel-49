@@ -1060,7 +1060,7 @@ static int mtk_pcie_setup(struct mtk_pcie *pcie)
 		if (err < 0)
 			return err;
 
-		switch (res.flags & IORESOURCE_TYPE_BITS) {
+		switch (resource_type(&res)) {
 		case IORESOURCE_IO:
 			pcie->offset.io = res.start - range.pci_addr;
 
@@ -1131,7 +1131,9 @@ static int mtk_pcie_request_resources(struct mtk_pcie *pcie)
 	struct device *dev = pcie->dev;
 	int err;
 
-	pci_add_resource_offset(windows, &pcie->pio, pcie->offset.io);
+	if (resource_type(&pcie->pio) == IORESOURCE_IO)
+		pci_add_resource_offset(windows, &pcie->pio, pcie->offset.io);
+
 	pci_add_resource_offset(windows, &pcie->mem, pcie->offset.mem);
 	pci_add_resource(windows, &pcie->busn);
 
@@ -1139,9 +1141,11 @@ static int mtk_pcie_request_resources(struct mtk_pcie *pcie)
 	if (err < 0)
 		return err;
 
-	err = devm_pci_remap_iospace(dev, &pcie->pio, pcie->io.start);
-	if (err)
-		return err;
+	if (resource_type(&pcie->pio) == IORESOURCE_IO) {
+		err = devm_pci_remap_iospace(dev, &pcie->pio, pcie->io.start);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }

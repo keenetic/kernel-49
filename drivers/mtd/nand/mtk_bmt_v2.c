@@ -24,7 +24,7 @@
 #define BBT_LOG(fmt, ...) pr_debug("[BBT][%s|%d] "fmt"\n", __func__, __LINE__, ##__VA_ARGS__)
 
 /* Maximum 8k blocks */
-#define BB_TABLE_MAX	0x2000U
+#define BB_TABLE_MAX	0x1000U
 #define BMT_TABLE_MAX	(BB_TABLE_MAX * BBPOOL_RATIO / 100)
 #define BMT_TBL_DEF_VAL	0x0
 
@@ -445,7 +445,7 @@ bool update_bmt(unsigned long long offset, update_reason_t reason,
 		if (write_mapped_block(offset, mapped_blk, dat, oob))
 			return update_bmt(offset, reason, dat, oob);
 	} else {
-		if (bbt_nand_erase(offset)) {
+		if (bbt_nand_erase(mapped_blk)) {
 			pr_info("nand: warn: Erase block 0x%x failed\n", block);
 			return update_bmt(offset, reason, dat, oob);
 		}

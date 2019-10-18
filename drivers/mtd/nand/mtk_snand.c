@@ -275,6 +275,7 @@
 #define DEC_DONE7               (0x0080)
 
 /* Standard Commands for SPI NAND */
+#define SNAND_CMD_DIE_SELECT                (0xC2)
 #define SNAND_CMD_BLOCK_ERASE               (0xD8)
 #define SNAND_CMD_GET_FEATURES              (0x0F)
 #define SNAND_CMD_FEATURES_BLOCK_LOCK       (0xA0)
@@ -420,6 +421,7 @@
 
 #define SNAND_ADV_READ_SPLIT                (0x00000001)
 #define SNAND_ADV_VENDOR_RESERVED_BLOCKS    (0x00000002)
+#define SNAND_ADV_TWO_DIE                   (0x00000004)
 
 typedef enum {
 	SNAND_RB_DEFAULT    = 0,
@@ -461,7 +463,7 @@ static u32 g_snand_rs_num_page;
 static u32 g_snand_rs_cur_part;
 static u32 g_snand_rs_ecc_bit;
 
-static u32 g_snand_k_spare_per_sec;
+static u8 g_snand_k_spare_per_sec;
 #if __INTERNAL_USE_AHB_MODE__
 static dma_addr_t dma_addr;
 #endif
@@ -486,7 +488,8 @@ typedef struct {
 	u32 SNF_DLY_CTL3;
 	u32 SNF_DLY_CTL4;
 	u32 SNF_MISC_CTL;
-	u32 SNF_DRIVING;
+	u32 SNF_DRIVING_E4;
+	u32 SNF_DRIVING_E8;
 	u8 devicename[30];
 	u32 advancedmode;
 } snand_flashdev_info;
@@ -500,12 +503,15 @@ struct mtk_snfc_clk {
 enum mtk_snfc_type {
 	MTK_NAND_MT2701,
 	MTK_NAND_MT7622,
+	MTK_NAND_LEOPARD,
 };
 
 struct mtk_snand_type {
 	int *nfi_regs;
 	enum mtk_snfc_type type;
 	int fdm_ecc_size;
+	u32 no_bm_swap;
+	u32 use_bmt;
 };
 
 struct mtk_snfc {
@@ -846,65 +852,104 @@ static bool mtk_snand_reset_con(struct mtk_snfc *snfc);
 static int mtk_nand_erase(struct mtd_info *mtd, int page);
 
 static const snand_flashdev_info gen_snand_FlashTable[] = {
-	{{0xEF, 0xAA, 0x20}, 3, 64, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "Winbond 512Mb", 0x00000000},
-	{{0xEF, 0xAA, 0x21}, 3, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "Winbond 1Gb", 0x00000000},
-	{{0xEF, 0xAB, 0x21}, 3, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "Winbond 2Gb", 0x00000000},
-	{{0xC8, 0xD4}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "GD5F4GQ4UBYIG", 0x00000000},
-	{{0xC8, 0xF4}, 2, 512, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "GD5F4GQ4UAYIG", 0x00000000},
-	{{0xC8, 0xD1}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "GD5F1GQ4UX", 0x00000000},
-	{{0xC8, 0xD2}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "GD5F2GQ4UX", 0x00000000},
-	{{0xC2, 0x22}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "MX35LF2GE4AB", 0x00000000},
-	{{0xC2, 0x20}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "MX35LF2G14AC", 0x00000000},
-	{{0xC2, 0x12}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "MX35LF1GE4AB", 0x00000000},
-	{{0xC8, 0x21}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "F50L1G41A", 0x00000000},
-	{{0xC8, 0x01}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "F50L1G41LB", 0x00000000},
-	{{0xC8, 0x0a}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "F50L2G41A", 0x00000000},
-	{{0x2C, 0x14}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "MT29F1G01ABAGD", 0x00000000},
-	{{0x2C, 0x24}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "MT29F2G01ABAGD", 0x00000000},
-	{{0x2C, 0x36}, 2, 512, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "MT29F4G01ADAGD", 0x00000000},
-	{{0x98, 0xC2}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "TC58CVG0S3HRAIG", 0x00000000},
-	{{0x98, 0xCB}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "TC58CVG1S3HRAIG", 0x00000000},
-	{{0x98, 0xCD}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "TC58CVG2S3HRAIG", 0x00000000},
-	{{0xD5, 0x12}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73C01G44SNB", 0x00000000},
-	{{0xD5, 0x12}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73D02G44SNA", 0x00000000},
-	{{0xD5, 0x03}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73E04G44SNA", 0x00000000},
-	{{0xD5, 0x1D}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73F044SND", 0x00000000},
-	{{0xD5, 0x1C}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73F044VCD", 0x00000000},
-	{{0xD5, 0x10}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73F044SNF", 0x00000000},
-	{{0xD5, 0x1F}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73F044VCG", 0x00000000},
-	{{0xD5, 0x1B}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73F044VCH", 0x00000000},
-	{{0xD5, 0x01}, 2, 64, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73B044VCA", 0x00000000},
-	{{0xD5, 0x24}, 2, 1024, 256, 4096, 256, 0x00000000, 0x00000000, 0x1A00001A,
-		0x00000000, 0x0552000A, 0x01, "EM73F044SNA", 0x00000000},
+	{{0xEF, 0xAA, 0x20}, 3, 64, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "Winbond 512Mb", 0x00000000},
+	{{0xEF, 0xAA, 0x21}, 3, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "Winbond 1Gb", 0x00000000},
+	{{0xEF, 0xAB, 0x21}, 3, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "Winbond 2Gb", SNAND_ADV_TWO_DIE},
+	{{0xC8, 0xD4}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F4GQ4UBYIG", 0x00000000},
+	{{0xC8, 0xF4}, 2, 512, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F4GQ4UAYIG", 0x00000000},
+	{{0xC8, 0xD1}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F1GQ4UX", 0x00000000},
+	{{0xC8, 0xD2}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F2GQ4UX", 0x00000000},
+	{{0xC2, 0x22}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "MX35LF2GE4AB", 0x00000000},
+	{{0xC2, 0x20}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "MX35LF2G14AC", 0x00000000},
+	{{0xC2, 0x12}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "MX35LF1GE4AB", 0x00000000},
+	{{0xC8, 0x21}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "F50L1G41A", 0x00000000},
+	{{0xC8, 0x01}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "F50L1G41LB", 0x00000000},
+	{{0xC8, 0x0a}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "F50L2G41A", SNAND_ADV_TWO_DIE},
+	{{0x2C, 0x14}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "MT29F1G01ABAGD", 0x00000000},
+	{{0x2C, 0x24}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "MT29F2G01ABAGD", 0x00000000},
+	{{0x2C, 0x36}, 2, 512, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "MT29F4G01ADAGD", 0x00000000},
+	{{0x2C, 0x34}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x1A00001A,
+		0x00000000, 0x0552000A, 0x00, 0x0000, "MT29F4G01ABAFD", 0x00000000},
+	{{0x98, 0xC2}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TC58CVG0S3HRAIG", 0x00000000},
+	{{0x98, 0xCB}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TC58CVG1S3HRAIG", 0x00000000},
+	{{0x98, 0xCD}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TC58CVG2S3HRAIG", 0x00000000},
+	{{0xD5, 0x11}, 2, 128, 128, 2048, 120, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73C01G44SNB", 0x00000000},
+	{{0xD5, 0x12}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73D02G44SNA", 0x00000000},
+	{{0xD5, 0x03}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73E04G44SNA", 0x00000000},
+	{{0xD5, 0x1D}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73F044SND", 0x00000000},
+	{{0xD5, 0x1C}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73F044VCD", 0x00000000},
+	{{0xD5, 0x10}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73F044SNF", 0x00000000},
+	{{0xD5, 0x1F}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73D044VCG", 0x00000000},
+	{{0xD5, 0x1B}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73F044VCH", 0x00000000},
+	{{0xD5, 0x01}, 2, 64, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73B044VCA", 0x00000000},
+	{{0xD5, 0x24}, 2, 1024, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000028,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73F044SNA", 0x00000000},
+	{{0x6B, 0x01}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
+		0x00000000, 0x0552000A, 0x0, 0x0, "CS11G1T0A0AA", 0x00000000},
+	{{0x6B, 0x02}, 2, 512, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
+		0x00000000, 0x0552000A, 0x01, 0x0, "CS11G2T0A0AA", 0x00000000},
+	{{0x6B, 0x00}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
+		0x00000000, 0x0552000A, 0x01, 0x0, "CS11G0T0A0AA", 0x00000000},
+	{{0x6B, 0x10}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
+		0x00000000, 0x0552000A, 0x01, 0x0, "CS11G0G0A0AA", 0x00000000},
+	{{0x6B, 0x20}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
+		0x00000000, 0x0552000A, 0x01, 0x0, "CS11G0S0A0AA", 0x00000000},
+	{{0x6B, 0x21}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
+		0x00000000, 0x0552000A, 0x01, 0x0, "CS11G1S0A0AA", 0x00000000},
+	{{0x6B, 0x22}, 2, 512, 128, 2048, 64, 0x00000000, 0x00000000, 0x1A00001A,
+		0x00000000, 0x0552000A, 0x01, 0x0, "CS11G2G0A0AA", 0x00000000},
 };
+
+static void bm_swap(struct mtd_info *mtd, u8 *pFDMBuf, u8 *buf)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
+	u8 *pSw1, *pSw2, tmp;
+	int sec_num;
+
+	if (snfc->chip_data->no_bm_swap)
+		return;
+
+	sec_num = mtd->writesize / 512;
+
+	/* the data */
+	pSw1 = buf + mtd->writesize - ((mtd->oobsize * (sec_num - 1) / sec_num));
+
+	/* the first FDM byte of the last sector */
+	pSw2 = pFDMBuf + (8 * (sec_num - 1));
+
+	tmp = *pSw1;
+	*pSw1 = *pSw2;
+	*pSw2 = tmp;
+}
 
 static inline void snfi_writel(struct mtk_snfc *snfc, u32 val,
 			       enum nfi_regs reg)
@@ -1101,12 +1146,6 @@ static bool mtk_snand_get_device_info(u8 *id, snand_flashdev_info *devinfo)
 		devinfo->blocksize = gen_snand_FlashTable[target].blocksize;
 		devinfo->advancedmode =
 			gen_snand_FlashTable[target].advancedmode;
-
-		/* SW workaround for SNAND_ADV_READ_SPLIT */
-		if (devinfo->id[0] == 0xC8 && devinfo->id[1] == 0xF4)
-			devinfo->advancedmode |= (SNAND_ADV_READ_SPLIT
-				| SNAND_ADV_VENDOR_RESERVED_BLOCKS);
-
 		devinfo->pagesize = gen_snand_FlashTable[target].pagesize;
 		devinfo->sparesize = gen_snand_FlashTable[target].sparesize;
 		devinfo->totalsize = gen_snand_FlashTable[target].totalsize;
@@ -1114,8 +1153,6 @@ static bool mtk_snand_get_device_info(u8 *id, snand_flashdev_info *devinfo)
 		memcpy(devinfo->devicename,
 		       gen_snand_FlashTable[target].devicename,
 		       sizeof(devinfo->devicename));
-
-		/* Default Winbond use 4bit,other Spi nand use 1bit for MP Branch */
 
 		devinfo->SNF_DLY_CTL1
 			= gen_snand_FlashTable[target].SNF_DLY_CTL1;
@@ -1127,8 +1164,10 @@ static bool mtk_snand_get_device_info(u8 *id, snand_flashdev_info *devinfo)
 			= gen_snand_FlashTable[target].SNF_DLY_CTL4;
 		devinfo->SNF_MISC_CTL
 			= gen_snand_FlashTable[target].SNF_MISC_CTL;
-		devinfo->SNF_DRIVING
-			= gen_snand_FlashTable[target].SNF_DRIVING;
+		devinfo->SNF_DRIVING_E4
+			= gen_snand_FlashTable[target].SNF_DRIVING_E4;
+		devinfo->SNF_DRIVING_E8
+			= gen_snand_FlashTable[target].SNF_DRIVING_E8;
 
 		/* init read split boundary */
 		g_snand_rs_num_page = SNAND_RS_BOUNDARY_KB * 1024
@@ -1264,8 +1303,6 @@ static void mtk_snand_dev_command(struct mtk_snfc *snfc, const u32 cmd,
 	snfi_writel(snfc, outlen, NFI_SNAND_MAC_OUTL);
 	snfi_writel(snfc, 0, NFI_SNAND_MAC_INL);
 	mtk_snand_dev_mac_op(snfc, SPI);
-	mtk_snand_dev_mac_trigger(snfc);
-	mtk_snand_dev_mac_leave(snfc);
 }
 
 static void mtk_snand_reset_dev(struct mtk_snfc *snfc)
@@ -1287,12 +1324,9 @@ static void mtk_snand_reset_dev(struct mtk_snfc *snfc)
 	snfi_writel(snfc, 2, NFI_SNAND_MAC_OUTL);
 	snfi_writel(snfc, 1, NFI_SNAND_MAC_INL);
 
-	mtk_snand_dev_mac_op(snfc, SPI);
 	/* polling status register */
 	for (;;) {
 		mtk_snand_dev_mac_op(snfc, SPI);
-		mtk_snand_dev_mac_trigger(snfc);
-		mtk_snand_dev_mac_leave(snfc);
 
 		reg = snfi_readl(snfc, NFI_SNAND_GPRAM_DATA);
 		cmd  = (reg>>16)&0xFF;
@@ -1318,6 +1352,40 @@ static u32 mtk_snand_gen_c1a3(const u32 cmd, const u32 address)
 {
 	return ((mtk_snand_reverse_byte_order(address) & 0xFFFFFF00)
 		| (cmd & 0xFF));
+}
+
+static void mtk_snand_dev_die_select_op(struct mtk_snfc *snfc, u8 die_id)
+{
+	u32  cmd;
+
+	cmd = SNAND_CMD_DIE_SELECT | (die_id << 8);
+	snfi_writel(snfc, cmd, NFI_SNAND_GPRAM_DATA);
+	snfi_writel(snfc, 2, NFI_SNAND_MAC_OUTL);
+	snfi_writel(snfc, 0, NFI_SNAND_MAC_INL);
+
+	mtk_snand_dev_mac_op(snfc, SPI);
+}
+
+static u32 mtk_snand_dev_die_select(struct mtd_info *mtd, u32 page)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
+	u32 total_blocks = devinfo.totalsize << (20 - chip->phys_erase_shift);
+	u16 page_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
+	u16 page_in_block = page % page_per_block;
+	u32 block = page / page_per_block;
+
+	/* Die Select operation */
+	if (devinfo.advancedmode & SNAND_ADV_TWO_DIE) {
+		if (block >= total_blocks >> 1) {
+			mtk_snand_dev_die_select_op(snfc, 1);
+			block -= total_blocks >> 1;
+		} else {
+			mtk_snand_dev_die_select_op(snfc, 0);
+		}
+	}
+
+	return (block * page_per_block + page_in_block);
 }
 
 static void mtk_snand_dev_enable_spiq(struct mtk_snfc *snfc, bool enable)
@@ -1355,7 +1423,9 @@ static void mtk_snand_dev_enable_spiq(struct mtk_snfc *snfc, bool enable)
 	/* if goes here, it means QE needs to be set as new different value
 	 * write status register
 	 */
+
 	mtk_snand_dev_command(snfc, SNAND_CMD_WRITE_ENABLE, 1);
+
 	cmd = SNAND_CMD_SET_FEATURES | (SNAND_CMD_FEATURES_OTP << 8)
 				     | (regval << 16);
 	snfi_writel(snfc, cmd, NFI_SNAND_GPRAM_DATA);
@@ -1445,8 +1515,6 @@ void mtk_snand_dev_ecc_control(struct mtk_snfc *snfc)
 	snfi_writel(snfc, 2, NFI_SNAND_MAC_OUTL);
 	snfi_writel(snfc, 1, NFI_SNAND_MAC_INL);
 	mtk_snand_dev_mac_op(snfc, SPI);
-	mtk_snand_dev_mac_trigger(snfc);
-	mtk_snand_dev_mac_leave(snfc);
 
 	reg = snfi_readl(snfc, NFI_SNAND_GPRAM_DATA);
 	otp  = (reg>>16)&0xFF;
@@ -1468,8 +1536,6 @@ void mtk_snand_dev_ecc_control(struct mtk_snfc *snfc)
 		snfi_writel(snfc, 2, NFI_SNAND_MAC_OUTL);
 		snfi_writel(snfc, 1, NFI_SNAND_MAC_INL);
 		mtk_snand_dev_mac_op(snfc, SPI);
-		mtk_snand_dev_mac_trigger(snfc);
-		mtk_snand_dev_mac_leave(snfc);
 
 		reg = snfi_readl(snfc, NFI_SNAND_GPRAM_DATA);
 		otp  = (reg>>16)&0xFF;
@@ -1775,8 +1841,8 @@ static bool mtk_snand_check_bch_error(struct mtd_info *mtd, u8 *pDataBuf,
 				if (u4ErrNum) {
 					correct_count += u4ErrNum;
 				}
-				}
 			}
+		}
 
 		if (is_empty_page(spareBuf, sec_num)) {
 			failed_sec = 0;
@@ -2089,6 +2155,10 @@ static bool mtk_snand_ready_for_write(struct nand_chip *nand, u32 u4RowAddr,
 		return -EINVAL;
 	}
 #endif
+
+	/* Toshiba spi nand just use SPI mode*/
+	if (devinfo.id[0] == 0x98)
+		mode = SPI;
 
 	if (!mtk_snand_reset_con(snfc))
 		return 0;
@@ -2647,6 +2717,10 @@ bool mtk_nand_exec_read_page(struct mtd_info *mtd, u32 u4RowAddr,
 
 	buf = pPageBuf;
 
+	if (!virt_addr_valid(pPageBuf))
+		buf = g_snand_k_temp;
+
+	u4RowAddr = mtk_snand_dev_die_select(mtd, u4RowAddr);
 	mtk_snand_rs_reconfig_nfiecc(u4RowAddr);
 	if (mtk_snand_rs_if_require_split())
 		u4SecNum--;
@@ -2674,18 +2748,22 @@ mtk_nand_exec_read_page_retry:
 							       u4SecNum - 1,
 							       u4RowAddr))
 					bRet = 0;
-
+			bm_swap(mtd, pFDMBuf, buf);
 			mtk_snand_stop_read_custom(snfc, 1);
 		} else {
 			bRet = 0;
+			bm_swap(mtd, pFDMBuf, buf);
 			mtk_snand_stop_read_custom(snfc, 0);
 		}
 		dma_unmap_single(snfc->dev, dma_addr, u4SecNum * (NAND_SECTOR_SIZE
 				 + g_snand_k_spare_per_sec),
 				 DMA_FROM_DEVICE);
+
+		if (buf != pPageBuf)
+			memcpy(pPageBuf, buf, u4PageSize);
 	}   /* use device ECC */
 
-    /* no need retry for SLC nand */
+	/* no need retry for SLC nand */
 	if (bRet == 0) {
 		if (retry < 0) {
 			retry++;
@@ -2751,10 +2829,17 @@ int mtk_nand_exec_write_page(struct mtd_info *mtd, u32 u4RowAddr,
 
 	buf = pPageBuf;
 
+	if (!virt_addr_valid(pPageBuf)) {
+		buf = g_snand_k_temp;
+		memcpy(buf, pPageBuf, u4PageSize);
+	}
+
 	/*For jffs2, close HW ECC when only write oob*/
 	mtk_ecc = !oobraw;
 
+	u4RowAddr = mtk_snand_dev_die_select(mtd, u4RowAddr);
 	mtk_snand_rs_reconfig_nfiecc(u4RowAddr);
+	bm_swap(mtd, pFDMBuf, buf);
 	if (g_snand_rs_ecc_bit != 0) {
 		if (mtk_snand_ready_for_write(nand, u4RowAddr, 0, buf, mtk_ecc, 1,
 						 1)) {
@@ -2780,6 +2865,8 @@ int mtk_nand_exec_write_page(struct mtd_info *mtd, u32 u4RowAddr,
 		dma_unmap_single(snfc->dev, dma_addr, u4SecNum * (NAND_SECTOR_SIZE +
 				 g_snand_k_spare_per_sec), DMA_TO_DEVICE);
 	}
+	/* Swap back after write operation */
+	bm_swap(mtd, pFDMBuf, buf);
 	PFM_END_W(pfm_time_write, u4PageSize + 32);
 	wait_status = nand->waitfunc(mtd, nand);
 
@@ -2794,10 +2881,16 @@ static int mtk_snand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				int oob_required, int page, int cached, int raw)
 {
 	int page_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
 	int block = page / page_per_block;
 	u16 page_in_block = page % page_per_block;
-	int mapped_block = get_mapping_block_index(block);
+	int mapped_block;
 	struct timeval stimer, etimer;
+
+	if (!snfc->chip_data->use_bmt)
+		mapped_block = block;
+	else
+		mapped_block = get_mapping_block_index(block);
 
 	do_gettimeofday(&stimer);
 	if (mtk_snand_is_vendor_reserved_blocks(page_in_block + mapped_block
@@ -2817,10 +2910,15 @@ static int mtk_snand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				     (u8 *) buf, local_oob_buf, 0)) {
 		pr_warn("write fail at: 0x%x, page: 0x%x\n",
 				     mapped_block, page_in_block);
-		if (update_bmt((page_in_block + mapped_block * page_per_block)
-				<< chip->page_shift, UPDATE_WRITE_FAIL,
-				(u8 *) buf, local_oob_buf)) {
-			return 0;
+		if (snfc->chip_data->use_bmt) {
+			if (update_bmt((page_in_block + mapped_block * page_per_block)
+					<< chip->page_shift, UPDATE_WRITE_FAIL,
+					(u8 *) buf, local_oob_buf))
+				return 0;
+			else
+				return -EIO;
+		} else {
+			return -EIO;
 		}
 	}
 
@@ -3149,18 +3247,30 @@ static int mtk_snand_read_page_hwecc(struct mtd_info *mtd,
 				     struct nand_chip *chip, uint8_t *buf,
 				     int oob_required, int page)
 {
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
 	struct NAND_CMD *pkCMD = &g_kCMD;
 	u32 u4ColAddr = pkCMD->u4ColAddr;
 	u32 u4PageSize = mtd->writesize;
 	int page_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
 	int block = pkCMD->u4RowAddr / page_per_block;
 	u16 page_in_block = pkCMD->u4RowAddr % page_per_block;
-	int mapped_block = get_mapping_block_index(block);
+	int mapped_block;
+
+	if (!snfc->chip_data->use_bmt)
+		mapped_block = block;
+	else
+		mapped_block = get_mapping_block_index(block);
 
 	memset(local_oob_buf, 0xFF, mtd->oobsize);
 	if (u4ColAddr == 0) {
 		mtk_nand_exec_read_page(mtd, page_in_block + page_per_block * mapped_block, u4PageSize, buf,
 					local_oob_buf);
+
+		/*
+		 * Initialise oob buf to all 0xFF, because of driver skip first byte
+		 * of spare per sector to compatible with Jffs2.
+		 */
+		memset(chip->oob_poi, 0xff, mtd->oobsize);
 		mtk_snand_fill_oob(chip, local_oob_buf);
 		pkCMD->u4ColAddr += u4PageSize + mtd->oobsize;
 	}
@@ -3189,9 +3299,13 @@ static void mtk_snand_dev_stop_erase(struct mtk_snfc *snfc)
 
 static void mtk_snand_dev_erase(struct mtk_snfc *snfc, u32 row_addr)
 {
+	struct nand_chip *chip = &host->nand_chip;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	u32 reg;
 
 	mtk_snand_reset_con(snfc);
+
+	row_addr = mtk_snand_dev_die_select(mtd, row_addr);
 
 	/* write enable */
 	mtk_snand_dev_command(snfc, SNAND_CMD_WRITE_ENABLE, 1);
@@ -3227,12 +3341,14 @@ int mtk_nand_erase_hw(struct mtd_info *mtd, int page)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mtk_snfc *snfc = nand_get_controller_data(chip);
+	int page_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
+	int block = page / page_per_block;
 	int ret;
 
 	if (mtk_snand_is_vendor_reserved_blocks(page) == 1)
 		return NAND_STATUS_FAIL;
 
-	mtk_snand_dev_erase(snfc, page);
+	mtk_snand_dev_erase(snfc, block * page_per_block);
 	ret = chip->waitfunc(mtd, chip);
 
 	/* FIXME: debug */
@@ -3248,20 +3364,30 @@ int mtk_nand_erase_hw(struct mtd_info *mtd, int page)
 static int mtk_nand_erase(struct mtd_info *mtd, int page)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
 	int page_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
 	int page_in_block = page % page_per_block;
 	int block = page / page_per_block;
 	int mapped_block;
 	int status;
 
-	mapped_block = get_mapping_block_index(block);
+	if (!snfc->chip_data->use_bmt)
+		mapped_block = block;
+	else
+		mapped_block = get_mapping_block_index(block);
+
 	status = mtk_nand_erase_hw(mtd, page_in_block + page_per_block
 				   * mapped_block);
 
 	if (status & NAND_STATUS_FAIL) {
-		if (update_bmt((page_in_block + mapped_block * page_per_block)
-			<< chip->page_shift, UPDATE_ERASE_FAIL, NULL, NULL)) {
-			return 0;
+		if (snfc->chip_data->use_bmt) {
+			if (update_bmt((page_in_block + mapped_block * page_per_block)
+				<< chip->page_shift, UPDATE_ERASE_FAIL, NULL, NULL))
+				return 0;
+			else
+				return -EIO;
+		} else {
+			return -EIO;
 		}
 	}
 	g_NandPerfLog.EraseBlockCount++;
@@ -3285,6 +3411,7 @@ static int mtk_snand_read_oob_raw(struct mtd_info *mtd, uint8_t *buf,
 	}
 
 	num_sec_original = num_sec = len / OOB_AVAI_PER_SECTOR;
+	page_addr = mtk_snand_dev_die_select(mtd, page_addr);
 	mtk_snand_rs_reconfig_nfiecc(page_addr);
 
 	if (((num_sec_original * NAND_SECTOR_SIZE) == mtd->writesize)
@@ -3305,8 +3432,10 @@ static int mtk_snand_read_oob_raw(struct mtd_info *mtd, uint8_t *buf,
 
 			mtk_snand_read_fdm_data(snfc, g_snand_k_spare,
 						num_sec);
+			bm_swap(mtd, g_snand_k_spare, g_snand_k_temp);
 			mtk_snand_stop_read_custom(snfc, 1);
 		} else {
+			bm_swap(mtd, g_snand_k_spare, g_snand_k_temp);
 			mtk_snand_stop_read_custom(snfc, 0);
 			bRet = 0;
 		}
@@ -3382,10 +3511,16 @@ static int mtk_snand_write_oob_hw(struct mtd_info *mtd, struct nand_chip *chip,
 static int mtk_snand_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			       int page)
 {
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
 	int page_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
 	int block = page / page_per_block;
 	u16 page_in_block = page % page_per_block;
-	int mapped_block = get_mapping_block_index(block);
+	int mapped_block;
+
+	if (!snfc->chip_data->use_bmt)
+		mapped_block = block;
+	else
+		mapped_block = get_mapping_block_index(block);
 
 	/* write bad index into oob */
 	if (mapped_block != block)
@@ -3397,10 +3532,15 @@ static int mtk_snand_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 				   * page_per_block)) {
 		memset(local_oob_buf, 0xFF, mtd->oobsize);
 		mtk_snand_transfer_oob(chip, local_oob_buf);
-		if (update_bmt((page_in_block + mapped_block * page_per_block)
-				<< chip->page_shift, UPDATE_WRITE_FAIL, NULL,
-				local_oob_buf)) {
-			return 0;
+		if (snfc->chip_data->use_bmt) {
+			if (update_bmt((page_in_block + mapped_block * page_per_block)
+					<< chip->page_shift, UPDATE_WRITE_FAIL, NULL,
+					local_oob_buf))
+				return 0;
+			else
+				return -EIO;
+		} else {
+			return -EIO;
 		}
 	}
 
@@ -3417,7 +3557,7 @@ int mtk_nand_block_markbad_hw(struct mtd_info *mtd, loff_t offset)
 
 	mtk_nand_erase_hw(mtd, page);  /* erase before marking bad */
 
-	memset((u8 *)buf, 0xFF, 8);
+	memset((u8 *)buf, 0xFF, sizeof(buf));
 	((u8 *)buf)[0] = 0;
 	ret = mtk_snand_write_oob_raw(mtd, (u8 *)buf, page, 8);
 
@@ -3427,10 +3567,15 @@ int mtk_nand_block_markbad_hw(struct mtd_info *mtd, loff_t offset)
 static int mtk_snand_block_markbad(struct mtd_info *mtd, loff_t offset)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
 	int block = (int)offset >> chip->phys_erase_shift;
 	int mapped_block;
 
-	mapped_block = get_mapping_block_index(block);
+	if (!snfc->chip_data->use_bmt)
+		mapped_block = block;
+	else
+		mapped_block = get_mapping_block_index(block);
+
 	return  mtk_nand_block_markbad_hw(mtd, mapped_block
 					  << chip->phys_erase_shift);
 }
@@ -3446,6 +3591,12 @@ int mtk_snand_read_oob_hw(struct mtd_info *mtd, struct nand_chip *chip,
 		pr_warn("[%s]read oob raw failed\n", __func__);
 		return -EIO;
 	}
+
+	/*
+	 * Initialise oob buf to all 0xFF, because of driver skip first byte
+	 * of spare per sector to compatible with Jffs2.
+	 */
+	memset(chip->oob_poi, 0xff, mtd->oobsize);
 	mtk_snand_fill_oob(chip, local_oob_buf);
 
 	return 0;
@@ -3454,10 +3605,16 @@ int mtk_snand_read_oob_hw(struct mtd_info *mtd, struct nand_chip *chip,
 static int mtk_snand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			      int page)
 {
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
 	int page_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
 	int block = page / page_per_block;
 	u16 page_in_block = page % page_per_block;
-	int mapped_block = get_mapping_block_index(block);
+	int mapped_block;
+
+	if (!snfc->chip_data->use_bmt)
+		mapped_block = block;
+	else
+		mapped_block = get_mapping_block_index(block);
 
 	return  mtk_snand_read_oob_hw(mtd, chip, page_in_block + mapped_block
 				      * page_per_block);
@@ -3466,25 +3623,32 @@ static int mtk_snand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 int mtk_nand_block_bad_hw(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
 	int page_addr = (int)(ofs >> chip->page_shift);
 	unsigned int page_per_block = 1 << (chip->phys_erase_shift
 					- chip->page_shift);
-	unsigned char oob_buf[8];
+	unsigned char oob_buf[64];
+	unsigned int u4PageSize = 1 << chip->page_shift;
+	u32 u4SecNum = u4PageSize >> 9;
+	unsigned int offset = 0;
+
+	if (snfc->chip_data->type == MTK_NAND_LEOPARD)
+		offset = (u4SecNum - 1) * OOB_AVAI_PER_SECTOR;
 
 	page_addr &= ~(page_per_block - 1);
 	/* return bad block if it is reserved block */
 	if (mtk_snand_is_vendor_reserved_blocks(page_addr) == 1)
 		return 1;
 
-	if (mtk_snand_read_oob_raw(mtd, oob_buf, page_addr, sizeof(oob_buf))
+	if (mtk_snand_read_oob_raw(mtd, oob_buf, page_addr, u4SecNum * OOB_AVAI_PER_SECTOR)
 				   == 0) {
 		pr_warn("mtk_snand_read_oob_raw return error\n");
 		return 1;
 	}
 
-	if (oob_buf[0] != 0xff) {
-		pr_warn("Bad block at 0x%x (blk:%d), oob_buf[0] is 0x%x\n",
-			page_addr, page_addr / page_per_block, oob_buf[0]);
+	if (oob_buf[offset] != 0xff) {
+		pr_debug("Bad block at 0x%x (blk:%d), Badmark is is 0x%x\n",
+			page_addr, page_addr / page_per_block, oob_buf[offset]);
 		return 1;
 	}
 	/* everything is OK, good block */
@@ -3494,21 +3658,30 @@ int mtk_nand_block_bad_hw(struct mtd_info *mtd, loff_t ofs)
 static int mtk_snand_block_bad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
+	struct mtk_snfc *snfc = nand_get_controller_data(chip);
 	int block = (int)ofs >> chip->phys_erase_shift;
 	int mapped_block;
 	int ret;
 
-	mapped_block = get_mapping_block_index(block);
+	if (!snfc->chip_data->use_bmt)
+		mapped_block = block;
+	else
+		mapped_block = get_mapping_block_index(block);
+
 	ret = mtk_nand_block_bad_hw(mtd, mapped_block
 				    << chip->phys_erase_shift);
 
 	if (ret) {
-		pr_warn("Unmapped bad block: 0x%x\n", mapped_block);
-		if (update_bmt(mapped_block << chip->phys_erase_shift,
-			       UPDATE_UNMAPPED_BLOCK, NULL, NULL)) {
-			ret = 0;
+		if (snfc->chip_data->use_bmt) {
+			pr_debug("Unmapped bad block: 0x%x\n", mapped_block);
+			if (update_bmt(mapped_block << chip->phys_erase_shift,
+				       UPDATE_UNMAPPED_BLOCK, NULL, NULL)) {
+				ret = 0;
+			} else {
+				pr_debug("Update BMT fail\n");
+				ret = 1;
+			}
 		} else {
-			pr_warn("Update BMT fail\n");
 			ret = 1;
 		}
 	}
@@ -3520,7 +3693,6 @@ static void mtk_snand_init_hw(struct mtk_snfc *snfc,
 			      struct mtk_snand_host *host)
 {
 	struct mtk_snand_host_hw *hw = host->hw;
-	struct device *dev = snfc->dev;
 	u32 reg;
 
 	g_bInitDone = 0;
@@ -3535,7 +3707,6 @@ static void mtk_snand_init_hw(struct mtk_snfc *snfc,
 
 	/* Set the ECC engine */
 	if (hw->nand_ecc_mode == NAND_ECC_HW) {
-		dev_info(dev, "Use HW ECC\n");
 		if (g_bHwEcc) {
 			reg = snfi_readw(snfc, NFI_CNFG) | CNFG_HW_ECC_EN;
 			snfi_writew(snfc, reg, NFI_CNFG);
@@ -3551,9 +3722,6 @@ static void mtk_snand_init_hw(struct mtk_snfc *snfc,
 	snfi_writew(snfc, WBUF_EN, NFI_DEBUG_CON1);
 
 	snfi_writel(snfc, 1, NFI_SNAND_CNFG);
-
-	/* Need add for Etron */
-	snfi_writel(snfc, 20, NFI_SNAND_DLY_CTL3);
 
 	/* NOTE(Bayi): reset device and set ecc control */
 	mdelay(10);
@@ -3661,14 +3829,27 @@ static const struct mtk_snand_type snfc_mt7622 = {
 	.nfi_regs = mt7622_snfi_regs,
 	.type = MTK_NAND_MT7622,
 	.fdm_ecc_size = 1,
+	.no_bm_swap = 1,
+	.use_bmt = 1,
+};
+
+static const struct mtk_snand_type snfc_leopard = {
+	.nfi_regs = mt7622_snfi_regs,
+	.type = MTK_NAND_LEOPARD,
+	.fdm_ecc_size = 1,
+	.no_bm_swap = 0,
+	.use_bmt = 0,
 };
 
 static const struct of_device_id mtk_snfc_id_table[] = {
 	{
 		.compatible = "mediatek,mt7622-snand",
 		.data = &snfc_mt7622,
-	},
-	{}
+	}, {
+		.compatible = "mediatek,leopard-snand",
+		.data = &snfc_leopard,
+	}, {
+	}
 };
 MODULE_DEVICE_TABLE(of, mtk_snfc_id_table);
 
@@ -3804,8 +3985,17 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	for (i = 0; i < SNAND_MAX_ID; i++)
 		id[i] = nand_chip->read_byte(mtd);
 
-	if (!mtk_snand_get_device_info(id, &devinfo))
-		dev_warn(dev, "Not Support this Device!\n");
+	if (!mtk_snand_get_device_info(id, &devinfo)) {
+		err = -ENXIO;
+		goto clk_disable;
+	}
+
+	if (devinfo.advancedmode & SNAND_ADV_TWO_DIE) {
+		mtk_snand_dev_die_select_op(snfc, 1);
+		/* disable internal ecc, and use mtk ecc */
+		mtk_snand_dev_ecc_control(snfc);
+		mtk_snand_dev_unlock_all_blocks(snfc);
+	}
 
 	if (devinfo.pagesize == 4096)
 		hw->nand_ecc_size = 4096;
@@ -3842,12 +4032,14 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	/* config read empty threshold for MTK ECC */
 	snfi_writel(snfc, 1, NFI_EMPTY_THRESH);
 
-	if (init_bmt(host,
-		1 << (nand_chip->chip_shift - nand_chip->phys_erase_shift),
-		(nand_chip->chipsize >> nand_chip->phys_erase_shift) - 2) != 0) {
-		dev_err(dev, "Error: init bmt failed\n");
-		err = -ENXIO;
-		goto out_release;
+	if (snfc->chip_data->use_bmt) {
+		if (init_bmt(host,
+			1 << (nand_chip->chip_shift - nand_chip->phys_erase_shift),
+			(nand_chip->chipsize >> nand_chip->phys_erase_shift) - 2) != 0) {
+			dev_err(dev, "Error: init bmt failed\n");
+			err = -ENXIO;
+			goto out_release;
+		}
 	}
 
 	nand_chip->chipsize -= (PMT_POOL_SIZE) << nand_chip->phys_erase_shift;

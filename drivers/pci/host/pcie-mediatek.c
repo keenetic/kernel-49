@@ -575,9 +575,11 @@ static irqreturn_t mtk_pcie_intr_handler(int irq, void *data)
 	struct mtk_pcie_port *port = (struct mtk_pcie_port *)data;
 	unsigned long status;
 	u32 virq;
-	u32 bit = INTX_SHIFT;
+	u32 bit;
 
 	while ((status = readl(port->base + PCIE_INT_STATUS)) & INTX_MASK) {
+		bit = INTX_SHIFT;
+
 		for_each_set_bit_from(bit, &status, PCI_NUM_INTX + INTX_SHIFT) {
 			/* Clear the INTx */
 			writel(1 << bit, port->base + PCIE_INT_STATUS);

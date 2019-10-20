@@ -59,6 +59,7 @@
 struct mtk_clock_event_device {
 	void __iomem *gpt_base;
 	u32 ticks_per_jiffy;
+	bool clk32k_exist;
 	struct clock_event_device dev;
 };
 
@@ -79,6 +80,14 @@ static void mtk_clkevt_time_stop(struct mtk_clock_event_device *evt, u8 timer)
 {
 	u32 val;
 
+	/*
+	 * support 32k clock when deepidle, should first use 13m clock config
+	 * timer, then second use 32k clock trigger timer.
+	 */
+	if (evt->clk32k_exist)
+		writel(TIMER_CLK_SRC(TIMER_CLK_SRC_SYS13M) | TIMER_CLK_DIV1,
+				evt->gpt_base + TIMER_CLK_REG(timer));
+
 	val = readl(evt->gpt_base + TIMER_CTRL_REG(timer));
 	writel(val & ~TIMER_CTRL_ENABLE, evt->gpt_base +
 			TIMER_CTRL_REG(timer));
@@ -97,6 +106,14 @@ static void mtk_clkevt_time_start(struct mtk_clock_event_device *evt,
 
 	/* Acknowledge interrupt */
 	writel(GPT_IRQ_ACK(timer), evt->gpt_base + GPT_IRQ_ACK_REG);
+
+	/*
+	 * support 32k clock when deepidle, should first use 13m clock config
+	 * timer, then second use 32k clock trigger timer.
+	 */
+	if (evt->clk32k_exist)
+		writel(TIMER_CLK_SRC(TIMER_CLK_SRC_RTC32K) | TIMER_CLK_DIV1,
+				evt->gpt_base + TIMER_CLK_REG(timer));
 
 	val = readl(evt->gpt_base + TIMER_CTRL_REG(timer));
 
@@ -192,12 +209,12 @@ static int __init mtk_timer_init(struct device_node *node)
 	struct resource res;
 	unsigned long rate_src, rate_evt;
 	struct clk *clk_src, *clk_evt, *clk_bus;
-	bool clk32k_exist = false;
 
 	evt = kzalloc(sizeof(*evt), GFP_KERNEL);
 	if (!evt)
 		return -ENOMEM;
 
+	evt->clk32k_exist = false;
 	evt->dev.name = "mtk_tick";
 	evt->dev.rating = 300;
 	evt->dev.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
@@ -238,7 +255,7 @@ static int __init mtk_timer_init(struct device_node *node)
 
 	clk_evt = of_clk_get_by_name(node, "clk32k");
 	if (!IS_ERR(clk_evt)) {
-		clk32k_exist = true;
+		evt->clk32k_exist = true;
 		clk_prepare_enable(clk_evt);
 		rate_evt = clk_get_rate(clk_evt);
 	} else {
@@ -248,7 +265,7 @@ static int __init mtk_timer_init(struct device_node *node)
 	if (request_irq(evt->dev.irq, mtk_timer_interrupt,
 			IRQF_TIMER | IRQF_IRQPOLL, "mtk_timer", evt)) {
 		pr_err("failed to setup irq %d\n", evt->dev.irq);
-		if (clk32k_exist)
+		if (evt->clk32k_exist)
 			goto err_clk_disable_evt;
 		else
 			goto err_clk_disable_src;
@@ -265,7 +282,7 @@ static int __init mtk_timer_init(struct device_node *node)
 	sched_clock_register(mtk_read_sched_clock, 32, rate_src);
 
 	/* Configure clock event */
-	if (clk32k_exist)
+	if (evt->clk32k_exist)
 		mtk_timer_setup(evt, GPT_CLK_EVT, TIMER_CTRL_OP_REPEAT,
 				TIMER_CLK_SRC_RTC32K, false);
 	else

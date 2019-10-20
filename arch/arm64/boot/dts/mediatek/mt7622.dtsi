@@ -1063,8 +1063,9 @@
 		compatible = "simple-bus";
 	};
 
-	ioc {
+	ioc: ioc {
 		compatible = "mediatek,mt7622-subsys-ioc";
+		arm,cci-400-s4 = <&cci_control2>;
 		mediatek,wbsys = <&infracfg>;
 		mediatek,hifsys = <&hifsys>;
 		mediatek,ethsys = <&ethsys>;

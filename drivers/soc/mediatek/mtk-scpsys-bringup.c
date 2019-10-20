@@ -13,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
@@ -22,6 +22,7 @@ static const struct of_device_id scpsys_bring_up_id_table[] = {
 	{ .compatible = "mediatek,scpsys-bring-up", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, scpsys_bring_up_id_table);
 
 static int scpsys_bring_up_probe(struct platform_device *pdev)
 {
@@ -49,4 +50,4 @@ static struct platform_driver scpsys_bring_up = {
 	},
 };
 
-builtin_platform_driver(scpsys_bring_up);
+module_platform_driver(scpsys_bring_up);

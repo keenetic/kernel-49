@@ -656,8 +656,6 @@ struct pmic_wrapper {
 	const struct pwrap_slv_type *slave;
 	struct clk *clk_spi;
 	struct clk *clk_wrap;
-	struct clk *clk_spi_sel;
-	struct clk *clk_spi_src;
 	struct reset_control *rstc;
 
 	struct reset_control *rstc_bridge;
@@ -1440,46 +1438,21 @@ static int pwrap_probe(struct platform_device *pdev)
 	if (IS_ERR(wrp->clk_spi)) {
 		dev_dbg(wrp->dev, "failed to get clock: %ld\n", PTR_ERR(wrp->clk_spi));
 		return PTR_ERR(wrp->clk_spi);
-	} else {
-		ret = clk_prepare_enable(wrp->clk_spi);
-		if (ret)
-			return ret;
 	}
 
 	wrp->clk_wrap = devm_clk_get(wrp->dev, "wrap");
 	if (IS_ERR(wrp->clk_wrap)) {
 		dev_dbg(wrp->dev, "failed to get clock: %ld\n", PTR_ERR(wrp->clk_wrap));
 		return PTR_ERR(wrp->clk_wrap);
-	} else {
-		ret = clk_prepare_enable(wrp->clk_wrap);
-		if (ret)
-			goto err_out1;
 	}
 
-	wrp->clk_spi_sel = devm_clk_get(wrp->dev, "spi_sel");
-	if (IS_ERR(wrp->clk_spi_sel)) {
-		dev_dbg(wrp->dev, "skip, not support to get spi_sel\n");
-	} else {
-		ret = clk_prepare_enable(wrp->clk_spi_sel);
-		if (ret)
-			goto err_out2;
-	}
+	ret = clk_prepare_enable(wrp->clk_spi);
+	if (ret)
+		return ret;
 
-	wrp->clk_spi_src = devm_clk_get(wrp->dev, "spi_src");
-	if (IS_ERR(wrp->clk_spi_src)) {
-		dev_dbg(wrp->dev, "skip, not support to get spi_src\n");
-	} else {
-		ret = clk_prepare_enable(wrp->clk_spi_src);
-		if (ret)
-			goto err_out3;
-
-		/* Reparent the SPI clock source */
-		ret = clk_set_parent(wrp->clk_spi_sel, wrp->clk_spi_src);
-		if (ret) {
-			dev_dbg(wrp->dev, "failed to reparent spi clock\n");
-			goto err_out3;
-		}
-	}
+	ret = clk_prepare_enable(wrp->clk_wrap);
+	if (ret)
+		goto err_out1;
 
 	/* Enable internal dynamic clock */
 	pwrap_writel(wrp, 1, PWRAP_DCM_EN);
@@ -1536,8 +1509,6 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_out3:
-	clk_disable_unprepare(wrp->clk_spi_sel);
 err_out2:
 	clk_disable_unprepare(wrp->clk_wrap);
 err_out1:
@@ -1555,17 +1526,8 @@ static int pwrap_pm_suspend_noirq(struct device *device)
 	if (!wrp->master->need_suspend)
 		return 0;
 
-	if (!(IS_ERR(wrp->clk_spi)))
-		clk_disable_unprepare(wrp->clk_spi);
-
-	if (!(IS_ERR(wrp->clk_wrap)))
-		clk_disable_unprepare(wrp->clk_wrap);
-
-	if (!(IS_ERR(wrp->clk_spi_sel)))
-		clk_disable_unprepare(wrp->clk_spi_sel);
-
-	if (!(IS_ERR(wrp->clk_spi_src)))
-		clk_disable_unprepare(wrp->clk_spi_src);
+	clk_disable_unprepare(wrp->clk_spi);
+	clk_disable_unprepare(wrp->clk_wrap);
 
 	return 0;
 }

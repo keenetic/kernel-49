@@ -212,14 +212,8 @@
 		compatible = "mediatek,mt7622-pwrap";
 		reg = <0 0x10001000 0 0x250>;
 		reg-names = "pwrap";
-		clocks = <&infracfg CLK_INFRA_PMIC_PD>,
-			<&pwrap_clk>,
-			<&topckgen CLK_TOP_PMICSPI_SEL>,
-			<&clk25m>;
-		clock-names = "spi",
-			"wrap",
-			"spi_sel",
-			"spi_src";
+		clocks = <&infracfg CLK_INFRA_PMIC_PD>,<&pwrap_clk>;
+		clock-names = "spi","wrap";
 		status = "disabled";
 	};
 

@@ -658,6 +658,19 @@ static void pcie_phy_instance_init(struct mtk_tphy *tphy,
 	dev_dbg(tphy->dev, "%s(%d)\n", __func__, instance->index);
 }
 
+/* following define for SSC change setting */
+#define PHYD_MIX3 0x538
+#define PLL_SSCEN		BIT(14)
+#define FORCE_PLL_SSCEN	BIT(15)
+
+#define REG16	0x83c
+#define REG19	0x838
+#define SSC_DITHER_GEN2	GENMASK(31, 16)
+
+#define REG23	0x844
+#define REG25	0x848
+#define SSC_DITHER_GEN1	GENMASK(15, 0)
+
 static void pcie_phy_instance_power_on(struct mtk_tphy *tphy,
 	struct mtk_phy_instance *instance)
 {
@@ -672,6 +685,34 @@ static void pcie_phy_instance_power_on(struct mtk_tphy *tphy,
 	tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLE);
 	tmp &= ~(P3C_RG_SWRST_U3_PHYD_FORCE_EN | P3C_RG_SWRST_U3_PHYD);
 	writel(tmp, bank->chip + U3P_U3_CHIP_GPIO_CTLE);
+
+	/* SSC setting is only for PCIe Gen2 SoCs. */
+	if (tphy->pdata->version != MTK_PHY_V2)
+		return;
+
+	/* Set SSC for Gen2 */
+	tmp = readl(bank->phya + REG16);
+	tmp &= SSC_DITHER_GEN2;
+	writel(tmp, bank->phya + REG16);
+	tmp = readl(bank->phya + REG19);
+	tmp &= SSC_DITHER_GEN2;
+	writel(tmp, bank->phya + REG19);
+	/* Set SSC for Gen1*/
+	tmp = readl(bank->phya + REG23);
+	tmp &= SSC_DITHER_GEN1;
+	writel(tmp, bank->phya + REG23);
+	tmp = readl(bank->phya + REG25);
+	tmp &= SSC_DITHER_GEN1;
+	writel(tmp, bank->phya + REG25);
+
+	/* toggle for enable SSC */
+	tmp = readl(bank->phya + PHYD_MIX3);
+	tmp |= PLL_SSCEN | FORCE_PLL_SSCEN;
+	writel(tmp, bank->phya + PHYD_MIX3);
+	/* we don't know why udelay is needed for mt7622 port1, keep it here */
+	udelay(500);
+	tmp &= ~PLL_SSCEN;
+	writel(tmp, bank->phya + PHYD_MIX3);
 }
 
 static void pcie_phy_instance_power_off(struct mtk_tphy *tphy,

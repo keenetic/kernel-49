@@ -889,13 +889,11 @@
 		clock-names = "sys_ck0", "sys_ck1", "ahb_ck0", "ahb_ck1",
 			      "aux_ck0", "aux_ck1", "axi_ck0", "axi_ck1",
 			      "obff_ck0", "obff_ck1", "pipe_ck0", "pipe_ck1";
-			/*
-			 * currenttly do not need to set phy for mt7622
-			 *
-			 * phys = <&pcie0_phy PHY_TYPE_PCIE>,
-			 *	 <&pcie1_phy PHY_TYPE_PCIE>;
-			 * phy-names = "pcie-phy0", "pcie-phy1";
-			 */
+
+		phys = <&pcieport0 PHY_TYPE_PCIE>,
+		       <&pcieport1 PHY_TYPE_PCIE>;
+		phy-names = "pcie-phy0", "pcie-phy1";
+
 		power-domains = <&scpsys MT7622_POWER_DOMAIN_HIF0>;
 		bus-range = <0x00 0xff>;
 		ranges = <0x82000000 0 0x20000000  0x0 0x20000000  0 0x10000000>;
@@ -937,6 +935,27 @@
 				#address-cells = <0>;
 				#interrupt-cells = <1>;
 			};
+		};
+	};
+
+	pciephy: pcie-phy@1a148000 {
+		compatible = "mediatek,generic-tphy-v2";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		pcieport0: port0phy {
+			reg = <0 0x1a148000 0 0x1000>;
+			clocks = <&clk25m>;
+			clock-names = "ref";
+			#phy-cells = <1>;
+		};
+
+		pcieport1: port1phy {
+			reg = <0 0x1a14a000 0 0x1000>;
+			clocks = <&clk25m>;
+			clock-names = "ref";
+			#phy-cells = <1>;
 		};
 	};
 

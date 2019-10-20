@@ -42,15 +42,6 @@
 #define RBUS_PA_LNA_CTRL_OFFSET 0x38
 #define RBUS_PA_LNA_CTRL_MASK 0x3
 
-#define CONFIG_IPA_ILNA        0
-#define CONFIG_IPA_ELNA        1
-#define CONFIG_EPA_ELNA        2
-#define CONFIG_EPA_ILNA        3
-#define CONFIG_4x4             0x44
-#define CONFIG_3x3             0x33
-#define CONFIG_2x2             0x22
-#define CONFIG_1x1             0x11
-
 #define GPIO_G2_MISC_OFFSET 0x00000AF0
 #define GPIO_G2_MISC_MASK 0xffffff00
 
@@ -134,79 +125,23 @@ rbus_tssi_config(struct platform_device *pdev, unsigned char mode)
 }
 
 static int
-rbus_pa_lan_config(struct platform_device *pdev, unsigned int devfn, unsigned int mode)
+rbus_pa_lan_config(struct platform_device *pdev, unsigned int devfn, unsigned char mode)
 {
 	struct pinctrl *p;
 	struct pinctrl_state *s;
 	unsigned char state[32] = "";
 	int ret = 0;
-	unsigned char antCtrl = mode & 0xFF;
-	unsigned char polCtrl = ((mode >> 8) & 0xFF);
-	unsigned char wifiStreams = ((mode >> 16) & 0xFF);
-	unsigned char G_bandPaLna = (antCtrl & 0x03);
-	unsigned char sharePin  = ((polCtrl & 0x80) >> 7);
-	int i = 0;
+
+	if (mode != IPA_ELNA_MODE && mode != EPA_ELNA_MODE)
+		return ret;
 
 	p = devm_pinctrl_get(&pdev->dev);
-
 	if (IS_ERR(p)) {
 		dev_err(&pdev->dev, "%s(): can't get pinctrl by dev:%p\n", __func__, &pdev->dev);
 		return ret;
 	}
 
-	if ((G_bandPaLna == CONFIG_EPA_ELNA) ||
-	    (G_bandPaLna == CONFIG_IPA_ELNA && wifiStreams == 0 && sharePin == 0)) {
-		strncpy(state, "state_epa", sizeof("state_epa"));
-	} else {
-		if (G_bandPaLna) {
-			if (G_bandPaLna == CONFIG_EPA_ILNA) /* ePAiLNA */ {
-				strncpy(&state[i], "epa_ilna", sizeof("epa_ilna"));
-				i += (sizeof("epa_ilna") - 1);
-			} else if (G_bandPaLna == CONFIG_IPA_ELNA) /* iPAeLNA */ {
-				strncpy(&state[i], "ipa_elna", sizeof("ipa_elna"));
-				i += (sizeof("ipa_elna") - 1);
-			}
-		} else {
-			dev_err(&pdev->dev, "%s(): iPAiLNA return \n", __func__);
-			return ret;
-		}
-
-		strncpy(&state[i], "_", sizeof("_"));
-		i += (sizeof("_") - 1);
-
-		switch (wifiStreams) {
-			case CONFIG_4x4:
-				strncpy(&state[i], "4x4", sizeof("4x4"));
-				i += (sizeof("4x4") - 1);
-				break;
-
-			case CONFIG_3x3:
-				strncpy(&state[i], "3x3", sizeof("3x3"));
-				i += (sizeof("3x3") - 1);
-				break;
-
-			case CONFIG_2x2:
-				strncpy(&state[i], "2x2", sizeof("2x2"));
-				i += (sizeof("2x2") - 1);
-				break;
-
-			case CONFIG_1x1:
-				strncpy(&state[i], "1x1", sizeof("1x1"));
-				i += (sizeof("1x1") - 1);
-				break;
-
-			default:
-				strncpy(&state[i], "4x4", sizeof("4x4"));
-				i += (sizeof("4x4") - 1);
-				break;
-
-		}
-
-		if (sharePin) {
-			strncpy(&state[i], "_shared", sizeof("_shared"));
-			i += (sizeof("_shared") - 1);
-		}
-	}
+	strcpy(state, "state_epa");
 
 	s = pinctrl_lookup_state(p, state);
 	if (IS_ERR(s)) {
@@ -267,7 +202,7 @@ rbus_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 		rbus_tssi_config(pdev, (value & RBUS_TSSI_CTRL_MASK));
 		break;
 	case RBUS_PA_LNA_CTRL_OFFSET:
-		rbus_pa_lan_config(pdev, devfn, value);
+		rbus_pa_lan_config(pdev, devfn, (value & RBUS_PA_LNA_CTRL_MASK));
 		break;
 	default:
 		break;
@@ -292,7 +227,7 @@ static int rbus_add_port(struct rbus_dev *rbus,
 {
 	struct pci_bus *bus;
 	struct pci_dev *pci;
-	struct pci_host_bridge *hbrg = NULL;
+	struct pci_host_bridge *hbrg;
 
 	bus = pci_scan_root_bus(&pdev->dev, 0, &rbus_ops,
 				pdev, &rbus->resources);

@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include "mt7622.dtsi"
 #include "mt6380.dtsi"
 
@@ -22,10 +23,28 @@
 	compatible = "mediatek,mt7622-ac4300rfb1", "mediatek,mt7622";
 
 	chosen {
-		bootargs = "console=ttyS0,115200n1 root=/dev/mtdblock7 initrd=0x44000000,0x615E36 loglevel=8 androidboot.hardware=mt7622 swiotlb=512 rootfstype=squashfs";
+		bootargs = "console=ttyS0,115200n1 loglevel=8 swiotlb=512 rootfstype=squashfs";
 	};
 
-	mmc_fixed_1v8_io: fixedregulator@0 {
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset {
+			label = "reset";
+			gpios = <&pio 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESTART>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&pio 102 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WPS_BUTTON>;
+		};
+	};
+
+	mmc_fixed_1v8_io: fixedregulator-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "mmc_io";
 		regulator-min-microvolt = <1800000>;
@@ -33,7 +52,7 @@
 		regulator-always-on;
 	};
 
-	mmc_fixed_3v3_power: fixedregulator@1 {
+	mmc_fixed_3v3_power: fixedregulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "mmc_power";
 		regulator-min-microvolt = <3300000>;
@@ -41,7 +60,8 @@
 		regulator-always-on;
 	};
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0 0x40000000 0 0x3F000000>;
 	};
 };
@@ -68,12 +88,24 @@
 	status = "okay";
 };
 
-&eth {
+&raeth {
 	mac-address = [00 00 00 00 00 00];
-	status = "okay";
-};
-
-&gsw {
+	dma-coherent;
+	wan_at = "p4";
+	gmac1-support = "sgmii-1";
+	sgmii-mode-1 = "force-2500";
+	#gmac1-support = "rgmii-1";
+	#rgmii-mode-1 = "force-1000";
+	#gmac1-phy-address = <0x1f>;
+	gmac2-support = "rgmii-2";
+	rgmii-mode-2 = "force-1000";
+	#rgmii-mode-2 = "an";
+	#gmac2-phy-address = <0x1e>;
+	gmac1_txq_num = <1>;
+	gmac1_txq_txd_num = <2048>;
+	gmac2_txq_num = <1>;
+	gmac2_txq_txd_num = <1024>;
+	num_rx_desc = <2048>;
 	status = "okay";
 };
 
@@ -125,84 +157,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&nand_pins_default>;
 	status = "disabled";
-	flash@0 {
-		reg = <0>;
-		nand-ecc-mode = "hw";
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			partition@0 {
-				label = "Preloader";
-				reg = <0x00000 0x0080000>;
-				read-only;
-			};
-
-			partition@80000 {
-				label = "ATF";
-				reg = <0x80000 0x0040000>;
-			};
-
-			partition@c0000 {
-				label = "Bootloader";
-				reg = <0xc0000 0x0080000>;
-			};
-
-			partition@140000 {
-				label = "Config";
-				reg = <0x140000 0x0080000>;
-			};
-
-			partition@1c0000 {
-				label = "Factory";
-				reg = <0x1c0000 0x0040000>;
-			};
-
-			partition@200000 {
-				label = "Kernel";
-				reg = <0x200000 0x2000000>;
-			};
-
-			partition@2200000 {
-				label = "User_data";
-				reg = <0x2200000 0x4000000>;
-			};
-		};
-	};
+	reg = <0>;
+	nand-ecc-mode = "hw";
 };
 
 &nor_flash {
-	status = "okay";
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		partition@00000 {
-			label = "Preloader";
-			reg = <0x00000 0x0040000>;
-		};
-		partition@40000 {
-			label = "ATF";
-			reg = <0x40000 0x0020000>;
-		};
-		partition@60000 {
-			label = "Bootloader";
-			reg = <0x60000 0x0040000>;
-		};
-		partition@A0000 {
-			label = "Config";
-			reg = <0xA0000 0x0020000>;
-		};
-		partition@C0000 {
-			label = "Factory";
-			reg = <0xC0000 0x0020000>;
-		};
-		partition@E0000 {
-			label = "Kernel";
-			reg = <0xE0000 0xF20000>;
-		};
-	};
+	status = "disabled";
+	compatible = "jedec,spi-nor";
+	#address-cells = <1>;
+	#size-cells = <1>;
 };
 
 &pio {
@@ -232,7 +195,7 @@
 		};
 	};
 
-	mmc0_pins_uhs: mmc0@0{
+	mmc0_pins_uhs: mmc0-pins-uhs {
 		pins_cmd_dat {
 			pinmux = <MT7622_PIN_47_NDL0__FUNC_EMMC_DATA0>,
 			       <MT7622_PIN_48_NDL1__FUNC_EMMC_DATA1>,
@@ -279,7 +242,7 @@
 		};
 	};
 
-	mmc1_pins_uhs: mmc1@0 {
+	mmc1_pins_uhs: mmc1-pins-uhs {
 		pins_cmd_dat {
 			pinmux = <MT7622_PIN_19_I2S2_OUT__FUNC_SD_D0>,
 			       <MT7622_PIN_18_I2S4_IN__FUNC_SD_D1>,
@@ -318,7 +281,7 @@
 		};
 	};
 
-	snand_pins_default: snand@0 {
+	snand_pins_default: snand-pins-default {
 		pins_cmd_dat {
 			pinmux = <MT7622_PIN_8_SPI_WP__FUNC_SNFI_WP>,
 				 <MT7622_PIN_9_SPI_HOLD__FUNC_SNFI_HOLD>,
@@ -368,49 +331,6 @@
 &snand {
 	pinctrl-0 = <&snand_pins_default>;
 	status = "okay";
-	flash@0 {
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			partition@0 {
-				label = "Preloader";
-				reg = <0x00000 0x0080000>;
-				read-only;
-			};
-
-			partition@80000 {
-				label = "ATF";
-				reg = <0x80000 0x0040000>;
-			};
-
-			partition@c0000 {
-				label = "Bootloader";
-				reg = <0xc0000 0x0080000>;
-			};
-
-			partition@140000 {
-				label = "Config";
-				reg = <0x140000 0x0080000>;
-			};
-
-			partition@1c0000 {
-				label = "Factory";
-				reg = <0x1c0000 0x0040000>;
-			};
-
-			partition@200000 {
-				label = "Kernel";
-				reg = <0x200000 0x2000000>;
-			};
-
-			partition@2200000 {
-				label = "User_data";
-				reg = <0x2200000 0x4000000>;
-			};
-		};
-	};
 };
 
 &svs {
@@ -435,4 +355,3 @@
 	pinctrl-1 = <&wbsys_pins_epa>;
 	status = "okay";
 };
-

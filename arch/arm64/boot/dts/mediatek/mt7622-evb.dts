@@ -84,6 +84,16 @@
 
 &eth {
 	mac-address = [00 00 00 00 00 00];
+	dma-coherent;
+	gmac1-support = "esw";
+	gmac2-support = "rgmii-2";
+	rgmii-mode-2 = "an";
+	gmac2-phy-address = <0x05>;
+	gmac1_txq_num = <1>;
+	gmac1_txq_txd_num = <2048>;
+	gmac2_txq_num = <1>;
+	gmac2_txq_txd_num = <1024>;
+	num_rx_desc = <2048>;
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&ephy_default>;

@@ -144,6 +144,13 @@
 		method      = "smc";
 	};
 
+	pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_SPI 9 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
+	};
+
 	clk25m: oscillator-clk25m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -429,11 +436,11 @@
 		pmu@9000 {
 			compatible = "arm,cci-400-pmu,r1";
 			reg = <0x9000 0x5000>;
-			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 91 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 92 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 93 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 94 IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 
@@ -497,7 +504,6 @@
 		clock-names = "baud", "bus";
 		status = "disabled";
 	};
-
 
 	pwm: pwm@11006000 {
 		compatible = "mediatek,mt7622-pwm";
@@ -1011,10 +1017,11 @@
 			     "syscon";
 		reg = <0 0x1b000000 0 0x1000>;
 		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
-	eth: ethernet@1b100000 {
-		compatible = "mediatek,mt7622-eth";
+	raeth: raeth@1b100000 {
+		compatible = "mediatek,mt7622-raeth";
 		reg = <0 0x1b100000 0 0x20000>;
 		interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 224 IRQ_TYPE_LEVEL_LOW>,
@@ -1040,17 +1047,9 @@
 			      "sgmii_cdr_fb";
 		power-domains = <&scpsys MT7622_POWER_DOMAIN_ETHSYS>;
 		mediatek,ethsys = <&ethsys>;
-		mediatek,switch = <&gsw>;
 		#reset-cells = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		dma-coherent;
-		status = "disabled";
-	};
-
-	gsw: gswsys {
-		compatible = "mediatek,mt7622-gsw";
-		mediatek,ethsys = <&ethsys>;
 		status = "disabled";
 	};
 
@@ -1068,7 +1067,8 @@
 
 	sgmiisys: sgmiisys@1b128000 {
 		compatible = "mediatek,mt7622-sgmiisys", "syscon";
-		reg = <0 0x1b128000 0 0x1000>;
+		reg = <0 0x1b128000 0 0x3000>;
+		mediatek,physpeed = "2500";
 		#clock-cells = <1>;
 	};
 
@@ -1082,7 +1082,7 @@
 		mediatek,wbsys = <&infracfg>;
 		mediatek,hifsys = <&hifsys>;
 		mediatek,ethsys = <&ethsys>;
-		mediatek,eth = <&eth>;
+		mediatek,eth = <&raeth>;
 		mediatek,wifi = <&wbsys>;
 
 		mediatek,en_usb;

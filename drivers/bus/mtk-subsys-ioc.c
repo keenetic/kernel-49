@@ -86,6 +86,20 @@ static int arm_cci400_slave_snoop(struct device_node *np, const char *sp)
 	return 0;
 }
 
+static bool of_dma_coherent(struct device_node *np, const char *sp)
+{
+	struct device_node *dma_np;
+	bool dma_ioc = false;
+
+	dma_np = of_parse_phandle(np, sp, 0);
+	if (dma_np) {
+		dma_ioc = of_property_read_bool(dma_np, "dma-coherent");
+		of_node_put(dma_np);
+	}
+
+	return dma_ioc;
+}
+
 static int mtk_subsys_ioc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -100,10 +114,10 @@ static int mtk_subsys_ioc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	if (data->has_wbsys)
-		is_wbsys_ioc = of_property_read_bool(np, "mediatek,en_wifi");
+		is_wbsys_ioc = of_dma_coherent(np, "mediatek,wifi");
 
 	if (data->has_ethsys)
-		is_ethsys_ioc = of_property_read_bool(np, "mediatek,en_eth");
+		is_ethsys_ioc = of_dma_coherent(np, "mediatek,eth");
 
 	/* enable Snoop & DVM message requests on ARM CCI slave interface 4 */
 	if (is_wbsys_ioc || is_ethsys_ioc)

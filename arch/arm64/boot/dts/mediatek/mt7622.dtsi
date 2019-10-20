@@ -1070,11 +1070,10 @@
 		mediatek,hifsys = <&hifsys>;
 		mediatek,ethsys = <&ethsys>;
 		mediatek,eth = <&eth>;
+		mediatek,wifi = <&wbsys>;
 
 		mediatek,en_usb;
 		mediatek,en_pcie_sata;
-		mediatek,en_eth;
-		mediatek,en_wifi;
 	};
 };
 

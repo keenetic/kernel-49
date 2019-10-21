@@ -226,7 +226,8 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	struct device *cpu_dev = info->cpu_dev;
 	struct dev_pm_opp *opp;
 	long freq_hz, old_freq_hz;
-	int vproc, old_vproc, inter_vproc, target_vproc, ret;
+	int vproc, inter_vproc, target_vproc, ret;
+	int old_vproc = -1;
 
 	inter_vproc = info->intermediate_voltage;
 
@@ -274,7 +275,8 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (ret) {
 		pr_err("cpu%d: failed to re-parent cpu clock!\n",
 		       policy->cpu);
-		mtk_cpufreq_set_voltage(info, old_vproc);
+		if (old_vproc >= 0)
+			mtk_cpufreq_set_voltage(info, old_vproc);
 		WARN_ON(1);
 		return ret;
 	}
@@ -285,7 +287,8 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 		pr_err("cpu%d: failed to scale cpu clock rate!\n",
 		       policy->cpu);
 		clk_set_parent(cpu_clk, armpll);
-		mtk_cpufreq_set_voltage(info, old_vproc);
+		if (old_vproc >= 0)
+			mtk_cpufreq_set_voltage(info, old_vproc);
 		return ret;
 	}
 

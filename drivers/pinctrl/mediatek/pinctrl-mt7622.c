@@ -26,7 +26,7 @@
 
 static int mtk_pinctrl_set_gpio_drv(struct mtk_pinctrl *pctl, unsigned int pin, unsigned char drv)
 {
-	unsigned int drv_e4, drv_e8;
+	unsigned int drv_e4 = 0, drv_e8 = 0;
 
 	switch (drv) {
 	case MTK_DRIVE_4mA:

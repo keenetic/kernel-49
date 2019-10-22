@@ -66,6 +66,7 @@
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/fast_nat.h>
+#include <net/fast_vpn.h>
 #endif
 
 #include "l2tp_core.h"
@@ -1046,18 +1047,45 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (tunnel == NULL)
 		goto pass_up;
 
+#ifdef CONFIG_FAST_NAT_V2
+#if defined(SWNAT_KA_CHECK_MARK)
+	if (unlikely(SWNAT_KA_CHECK_MARK(skb))) {
+		consume_skb(skb);
+		tunnel->last_recv = jiffies;
+
+		return 0;
+	}
+#endif
+#endif
+
 	l2tp_dbg(tunnel, L2TP_MSG_DATA, "%s: received %d bytes\n",
 		 tunnel->name, skb->len);
 
 	if (l2tp_udp_recv_core(tunnel, skb))
 		goto pass_up_put;
 
+#ifdef CONFIG_FAST_NAT_V2
+	tunnel->last_recv = jiffies;
+#endif
 	sock_put(sk);
 	return 0;
 
 pass_up_put:
+#ifdef CONFIG_FAST_NAT_V2
+	tunnel->last_recv = jiffies;
+#endif
 	sock_put(sk);
 pass_up:
+#ifdef CONFIG_FAST_NAT_V2
+#if defined(SWNAT_KA_CHECK_MARK)
+	if (unlikely(SWNAT_KA_CHECK_MARK(skb))) {
+		consume_skb(skb);
+
+		return 0;
+	}
+#endif
+#endif
+
 	return 1;
 }
 EXPORT_SYMBOL_GPL(l2tp_udp_encap_recv);
@@ -1070,6 +1098,7 @@ static int l2tp_in(struct sk_buff *skb, unsigned int dataoff)
 	const struct udphdr *udph;
 	const struct inet_sock *inet;
 	struct l2tp_tunnel *tunnel;
+	struct sk_buff *skb2;
 	u8 *ptr;
 	u16 hdrflags;
 	__be16 dport;
@@ -1106,6 +1135,20 @@ static int l2tp_in(struct sk_buff *skb, unsigned int dataoff)
 	if (ip_hdr(skb)->daddr != inet->inet_saddr ||
 	    dport != inet->inet_sport)
 		return 0;
+
+	if (time_after(jiffies, tunnel->last_recv + msecs_to_jiffies(5000))) {
+		/* copy packet to process, and send original skb as keepalive */
+		skb2 = skb_copy(skb, GFP_ATOMIC);
+
+		if (skb2 == NULL)
+			return 0;
+
+		__skb_pull(skb2, dataoff);
+		l2tp_udp_recv_core(tunnel, skb2);
+		SWNAT_KA_SET_MARK(skb);
+
+		return 0;
+	}
 
 	__skb_pull(skb, dataoff);
 
@@ -1770,6 +1813,10 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
 	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
+
+#ifdef CONFIG_FAST_NAT_V2
+	tunnel->last_recv = jiffies;
+#endif
 
 	err = 0;
 err:

@@ -189,19 +189,11 @@ static void spm_register_init(void)
 	if (!spm_rtc_clk)
 		spm_err("get spm_rtc clk failed\n");
 
-	spm_err("spm_base = %p\n", spm_base);
-	spm_err("spm_irq_0 = %d, spm_irq_1 = %d\n", spm_irq_0, spm_irq_1);
-	spm_err("spm_irq_2 = %d, spm_irq_3 = %d\n", spm_irq_2, spm_irq_3);
-
-	if (spm_irq_0) {
-		spm_err("set spm as wakeup devcie.\n");
+	if (spm_irq_0)
 		irq_set_irq_wake(spm_irq_0, 1);
-	}
 
-	if (spm_rtc_clk) {
+	if (spm_rtc_clk)
 		spm_rtc_cnt = clk_get_rate(spm_rtc_clk);
-		spm_info("spm_rtc cnt: %d.\n", spm_rtc_cnt);
-	}
 
 	spin_lock_irqsave(&__spm_lock, flags);
 

@@ -284,12 +284,15 @@ extern void __spm_init_pcm_AllInOne(const struct pcm_desc *pcmdesc);
 extern void __spm_set_pcm_cmd(unsigned int cmd);
 #endif
 
+#if 0
 enum pmic_wrap_phase_id {
 	PMIC_WRAP_PHASE_DEEPIDLE,
 	PMIC_WRAP_PHASE_SODI,
 	NR_PMIC_WRAP_PHASE,
 };
+
 extern void __spm_set_pmic_phase(enum pmic_wrap_phase_id phase);
+#endif
 
 extern int spm_fs_init(void);
 #ifndef CONFIG_MTK_FPGA

@@ -143,18 +143,20 @@ void init_mt_cpu_dvfs(struct mt_cpu_dvfs *p)
 
 void dump_power_table(void)
 {
+#if 0
 	int	i;
 
 	/* dump power table */
 	for (i = 0; i < cpu_dvfs.nr_opp_tbl * NR_MAX_CPU; i++) {
 		pr_info("%s[%d] = { .cpufreq_khz = %d,\t.cpufreq_ncpu = %d,\t.cpufreq_power = %d }\n",
-		__func__,
-		i,
-		cpu_dvfs.power_tbl[i].cpufreq_khz,
-		cpu_dvfs.power_tbl[i].cpufreq_ncpu,
-		cpu_dvfs.power_tbl[i].cpufreq_power
+			__func__,
+			i,
+			cpu_dvfs.power_tbl[i].cpufreq_khz,
+			cpu_dvfs.power_tbl[i].cpufreq_ncpu,
+			cpu_dvfs.power_tbl[i].cpufreq_power
 		);
 	}
+#endif
 }
 
 int setup_power_table(struct mt_cpu_dvfs *p)

@@ -1969,6 +1969,7 @@ static int svs_suspend(struct platform_device *pdev, pm_message_t state)
 
 	return 0;
 }
+
 static int svs_resume(struct platform_device *pdev)
 {
 	FUNC_ENTER(FUNC_LV_MODULE);

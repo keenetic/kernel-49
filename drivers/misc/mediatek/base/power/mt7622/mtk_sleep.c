@@ -21,7 +21,7 @@
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
-#include <linux/wakelock.h>
+//#include <linux/wakelock.h>
 #include <linux/time.h>
 #include <linux/kthread.h>
 

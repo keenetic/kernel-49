@@ -356,7 +356,7 @@ wake_reason_t __spm_output_wake_reason(const struct wake_status *wakesta,
 		if (wakesta->r12 & (1U << i)) {
 			if ((strlen(buf) + strlen(wakesrc_str[i])) <
 						LOG_BUF_SIZE)
-			strncat(buf, wakesrc_str[i], strlen(wakesrc_str[i]));
+			strlcat(buf, wakesrc_str[i], sizeof(buf));
 
 			wr = WR_WAKE_SRC;
 		}
@@ -467,6 +467,7 @@ static void __iomem *pwrap_base;
 #define PMIC_ADDR_VPROC_VOSEL_ON		0x0220	/* [6:0] */
 #define PMIC_ADDR_VCORE_VOSEL_ON		0x0314	/* [6:0] */
 
+#if 0
 struct pmic_wrap_cmd {
 	unsigned long cmd_addr;
 	unsigned long cmd_wdata;
@@ -535,36 +536,42 @@ static struct pmic_wrap_setting pw = {
 };
 
 static struct regmap *pmic_regmap;
+#endif
 static int __init spm_get_pwrap_base(void)
 {
-	struct device_node *node, *pwrap_node;
+	struct device_node *node;
+#if 0
+	struct device_node *pwrap_node;
+#endif
 
 	node = of_find_compatible_node(NULL, NULL, "mediatek,mt7622-pwrap");
 	if (!node)
 		spm_warn("find pwrap node failed\n");
+
 	pwrap_base = of_iomap(node, 0);
 	if (!pwrap_base)
 		spm_warn("get pwrap_base failed\n");
 
+#if 0
 	node = of_find_compatible_node(NULL, NULL, "mediatek,mt7622-scpsys");
 	if (!node)
 		spm_err("find mt7622-scpsys node failed\n");
-	WARN_ON(!node);
+
 	pwrap_node = of_parse_phandle(node, "mediatek,pwrap-regmap", 0);
 	if (pwrap_node) {
-#if 0
 		pmic_regmap = pwrap_node_to_regmap(pwrap_node);
 		if (IS_ERR(pmic_regmap))
 			spm_err("cannot get pmic_regmap\n");
-#endif
 	} else {
 		spm_err("pwrap node has not register regmap\n");
 	}
+#endif
 
 	return 0;
 }
 late_initcall(spm_get_pwrap_base);
 
+#if 0
 static void spm_pmic_table_init(void)
 {
 	struct pmic_wrap_cmd pwrap_cmd_default[NR_PMIC_WRAP_CMD] = {
@@ -609,5 +616,6 @@ void __spm_set_pmic_phase(enum pmic_wrap_phase_id phase)
 		spm_write(pw.addr[i].cmd_wdata, pw.set[phase]._[i].cmd_wdata);
 	}
 }
+#endif
 
 MODULE_DESCRIPTION("SPM-Internal Driver v0.1");

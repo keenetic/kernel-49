@@ -816,8 +816,7 @@ static int mt7622_cpufreq_driver_init(void)
 	 * driver and the device registration codes are put here to handle
 	 * defer probing.
 	 */
-	pdev = platform_device_register_simple(
-	"mt7622-cpufreq",	-1, NULL, 0);
+	pdev = platform_device_register_simple("mt7622-cpufreq", -1, NULL, 0);
 	if (IS_ERR(pdev)) {
 		pr_err("failed to register mtk-cpufreq platform device\n");
 		return PTR_ERR(pdev);

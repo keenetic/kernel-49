@@ -1077,6 +1077,8 @@ static void thermal_cal_prepare(struct device *dev)
 
 	g_id = (calefuse2 & 0x4) >> 2;
 
+	pr_info("eFUSE thermal calibration data OK\n");
+
 no_cali:
 	if (g_adc_cali_en_t == 0) {
 		tscpu_dprintk("This sample is not Thermal calibrated\n");
@@ -1092,7 +1094,9 @@ no_cali:
 		g_o_vtsabb = 0;
 	}
 
+#if 0
 	mtkts_dump_cali_info();
+#endif
 }
 
 static void thermal_cal_prepare_2(U32 ret)
@@ -1269,7 +1273,7 @@ static int tscpu_get_temp(struct thermal_zone_device *thermal, int *t)
 	/* not resumed from suspensio... */
 	if (curr_temp != 0) {
 		/* invalid range */
-		if ((curr_temp > 150000) || (curr_temp < -20000)) {
+		if ((curr_temp > 125000) || (curr_temp < -40000)) {
 			tscpu_dprintk("CPU temp invalid=%d\n", curr_temp);
 			temp_temp = 50000;
 			ret = -1;
@@ -1297,7 +1301,7 @@ static int tscpu_get_temp(struct thermal_zone_device *thermal, int *t)
 
 	tscpu_dprintk("tscpu_get_temp CPU T1=%d\n", curr_temp);
 
-	if ((curr_temp > (trip_temp[0] - 15000)) || (curr_temp < -30000))
+	if ((curr_temp > (trip_temp[0] - 125000)) || (curr_temp < -40000))
 		tscpu_dprintk("[Power/CPU_Thermal] CPU T=%d\n", curr_temp);
 #endif
 

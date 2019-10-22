@@ -201,6 +201,10 @@ struct l2tp_tunnel {
 
 	struct work_struct	del_work;
 
+#ifdef CONFIG_FAST_NAT_V2
+	unsigned long		last_recv;
+#endif
+
 	uint8_t			priv[0];	/* private data */
 };
 

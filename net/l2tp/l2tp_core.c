@@ -66,6 +66,7 @@
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/fast_nat.h>
+#include <net/fast_vpn.h>
 #endif
 
 #include "l2tp_core.h"
@@ -1046,6 +1047,16 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (tunnel == NULL)
 		goto pass_up;
 
+#ifdef CONFIG_FAST_NAT_V2
+	tunnel->last_recv = jiffies;
+
+	if (unlikely(SWNAT_KA_CHECK_MARK(skb))) {
+		sock_put(sk);
+		consume_skb(skb);
+		return 0;
+	}
+#endif
+
 	l2tp_dbg(tunnel, L2TP_MSG_DATA, "%s: received %d bytes\n",
 		 tunnel->name, skb->len);
 
@@ -1106,6 +1117,21 @@ static int l2tp_in(struct sk_buff *skb, unsigned int dataoff)
 	if (ip_hdr(skb)->daddr != inet->inet_saddr ||
 	    dport != inet->inet_sport)
 		return 0;
+
+	if (time_after(jiffies, tunnel->last_recv + msecs_to_jiffies(5000))) {
+		struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
+
+		/* copy packet to process, and send original skb as keepalive */
+		if (skb2) {
+			__skb_pull(skb2, dataoff);
+			if (l2tp_udp_recv_core(tunnel, skb2) == 0)
+				SWNAT_KA_SET_MARK(skb);
+			else
+				consume_skb(skb2);
+		}
+
+		return 0;
+	}
 
 	__skb_pull(skb, dataoff);
 
@@ -1770,6 +1796,10 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
 	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
+
+#ifdef CONFIG_FAST_NAT_V2
+	tunnel->last_recv = jiffies;
+#endif
 
 	err = 0;
 err:

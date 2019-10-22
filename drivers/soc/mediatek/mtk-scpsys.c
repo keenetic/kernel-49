@@ -472,8 +472,7 @@ static struct scp *init_scp(struct platform_device *pdev,
 static void mtk_register_power_domains(struct platform_device *pdev,
 				struct scp *scp, int num)
 {
-	struct genpd_onecell_data *pd_data;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < num; i++) {
 		struct scp_domain *scpd = &scp->domains[i];
@@ -496,11 +495,7 @@ static void mtk_register_power_domains(struct platform_device *pdev,
 	 * valid.
 	 */
 
-	pd_data = &scp->pd_data;
-
-	ret = of_genpd_add_provider_onecell(pdev->dev.of_node, pd_data);
-	if (ret)
-		dev_err(&pdev->dev, "Failed to add OF provider: %d\n", ret);
+	of_genpd_add_provider_onecell(pdev->dev.of_node, &scp->pd_data);
 }
 
 /*

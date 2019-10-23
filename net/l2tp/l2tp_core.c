@@ -1048,14 +1048,13 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto pass_up;
 
 #ifdef CONFIG_FAST_NAT_V2
-#if defined(SWNAT_KA_CHECK_MARK)
-	if (unlikely(SWNAT_KA_CHECK_MARK(skb))) {
-		consume_skb(skb);
-		tunnel->last_recv = jiffies;
+	tunnel->last_recv = jiffies;
 
+	if (unlikely(SWNAT_KA_CHECK_MARK(skb))) {
+		sock_put(sk);
+		consume_skb(skb);
 		return 0;
 	}
-#endif
 #endif
 
 	l2tp_dbg(tunnel, L2TP_MSG_DATA, "%s: received %d bytes\n",
@@ -1064,28 +1063,12 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (l2tp_udp_recv_core(tunnel, skb))
 		goto pass_up_put;
 
-#ifdef CONFIG_FAST_NAT_V2
-	tunnel->last_recv = jiffies;
-#endif
 	sock_put(sk);
 	return 0;
 
 pass_up_put:
-#ifdef CONFIG_FAST_NAT_V2
-	tunnel->last_recv = jiffies;
-#endif
 	sock_put(sk);
 pass_up:
-#ifdef CONFIG_FAST_NAT_V2
-#if defined(SWNAT_KA_CHECK_MARK)
-	if (unlikely(SWNAT_KA_CHECK_MARK(skb))) {
-		consume_skb(skb);
-
-		return 0;
-	}
-#endif
-#endif
-
 	return 1;
 }
 EXPORT_SYMBOL_GPL(l2tp_udp_encap_recv);
@@ -1098,7 +1081,6 @@ static int l2tp_in(struct sk_buff *skb, unsigned int dataoff)
 	const struct udphdr *udph;
 	const struct inet_sock *inet;
 	struct l2tp_tunnel *tunnel;
-	struct sk_buff *skb2;
 	u8 *ptr;
 	u16 hdrflags;
 	__be16 dport;
@@ -1137,15 +1119,16 @@ static int l2tp_in(struct sk_buff *skb, unsigned int dataoff)
 		return 0;
 
 	if (time_after(jiffies, tunnel->last_recv + msecs_to_jiffies(5000))) {
+		struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
+
 		/* copy packet to process, and send original skb as keepalive */
-		skb2 = skb_copy(skb, GFP_ATOMIC);
-
-		if (skb2 == NULL)
-			return 0;
-
-		__skb_pull(skb2, dataoff);
-		l2tp_udp_recv_core(tunnel, skb2);
-		SWNAT_KA_SET_MARK(skb);
+		if (skb2) {
+			__skb_pull(skb2, dataoff);
+			if (l2tp_udp_recv_core(tunnel, skb2) == 0)
+				SWNAT_KA_SET_MARK(skb);
+			else
+				consume_skb(skb2);
+		}
 
 		return 0;
 	}

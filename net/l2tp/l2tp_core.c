@@ -1124,9 +1124,9 @@ static int l2tp_in(struct sk_buff *skb, unsigned int dataoff)
 		/* copy packet to process, and send original skb as keepalive */
 		if (skb2) {
 			__skb_pull(skb2, dataoff);
-			if (l2tp_udp_recv_core(tunnel, skb2) == 0)
+			if (l2tp_udp_recv_core(tunnel, skb2) == 0) {
 				SWNAT_KA_SET_MARK(skb);
-			else
+			} else
 				consume_skb(skb2);
 		}
 

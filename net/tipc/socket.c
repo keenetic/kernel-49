@@ -623,7 +623,7 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 		/* fall thru' */
 	case SS_CONNECTING:
 	case SS_LISTENING:
-		if (!skb_queue_empty(&sk->sk_receive_queue))
+		if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
 			mask |= (POLLIN | POLLRDNORM);
 		break;
 	case SS_DISCONNECTING:

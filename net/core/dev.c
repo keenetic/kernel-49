@@ -5252,7 +5252,7 @@ count:
 					LINUX_MIB_BUSYPOLLRXPACKETS, rc);
 		local_bh_enable();
 
-		if (nonblock || !skb_queue_empty(&sk->sk_receive_queue) ||
+		if (nonblock || !skb_queue_empty_lockless(&sk->sk_receive_queue) ||
 		    busy_loop_timeout(end_time))
 			break;
 
@@ -5262,7 +5262,7 @@ count:
 			preempt_enable();
 			rcu_read_unlock();
 			cond_resched();
-			rc = !skb_queue_empty(&sk->sk_receive_queue);
+			rc = !skb_queue_empty_lockless(&sk->sk_receive_queue);
 			if (rc || busy_loop_timeout(end_time))
 				return rc;
 			goto restart;
@@ -5272,7 +5272,7 @@ count:
 	if (napi_poll)
 		busy_poll_stop(napi, have_poll_lock);
 	preempt_enable();
-	rc = !skb_queue_empty(&sk->sk_receive_queue);
+	rc = !skb_queue_empty_lockless(&sk->sk_receive_queue);
 out:
 	rcu_read_unlock();
 	return rc;

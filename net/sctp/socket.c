@@ -7241,7 +7241,7 @@ static int sctp_wait_for_packet(struct sock *sk, int *err, long *timeo_p)
 	if (error)
 		goto out;
 
-	if (!skb_queue_empty(&sk->sk_receive_queue))
+	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
 		goto ready;
 
 	/* Socket shut down?  */

@@ -315,18 +315,6 @@ static u32 svs_irq_number;
 #define for_each_det(det) for (det = svs_detectors; det < (svs_detectors + ARRAY_SIZE(svs_detectors)); det++)
 
 /*
- * iterate over list of detectors and its controller
- * @det:	the detector * to use as a loop cursor.
- * @ctrl:	the svs_ctrl * to use as ctrl pointer of current det.
- */
-#define for_each_det_ctrl(det, ctrl)				\
-	for (det = svs_detectors,				\
-	     ctrl = id_to_svs_ctrl(det->ctrl_id);		\
-	     det < (svs_detectors + ARRAY_SIZE(svs_detectors)); \
-	     det++,						\
-	     ctrl = id_to_svs_ctrl(det->ctrl_id))
-
-/*
  * iterate over list of controllers
  * @pos:	the svs_ctrl * to use as a loop cursor.
  */
@@ -1694,38 +1682,37 @@ static irqreturn_t svs_isr(int irq, void *dev_id)
 void svs_init01(void)
 {
 	struct svs_det *det;
-	struct svs_ctrl *ctrl;
 
 	FUNC_ENTER(FUNC_LV_LOCAL);
 
-	for_each_det_ctrl(det, ctrl) {
-		{
-			unsigned long flag;
-			unsigned int vboot;
+	for_each_det(det) {
+		struct svs_ctrl *ctrl;
+		unsigned long flag;
+		unsigned int vboot;
 
-			vboot = SVS_VOLT_TO_PMIC_VAL(det->ops->get_volt(det));
+		ctrl = id_to_svs_ctrl(det->ctrl_id);
+		vboot = SVS_VOLT_TO_PMIC_VAL(det->ops->get_volt(det));
 
-			if (svs_log_en)
-				svs_alert("@%s(),vboot = %0x\n", __func__, vboot);
+		if (svs_log_en)
+			svs_alert("@%s(),vboot = %0x\n", __func__, vboot);
 
-			if (vboot != det->VBOOT) {
-				svs_error("%s: VBOOT mis-match\n", det->name);
-				svs_error("@%s():%d, get_volt(%s) = 0x%08X, VBOOT = 0x%08X\n",
-					  __func__, __LINE__, det->name, vboot, det->VBOOT);
+		if (vboot != det->VBOOT) {
+			svs_error("%s: VBOOT mis-match\n", det->name);
+			svs_error("@%s():%d, get_volt(%s) = 0x%08X, VBOOT = 0x%08X\n",
+				  __func__, __LINE__, det->name, vboot, det->VBOOT);
 #if 0
-				aee_kernel_warning("mt_svs", "@%s():%d, get_volt(%s) = 0x%08X, VBOOT = 0x%08X\n",
-					__func__, __LINE__, det->name, vboot, det->VBOOT);
+			aee_kernel_warning("mt_svs", "@%s():%d, get_volt(%s) = 0x%08X, VBOOT = 0x%08X\n",
+				__func__, __LINE__, det->name, vboot, det->VBOOT);
 #endif
 
-				return;
-			}
-
-			mt_svs_lock(&flag);
-			det->ops->init01(det);
-			mt_svs_unlock(&flag);
-
-			wait_for_completion(&ctrl->init_done);
+			return;
 		}
+
+		mt_svs_lock(&flag);
+		det->ops->init01(det);
+		mt_svs_unlock(&flag);
+
+		wait_for_completion(&ctrl->init_done);
 	}
 
 	FUNC_EXIT(FUNC_LV_LOCAL);
@@ -1734,17 +1721,16 @@ void svs_init01(void)
 void svs_init02(void)
 {
 	struct svs_det *det;
-	struct svs_ctrl *ctrl;
 
-	 FUNC_ENTER(FUNC_LV_LOCAL);
+	FUNC_ENTER(FUNC_LV_LOCAL);
 
-	 for_each_det_ctrl(det, ctrl) {
+	for_each_det(det) {
 		if (HAS_FEATURE(det, FEA_MON)) {
 			unsigned long flag;
 
-			 mt_svs_lock(&flag);
-			 det->ops->init02(det);
-			 mt_svs_unlock(&flag);
+			mt_svs_lock(&flag);
+			det->ops->init02(det);
+			mt_svs_unlock(&flag);
 		}
 	}
 

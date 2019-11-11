@@ -577,7 +577,10 @@ int __init init_ralink_pci(void)
 	val = RALINK_GPIOMODE;
 	val &= ~((0x3<<PCIE_SHARE_PIN_SW) | (0x3<<UARTL3_SHARE_PIN_SW));
 	val |=  ((0x1<<PCIE_SHARE_PIN_SW) | (0x1<<UARTL3_SHARE_PIN_SW));
-	RALINK_GPIOMODE = val;
+	if (RALINK_GPIOMODE != val) {
+		RALINK_GPIOMODE = val;
+		mdelay(100);
+	}
 	val = 0;
 #if defined(CONFIG_PCIE_PORT0)
 	val |= (0x1<<GPIO_PCIE_PORT0);
@@ -588,9 +591,8 @@ int __init init_ralink_pci(void)
 #if defined(CONFIG_PCIE_PORT2)
 	val |= (0x1<<GPIO_PCIE_PORT2);
 #endif
-	mdelay(50);
 	RALINK_GPIO_CTRL0 |= val;			// switch PERST_N pin to output mode
-	mdelay(50);
+	mdelay(100);
 	RALINK_GPIO_DATA0 &= ~(val);			// fall PERST_N pin (reset peripherals)
 #else /* !defined(GPIO_PERST) */
 	RALINK_GPIOMODE &= ~(0x3<<PCIE_SHARE_PIN_SW);	// fall PERST_N pin (reset peripherals)
@@ -626,7 +628,10 @@ int __init init_ralink_pci(void)
 
 	if ((ralink_asic_rev_id & 0xFFFF) == 0x0101) // MT7621 E2
 		bypass_pipe_rst();
+
 	set_phy_for_ssc();
+
+	mdelay(100);
 
 #if defined(GPIO_PERST)
 	val = 0;
@@ -653,6 +658,8 @@ int __init init_ralink_pci(void)
 	mdelay(100);
 
 	pcie_phy_config();
+
+	mdelay(10);
 
 	RALINK_PCI_PCICFG_ADDR &= ~(1<<1);		// release PCIRST
 #endif

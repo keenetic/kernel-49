@@ -2908,6 +2908,18 @@ int regmap_parse_val(struct regmap *map, const void *buf,
 }
 EXPORT_SYMBOL_GPL(regmap_parse_val);
 
+void regmap_lock_map(struct regmap *map)
+{
+	map->lock(map->lock_arg);
+}
+EXPORT_SYMBOL(regmap_lock_map);
+
+void regmap_unlock_map(struct regmap *map)
+{
+	map->unlock(map->lock_arg);
+}
+EXPORT_SYMBOL(regmap_unlock_map);
+
 static int __init regmap_initcall(void)
 {
 	regmap_debugfs_initcall();

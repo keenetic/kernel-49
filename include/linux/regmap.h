@@ -799,6 +799,11 @@ bool regmap_reg_in_ranges(unsigned int reg,
 			  const struct regmap_range *ranges,
 			  unsigned int nranges);
 
+void regmap_lock_map(struct regmap *map);
+void regmap_unlock_map(struct regmap *map);
+
+void __iomem *regmap_get_iomem(struct regmap *map);
+
 /**
  * Description of an register field
  *
@@ -1122,6 +1127,21 @@ static inline struct device *regmap_get_device(struct regmap *map)
 	return NULL;
 }
 
+void regmap_lock_map(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+void regmap_unlock_map(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+void __iomem *regmap_get_iomem(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return ERR_PTR(-EINVAL);
+}
 #endif
 
 #endif

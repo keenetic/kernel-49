@@ -600,7 +600,9 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Chip_Select_Low(void)
 	SPI_CONTROLLER_RTN_T rtn_status = SPI_CONTROLLER_RTN_NO_ERROR; 
 
 	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CSL, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
-//	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CSL, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
+
+	if (isEN751221)
+		spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CSL, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
 
 	return (rtn_status);
 }
@@ -628,7 +630,9 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Chip_Select_High(void)
 	SPI_CONTROLLER_RTN_T rtn_status = SPI_CONTROLLER_RTN_NO_ERROR; 
 
 	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CSH, _SPI_CONTROLLER_VAL_OP_LEN_ONE);
-//	spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CK, _SPI_CONTROLLER_VAL_OP_LEN_FIVE);
+
+	if (isEN751221)
+		spi_controller_set_opfifo( _SPI_CONTROLLER_VAL_OP_CK, _SPI_CONTROLLER_VAL_OP_LEN_FIVE);
 
 	return (rtn_status);
 }

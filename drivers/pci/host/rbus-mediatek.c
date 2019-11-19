@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <linux/resource.h>
 #include <linux/types.h>
 #include <linux/pinctrl/consumer.h>
@@ -101,7 +102,8 @@ static unsigned char rbus_conf_space[] = {
 static int
 rbus_tssi_config(struct platform_device *pdev, unsigned char mode)
 {
-	struct device_node *node = NULL;
+	struct device_node *node;
+	void __iomem *pio_base;
 	unsigned long addr;
 	unsigned int value = 0;
 
@@ -111,7 +113,14 @@ rbus_tssi_config(struct platform_device *pdev, unsigned char mode)
 		return -ENODEV;
 	}
 
-	addr = (unsigned long) of_iomap(node, 0);
+	pio_base = of_iomap(node, 0);
+	of_node_put(node);
+
+	if (!pio_base)
+		return -ENOMEM;
+
+	addr = (unsigned long)pio_base;
+
 	RBUS_IO_READ32(addr, GPIO_G2_MISC_OFFSET, &value);
 
 	if (mode == TSSI_MODE_EN) {
@@ -120,6 +129,8 @@ rbus_tssi_config(struct platform_device *pdev, unsigned char mode)
 	}
 
 	RBUS_IO_READ32(addr, GPIO_G2_MISC_OFFSET, &value);
+
+	iounmap(pio_base);
 
 	return 0;
 }

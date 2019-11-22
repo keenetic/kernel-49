@@ -46,9 +46,10 @@ static void __iomem *ethsys_reg_base;
 #define RDM_SYSCTL_ADDR		RALINK_SYSCTL_BASE // system control
 #define RDM_WIRELESS_ADDR	RALINK_11N_MAC_BASE // wireless control
 #define RDM_DEVNAME		"rdm0"
+#define RDM_MAJOR		223
 
 static unsigned long register_control = RDM_SYSCTL_ADDR;
-static int rdm_major = 253;
+static int rdm_major = RDM_MAJOR;
 
 static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {

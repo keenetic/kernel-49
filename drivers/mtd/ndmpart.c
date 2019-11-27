@@ -475,6 +475,60 @@ out:
 }
 #endif /* CONFIG_MTD_NDM_BOOT_UPDATE */
 
+#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
+static inline uint32_t part_u_state_offset_(struct mtd_info *master)
+{
+	uint32_t off = master->size >> 1;
+
+	/* offset must be aligned */
+	if (is_power_of_2(master->erasesize))
+		off &= ~(master->erasesize - 1);
+
+	return off;
+}
+
+#ifdef CONFIG_MTD_NDM_U_STATE_SEARCH
+static bool is_u_state(struct mtd_info *master, uint32_t off)
+{
+	size_t len;
+	uint32_t magic = 0;
+
+	if (mtd_read(master, off, sizeof(magic), &len, (uint8_t *)&magic))
+		return false;
+
+	return ntohl(magic) == DI_U_STATE_MAGIC;
+}
+
+static uint32_t part_u_state_offset(struct mtd_info *master)
+{
+	uint32_t es, off, start, end;
+
+	es = master->erasesize;
+	start = CONFIG_MTD_NDM_U_STATE_SEARCH_START_BLOCK * es;
+	end = CONFIG_MTD_NDM_U_STATE_SEARCH_END_BLOCK * es;
+
+	if (start < end) {
+		for (off = start; off <= end; off += es) {
+			if (is_u_state(master, off))
+				return off;
+		}
+	} else {
+		for (off = start; off >= end; off -= es) {
+			if (is_u_state(master, off))
+				return off;
+		}
+	}
+
+	return part_u_state_offset_(master);
+}
+#else /* CONFIG_MTD_NDM_U_STATE_SEARCH */
+static uint32_t part_u_state_offset(struct mtd_info *master)
+{
+	return part_u_state_offset_(master);
+}
+#endif /* CONFIG_MTD_NDM_U_STATE_SEARCH */
+#endif /* CONFIG_MTD_NDM_DUAL_IMAGE */
+
 static uint32_t part_rootfs_offset(struct mtd_info *master,
 				   uint32_t begin, uint32_t size)
 {
@@ -491,8 +545,10 @@ static uint32_t part_rootfs_offset(struct mtd_info *master,
 	for (off = begin + kernel_min_size;
 	     off < begin + size;
 	     off += master->erasesize) {
-		mtd_read(master, off, sizeof(magic), &len,
-			(uint8_t *)&magic);
+		if (mtd_read(master, off, sizeof(magic), &len,
+			     (uint8_t *)&magic))
+			continue;
+
 		if (le32_to_cpu(magic) == ROOTFS_MAGIC ||
 		    le32_to_cpu(magic) == NDMS_MAGIC)
 			return off;
@@ -517,7 +573,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 	int boot_active = 0, boot_backup = 0;
 	uint32_t off_si = 0;
 #endif
-	uint32_t off, flash_size, flash_size_lim;
+	uint32_t off, flash_size_lim;
 	struct mtd_partition *ndm_parts;
 	unsigned ndm_parts_num;
 
@@ -527,11 +583,9 @@ static int create_mtd_partitions(struct mtd_info *m,
 	if (CONFIG_MTD_NDM_STORAGE_SIZE)
 		use_storage = true;
 
-	flash_size = m->size;
-
 	flash_size_lim = CONFIG_MTD_NDM_FLASH_SIZE_LIMIT;
 	if (!flash_size_lim)
-		flash_size_lim = flash_size;
+		flash_size_lim = m->size;
 
 #if defined(CONFIG_MACH_MT7622)
 	/* Fill known fields */
@@ -555,12 +609,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 	if (ndmpart_di_is_enabled) {
 		int ret;
 
-		off_si = flash_size >> 1;
-
-		/* offset must be aligned */
-		if (is_power_of_2(m->erasesize))
-			off_si &= ~(m->erasesize - 1);
-
+		off_si = part_u_state_offset(m);
 		if (off_si < flash_size_lim) {
 			printk(KERN_ERR "di: invalid flash size limit (0x%x)\n",
 				off_si);

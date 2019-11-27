@@ -164,6 +164,18 @@ config MTD_NDM_DUAL_IMAGE
 	default y
 	depends on MTD_NDM_PARTS
 
+config MTD_NDM_U_STATE_SEARCH
+	bool "\"U-State\" search"
+	depends on MTD_NDM_DUAL_IMAGE
+
+config MTD_NDM_U_STATE_SEARCH_START_BLOCK
+	hex "Start block"
+	depends on MTD_NDM_U_STATE_SEARCH
+
+config MTD_NDM_U_STATE_SEARCH_END_BLOCK
+	hex "End block"
+	depends on MTD_NDM_U_STATE_SEARCH
+
 config MTD_NDM_BOOT_UPDATE
 	bool "Update bootloader"
 	default n

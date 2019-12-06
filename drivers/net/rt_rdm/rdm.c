@@ -15,116 +15,117 @@
 #include <asm/rt2880/rt_mmap.h>
 #endif
 
-#if defined(CONFIG_MACH_MT7622)
+#ifdef CONFIG_ARCH_MEDIATEK
 #include <linux/io.h>
 
-#define MEDIATEK_TOPRGU_BASE	0x10000000
-#define MEDIATEK_TOPRGU_SIZE	0x00480000
+struct bus_desc {
+	void __iomem *base_map;
+	u32 base;
+	u32 size;
+};
 
-#define MEDIATEK_PHRSYS_BASE	0x11000000
-#define MEDIATEK_PHRSYS_SIZE	0x002B0000
+#if defined(CONFIG_MACH_MT7622)
+#include "rdm_mt7622.h"
 
-#define MEDIATEK_WBSYS_BASE	0x18000000
-#define MEDIATEK_WBSYS_SIZE	0x00100000
+static struct bus_desc mtk_bus_desc[] = {
+	{ NULL, MEDIATEK_TOPRGU_BASE, MEDIATEK_TOPRGU_SIZE },
+	{ NULL, MEDIATEK_PHRSYS_BASE, MEDIATEK_PHRSYS_SIZE },
+	{ NULL, MEDIATEK_WBSYS_BASE,  MEDIATEK_WBSYS_SIZE  },
+	{ NULL, MEDIATEK_HIFSYS_BASE, MEDIATEK_HIFSYS_SIZE },
+	{ NULL, MEDIATEK_ETHSYS_BASE, MEDIATEK_ETHSYS_SIZE },
+};
 
-#define MEDIATEK_HIFSYS_BASE	0x1A000000
-#define MEDIATEK_HIFSYS_SIZE	0x00250000
+#else
 
-#define MEDIATEK_ETHSYS_BASE	0x1B000000
-#define MEDIATEK_ETHSYS_SIZE	0x00130000
+#error "please define MACH for CONFIG_ARCH_MEDIATEK"
 
-#define RALINK_SYSCTL_BASE	MEDIATEK_ETHSYS_BASE
-#define RALINK_11N_MAC_BASE	MEDIATEK_WBSYS_BASE
-
-static void __iomem *toprgu_reg_base;
-static void __iomem *phrsys_reg_base;
-static void __iomem *wbsys_reg_base;
-static void __iomem *hifsys_reg_base;
-static void __iomem *ethsys_reg_base;
 #endif
+#endif /* CONFIG_ARCH_MEDIATEK */
 
 #define RDM_SYSCTL_ADDR		RALINK_SYSCTL_BASE // system control
 #define RDM_WIRELESS_ADDR	RALINK_11N_MAC_BASE // wireless control
 #define RDM_DEVNAME		"rdm0"
 #define RDM_MAJOR		223
 
-static unsigned long register_control = RDM_SYSCTL_ADDR;
 static int rdm_major = RDM_MAJOR;
+
+static unsigned long register_control = RDM_SYSCTL_ADDR;
+static u32 register_bus = RDM_SYSCTL_ADDR;
 
 static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	unsigned long baseaddr, offset, addr = 0;
-	u32 rtvalue, count = 0;
+	unsigned long baseaddr, addr = 0;
+	u32 rtvalue, offset, count = 0;
+#ifdef CONFIG_ARCH_MEDIATEK
+	size_t i;
+#endif
 
 	baseaddr = register_control;
 	if (cmd == RT_RDM_CMD_SHOW) {
-		rtvalue = (u32)(*(volatile u32 *)(baseaddr + (*(int *)arg)));
+		offset = *(u32 *)arg;
+		rtvalue = (u32)(*(volatile u32 *)(baseaddr + offset));
 		printk("0x%x\n", rtvalue);
 	} else if (cmd == RT_RDM_CMD_DUMP)  {
 		for (count=0; count < RT_RDM_DUMP_RANGE ; count++) {
-			addr = baseaddr + (*(int *)arg) + (count * 16);
-			printk("%08lX: ", addr);
+			offset = *(u32 *)arg + (count * 16);
+			addr = baseaddr + offset;
+			printk("%08X: ", register_bus + offset);
 			printk("%08X %08X %08X %08X\n",
 				(u32)(*(volatile u32 *)(addr)),
 				(u32)(*(volatile u32 *)(addr+4)),
 				(u32)(*(volatile u32 *)(addr+8)),
 				(u32)(*(volatile u32 *)(addr+12)));
 		}
-	} else if (cmd == RT_RDM_CMD_DUMP_FPGA_EMU) {
-		for (count=0; count < RT_RDM_DUMP_RANGE ; count++) {
-			addr = baseaddr + (*(int *)arg) + (count*16);
-			printk("this.cpu_gen.set_reg32('h%08lX,'h%08X);\n", addr, (u32)(*(volatile u32 *)(addr)));
-			printk("this.cpu_gen.set_reg32('h%08lX,'h%08X);\n", addr+4, (u32)(*(volatile u32 *)(addr+4)));
-			printk("this.cpu_gen.set_reg32('h%08lX,'h%08X);\n", addr+8, (u32)(*(volatile u32 *)(addr+8)));
-			printk("this.cpu_gen.set_reg32('h%08lX,'h%08X);\n", addr+12, (u32)(*(volatile u32 *)(addr+12)));
-		}
 	} else if (cmd == RT_RDM_CMD_READ) {
-		rtvalue = (u32)(*(volatile u32 *)(baseaddr + (*(int *)arg)));
+		offset = *(u32 *)arg;
+		rtvalue = (u32)(*(volatile u32 *)(baseaddr + offset));
 		put_user(rtvalue, (int __user *)arg);
 	} else if (cmd == RT_RDM_CMD_SET_BASE_SYS) {
-#if defined(CONFIG_MACH_MT7622)
-		register_control = (unsigned long)ethsys_reg_base;
+#ifdef CONFIG_ARCH_MEDIATEK
+		register_control = (unsigned long)mtk_bus_desc[ETHSYS].base_map;
 #else
 		register_control = RDM_SYSCTL_ADDR;
 #endif
-		printk("switch register base addr to system register 0x%x\n",RALINK_SYSCTL_BASE);
+		register_bus = RDM_SYSCTL_ADDR;
+		printk("switch register base addr to system register 0x%08x\n", register_bus);
 	} else if (cmd == RT_RDM_CMD_SET_BASE_WLAN) {
-#if defined(CONFIG_MACH_MT7622)
-		register_control = (unsigned long)wbsys_reg_base;
+#ifdef CONFIG_ARCH_MEDIATEK
+		register_control = (unsigned long)mtk_bus_desc[WBSYS].base_map;
 #else
 		register_control = RDM_WIRELESS_ADDR;
 #endif
-		printk("switch register base addr to wireless register 0x%08x\n", RDM_WIRELESS_ADDR);
+		register_bus = RDM_WIRELESS_ADDR;
+		printk("switch register base addr to wireless register 0x%08x\n", register_bus);
 	} else if (cmd == RT_RDM_CMD_SHOW_BASE) {
-		printk("current register base addr is 0x%08lx\n", register_control);
+		printk("current register base addr is 0x%08x\n", register_bus);
 	} else if (cmd == RT_RDM_CMD_SET_BASE) {
-		register_control = (*(unsigned long *)arg);
-		printk("switch register base addr to 0x%08lx\n", register_control);
-#if defined(CONFIG_MACH_MT7622)
-		if (register_control > 0xffffff0000000000ull) {
-			printk("This is virtual address\n");
-		} else if (register_control >= MEDIATEK_ETHSYS_BASE) {
-			offset = register_control - MEDIATEK_ETHSYS_BASE;
-			register_control = offset + (unsigned long)ethsys_reg_base;
-		} else if (register_control >= MEDIATEK_HIFSYS_BASE) {
-			offset = register_control - MEDIATEK_HIFSYS_BASE;
-			register_control = offset + (unsigned long)hifsys_reg_base;
-		} else if (register_control >= MEDIATEK_WBSYS_BASE) {
-			offset = register_control - MEDIATEK_WBSYS_BASE;
-			register_control = offset + (unsigned long)wbsys_reg_base;
-		} else if (register_control >= MEDIATEK_PHRSYS_BASE) {
-			offset = register_control - MEDIATEK_PHRSYS_BASE;
-			register_control = offset + (unsigned long)phrsys_reg_base;
-		} else {
-			offset = register_control - MEDIATEK_TOPRGU_BASE;
-			register_control = offset + (unsigned long)toprgu_reg_base;
+		register_bus = *(u32 *)arg;
+#ifdef CONFIG_ARCH_MEDIATEK
+		offset = 0;
+
+		if (register_bus < mtk_bus_desc[0].base)
+			register_bus = mtk_bus_desc[0].base;
+
+		for (i = ARRAY_SIZE(mtk_bus_desc) - 1; i >= 0; i--) {
+			struct bus_desc *bd = &mtk_bus_desc[i];
+
+			if (register_bus >= bd->base) {
+				offset = register_bus - bd->base;
+				if (offset > bd->size - 4)
+					offset = bd->size - 4;
+				register_control = (unsigned long)(bd->base_map + offset);
+				break;
+			}
 		}
+#else
+		register_control = (unsigned long)register_bus;
 #endif
+		printk("switch register base addr to 0x%08x\n", register_bus);
 	} else if (((cmd & 0xffff) == RT_RDM_CMD_WRITE) || ((cmd & 0xffff) == RT_RDM_CMD_WRITE_SILENT)) {
 		offset = cmd >> 16;
-		*(volatile u32 *)(baseaddr + offset) = (u32)((*(int *)arg));
+		*(volatile u32 *)(baseaddr + offset) = *(u32 *)arg;
 		if ((cmd & 0xffff) == RT_RDM_CMD_WRITE)
-			printk("write offset 0x%lx, value 0x%x\n", offset, (u32)(*(int *)arg));
+			printk("write offset 0x%x, value 0x%x\n", offset, *(u32 *)arg);
 	} else {
 		return -EOPNOTSUPP;
 	}
@@ -151,42 +152,59 @@ static const struct file_operations rdm_fops = {
 	.release	= rdm_release,
 };
 
+static void free_bus_resources(void)
+{
+#ifdef CONFIG_ARCH_MEDIATEK
+	size_t i;
+
+	/* iounmap registers */
+	for (i = 0; i < ARRAY_SIZE(mtk_bus_desc); i++) {
+		struct bus_desc *bd = &mtk_bus_desc[i];
+
+		if (bd->base_map) {
+			iounmap(bd->base_map);
+			bd->base_map = NULL;
+		}
+	}
+#endif
+}
+
 int __init rdm_init(void)
 {
-	int result = register_chrdev(rdm_major, RDM_DEVNAME, &rdm_fops);
+	int result;
+#ifdef CONFIG_ARCH_MEDIATEK
+	size_t i;
 
+	/* iomap registers */
+	for (i = 0; i < ARRAY_SIZE(mtk_bus_desc); i++) {
+		struct bus_desc *bd = &mtk_bus_desc[i];
+
+		bd->base_map = ioremap(bd->base, bd->size);
+		if (!bd->base_map) {
+			free_bus_resources();
+			return -ENOMEM;
+		}
+	}
+
+	register_control = (unsigned long)mtk_bus_desc[ETHSYS].base_map;
+#endif
+
+	result = register_chrdev(rdm_major, RDM_DEVNAME, &rdm_fops);
 	if (result < 0) {
-		printk(KERN_WARNING "ps: can't get major %d\n",rdm_major);
+		printk(KERN_WARNING "ps: can't get major %d\n", rdm_major);
+		free_bus_resources();
 		return result;
 	}
 
 	if (rdm_major == 0)
 		rdm_major = result; /* dynamic */
 
-#if defined(CONFIG_MACH_MT7622)
-	/* iomap registers */
-	toprgu_reg_base = ioremap(MEDIATEK_TOPRGU_BASE, MEDIATEK_TOPRGU_SIZE);
-	phrsys_reg_base = ioremap(MEDIATEK_PHRSYS_BASE, MEDIATEK_PHRSYS_SIZE);
-	wbsys_reg_base  = ioremap(MEDIATEK_WBSYS_BASE,  MEDIATEK_WBSYS_SIZE);
-	hifsys_reg_base = ioremap(MEDIATEK_HIFSYS_BASE, MEDIATEK_HIFSYS_SIZE);
-	ethsys_reg_base = ioremap(MEDIATEK_ETHSYS_BASE, MEDIATEK_ETHSYS_SIZE);
-
-	register_control = (unsigned long)ethsys_reg_base;
-#endif
-
 	return 0;
 }
 
 void __exit rdm_exit(void)
 {
-#if defined(CONFIG_MACH_MT7622)
-	/* iounmap registers */
-	iounmap((void *)toprgu_reg_base);
-	iounmap((void *)phrsys_reg_base);
-	iounmap((void *)wbsys_reg_base);
-	iounmap((void *)hifsys_reg_base);
-	iounmap((void *)ethsys_reg_base);
-#endif
+	free_bus_resources();
 
 	unregister_chrdev(rdm_major, RDM_DEVNAME);
 }

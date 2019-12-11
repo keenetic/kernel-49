@@ -42,6 +42,7 @@
 #include <linux/log2.h>
 #include <linux/inetdevice.h>
 #include <net/addrconf.h>
+#include <net/route.h>
 
 #define DEBUG
 #define NEIGH_DEBUG 1
@@ -1654,8 +1655,22 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto out;
 	}
 
-	if (dev == NULL)
-		goto out;
+	if (dev == NULL) {
+		if (ndm->ndm_family == AF_INET && nla_data(dst_attr) != NULL) {
+			const __be32 ip = *((__be32*)nla_data(dst_attr));
+			struct rtable *rt = ip_route_output(
+				net, ip, 0, RTO_ONLINK, 0);
+
+			if (IS_ERR(rt))
+				return PTR_ERR(rt);
+
+			dev = rt->dst.dev;
+			ip_rt_put(rt);
+			if (!dev)
+				goto out;
+		} else
+			goto out;
+	}
 
 	neigh = neigh_lookup(tbl, nla_data(dst_attr), dev);
 	if (neigh == NULL) {
@@ -1726,8 +1741,21 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto out;
 	}
 
-	if (dev == NULL)
-		goto out;
+	if (dev == NULL) {
+		if (ndm->ndm_family == AF_INET && dst != NULL) {
+			struct rtable *rt = ip_route_output(
+				net, *((__be32*)dst), 0, RTO_ONLINK, 0);
+
+			if (IS_ERR(rt))
+				return PTR_ERR(rt);
+
+			dev = rt->dst.dev;
+			ip_rt_put(rt);
+			if (!dev)
+				goto out;
+		} else
+			goto out;
+	}
 
 	neigh = neigh_lookup(tbl, dst, dev);
 	if (neigh == NULL) {

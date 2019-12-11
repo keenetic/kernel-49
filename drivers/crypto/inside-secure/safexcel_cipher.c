@@ -1495,6 +1495,7 @@ static int safexcel_des_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 			       unsigned int len)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_skcipher_ctx(ctfm);
+	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ret;
 
 	ret = verify_skcipher_des_key(crypto_skcipher_tfm(ctfm), key);
@@ -1502,7 +1503,7 @@ static int safexcel_des_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 		return ret;
 
 	/* if context exits and key changed, need to invalidate it */
-	if (ctx->base.ctxr_dma)
+	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma)
 		if (memcmp(ctx->key, key, len))
 			ctx->base.needs_inv = true;
 
@@ -1592,6 +1593,7 @@ static int safexcel_des3_ede_setkey(struct crypto_skcipher *ctfm,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct safexcel_crypto_priv *priv = ctx->priv;
 	int err;
 
 	err = verify_skcipher_des3_key(tfm, key);
@@ -1599,7 +1601,7 @@ static int safexcel_des3_ede_setkey(struct crypto_skcipher *ctfm,
 		return err;
 
 	/* if context exits and key changed, need to invalidate it */
-	if (ctx->base.ctxr_dma)
+	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma)
 		if (memcmp(ctx->key, key, len))
 			ctx->base.needs_inv = true;
 

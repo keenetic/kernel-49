@@ -778,6 +778,9 @@ static int ipgre_tunnel_init(struct net_device *dev)
 		dev->header_ops = &ipgre_header_ops;
 	}
 
+	dev->features &= ~(NETIF_F_GSO_MASK | NETIF_F_GSO | NETIF_F_SG | NETIF_F_FRAGLIST);
+	dev->hw_features &= ~(NETIF_F_GSO_MASK | NETIF_F_GSO | NETIF_F_SG | NETIF_F_FRAGLIST);
+
 	return ip_tunnel_init(dev);
 }
 
@@ -984,6 +987,8 @@ static bool ipgre_netlink_encap_parms(struct nlattr *data[],
 static int gre_tap_init(struct net_device *dev)
 {
 	__gre_tunnel_init(dev, 0);
+	dev->features &= ~(NETIF_F_GSO_MASK | NETIF_F_GSO | NETIF_F_SG | NETIF_F_FRAGLIST);
+	dev->hw_features &= ~(NETIF_F_GSO_MASK | NETIF_F_GSO | NETIF_F_SG | NETIF_F_FRAGLIST);
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	return ip_tunnel_init(dev);
@@ -993,6 +998,8 @@ static int gre_eoip_init(struct net_device *dev)
 {
 	__gre_tunnel_init(dev, sizeof(struct gre_eoip_hdr));
 
+	dev->features &= ~(NETIF_F_GSO_MASK | NETIF_F_GSO | NETIF_F_SG | NETIF_F_FRAGLIST);
+	dev->hw_features &= ~(NETIF_F_GSO_MASK | NETIF_F_GSO | NETIF_F_SG | NETIF_F_FRAGLIST);
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	return ip_tunnel_init(dev);

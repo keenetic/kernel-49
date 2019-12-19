@@ -38,9 +38,14 @@
 #endif
 
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-#include <prom.h>
 #include <asm/uaccess.h>
+#ifdef CONFIG_MIPS
+#include <prom.h>
+#else
+#include <linux/libfdt.h>
+#include <linux/of_fdt.h>
 #endif
+#endif /* CONFIG_MTD_NDM_DUAL_IMAGE */
 
 #include "ndmpart.h"
 
@@ -88,6 +93,7 @@ enum part {
 	PART_DUMP,		/* optional */
 	/* Image 2 */
 	PART_U_STATE,
+	PART_RESERVE,
 	PART_U_CONFIG_RES,
 	PART_RF_EEPROM_RES,
 	PART_KERNEL_2,		/* optional */
@@ -180,6 +186,10 @@ static struct part_dsc parts[PART_MAX] = {
 		name: "U-State",
 		skip: true
 	},
+	[PART_RESERVE] = {
+		name: "Reserve",
+		skip: true
+	},
 	[PART_U_CONFIG_RES] = {
 		name: "U-Config_res",
 		skip: true
@@ -266,6 +276,9 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 	case PART_U_STATE:
 		size = master->erasesize;
 		break;
+	case PART_RESERVE:
+		size = master->erasesize * 9;
+		break;
 	default:
 		break;
 	}
@@ -291,6 +304,9 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 		else
 #endif
 		size = master->erasesize;
+		break;
+	case PART_RESERVE:
+		size = 0;
 		break;
 	default:
 		break;
@@ -727,9 +743,11 @@ static int create_mtd_partitions(struct mtd_info *m,
 		parts[PART_CONFIG_1].name = "Config_1";
 
 		/* U_STATE parts already calculated at this place */
+		parts[PART_RESERVE].offset = parts_offset_end(PART_U_STATE);
+		parts[PART_RESERVE].size = parts_size_default_get(PART_RESERVE, m);
 
 		parts[PART_U_CONFIG_RES].skip = false;
-		parts[PART_U_CONFIG_RES].offset = parts_offset_end(PART_U_STATE);
+		parts[PART_U_CONFIG_RES].offset = parts_offset_end(PART_RESERVE);
 		parts[PART_U_CONFIG_RES].size = parts[PART_U_CONFIG].size;
 
 		parts[PART_RF_EEPROM_RES].skip = false;
@@ -1197,6 +1215,7 @@ out:
 	return res;
 }
 
+#ifdef CONFIG_MIPS
 static bool di_is_enabled(void)
 {
 	char *s;
@@ -1207,6 +1226,21 @@ static bool di_is_enabled(void)
 
 	return true;
 }
+#else
+static bool di_is_enabled(void)
+{
+	int off;
+	const unsigned char *val;
+	void *fdt = initial_boot_params;
+
+	if ((off = fdt_path_offset(fdt, "/chosen")) >= 0 &&
+	    (val = fdt_getprop(fdt, off, "dualimage", NULL)) &&
+	    *val)
+		return true;
+
+	return false;
+}
+#endif /* CONFIG_MIPS */
 
 static bool u_state_is_pending(void)
 {

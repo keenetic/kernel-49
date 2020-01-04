@@ -91,6 +91,7 @@ config MIPS_TC3262_1004K
 	select IRQ_GIC
 	select IRQ_GIC_EIC
 	select WEAK_REORDERING_BEYOND_LLSC
+	select TC3262_CPU_TIMER
 	bool
 
 config MIPS_TC3262

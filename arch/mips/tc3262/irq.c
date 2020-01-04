@@ -330,7 +330,7 @@ void __init arch_init_irq(void)
 
 		if ((i == SI_TIMER_INT) || (i == SI_TIMER1_INT))
 			irq_set_chip_and_handler(i, &tc3262_irq_chip,
-					 handle_percpu_irq);
+					 handle_percpu_devid_irq);
 		else
 			irq_set_chip_and_handler(i, &tc3262_irq_chip,
 					 handle_level_irq);

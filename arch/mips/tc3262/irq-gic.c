@@ -10,20 +10,6 @@
 #include <asm/tc3162/rt_mmap.h>
 #include <asm/tc3162/surfboardint.h>
 
-#define MAX_CPU_VPE		4
-
-#define TIMER0_INTSRC		30
-#define TIMER1_INTSRC		29
-#define TIMER2_INTSRC		37
-#define TIMER3_INTSRC		36
-
-static const int timers_intSrcNum[MAX_CPU_VPE] = {
-	TIMER0_INTSRC,
-	TIMER1_INTSRC,
-	TIMER2_INTSRC,
-	TIMER3_INTSRC
-};
-
 #define X GIC_UNUSED
 
 static const struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
@@ -171,17 +157,6 @@ static struct irqaction cpu_cm_pcint_irqaction = {
 	.name		 = "cpu_cm_pcint",
 };
 
-unsigned int get_c0_compare_int(void)
-{
-	unsigned int cpu = smp_processor_id();
-
-	/* enable interrupt masks for external cpu timer 1/2/3 */
-	if (cpu > 0 && gic_present)
-		GIC_SET_INTR_MASK(timers_intSrcNum[cpu]);
-
-	return SI_TIMER_INT;
-}
-
 void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
 {
 	int i;
@@ -192,15 +167,19 @@ void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
 
 	/* Initialize IRQ action handlers */
 	for (i = 1; i < INTR_SOURCES_NUM; i++) {
+		unsigned int irq;
+
 		if (i >= IPI_RESCHED_INT0)
 			break;
 
+		irq = gic_irq_base + i;
+
 		if (i == SI_TIMER_INT)
-			irq_set_handler(gic_irq_base + i, handle_percpu_irq);
+			irq_set_handler(irq, handle_percpu_devid_irq);
 		else if (i == GIC_EDGE_NMI)
-			irq_set_handler(gic_irq_base + i, handle_edge_irq);
+			irq_set_handler(irq, handle_edge_irq);
 		else
-			irq_set_handler(gic_irq_base + i, handle_level_irq);
+			irq_set_handler(irq, handle_level_irq);
 	}
 
 	/* bind watchdog Intr to CPU1 */
@@ -225,7 +204,7 @@ void __init arch_init_irq(void)
 	gic_present = true;
 
 	gic_init(gic_base, RALINK_GIC_ADDRSPACE_SZ, gic_intr_map,
-			ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
+		 ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
 
 	setup_irq(CPU_CM_ERR, &cpu_cm_err_irqaction);
 	setup_irq(CPU_CM_PCINT, &cpu_cm_pcint_irqaction);

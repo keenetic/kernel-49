@@ -19,19 +19,13 @@ struct PdmaRxDescInfo4 {
 	uint32_t ALG:1;
 	uint32_t IF:8;
 #endif
-#ifdef CONFIG_RA_HW_NAT_WHNAT
-	uint8_t  WDMAID;
-	uint16_t RXID:2;
-	uint16_t WCID:8;
-	uint16_t BSSID:6;
-#endif
 }  __packed;
 
 /*
  * DEFINITIONS AND MACROS
  */
 
-/* !MT7622
+/*
  *    2bytes         4bytes
  * +-----------+-------------------+
  * | Magic Tag | RX/TX Desc info4  |
@@ -39,20 +33,7 @@ struct PdmaRxDescInfo4 {
  * |<------FOE Flow Info---------->|
  */
 
-/* MT7622
- *    2bytes         4bytes           3bytes
- * +-----------+-------------------+-----------+
- * | Magic Tag | RX/TX Desc info4  | WiFi info |
- * +-----------+-------------------+-----------+
- * |<--------------FOE Flow Info-------------->|
- */
-
-#ifdef CONFIG_RA_HW_NAT_WHNAT
-#define WIFI_INFO_LEN			3
-#else
-#define WIFI_INFO_LEN			0
-#endif
-#define FOE_INFO_LEN			(6 + WIFI_INFO_LEN)
+#define FOE_INFO_LEN			6
 #define FOE_MAGIC_EXTIF			0x7274
 #define FOE_MAGIC_PCI			FOE_MAGIC_EXTIF
 #define FOE_MAGIC_WLAN			FOE_MAGIC_EXTIF
@@ -94,12 +75,6 @@ struct PdmaRxDescInfo4 {
 #define FOE_ENTRY_VALID(skb)   (((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->FOE_Entry != 0x3fff)
 #define FOE_AI(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->CRSN
 #define FOE_SP(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->SPORT
-#ifdef CONFIG_RA_HW_NAT_WHNAT
-#define FOE_WDMA_ID(skb)	((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->WDMAID
-#define FOE_RX_ID(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->RXID
-#define FOE_WC_ID(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->WCID
-#define FOE_BSS_ID(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->BSSID
-#endif
 
 #ifndef UN_HIT
 #define UN_HIT 0x0D
@@ -112,7 +87,7 @@ struct PdmaRxDescInfo4 {
 	((FOE_MAGIC_TAG(skb) == FOE_MAGIC_GE))
 
 #define IS_DPORT_PPE_VALID(skb) \
-	(*(uint32_t *)(FOE_INFO_START_ADDR(skb)) == FOE_MAGIC_PPE_DWORD)
+	(*((uint32_t *)(FOE_INFO_START_ADDR(skb))) == FOE_MAGIC_PPE_DWORD)
 
 /* mark flow need skipped from PPE */
 #define FOE_ALG_SKIP(skb) \
@@ -130,7 +105,7 @@ struct PdmaRxDescInfo4 {
 
 /* fast clear FoE Info (magic_tag,entry_num) */
 #define DO_FAST_CLEAR_FOE(skb) \
-	(*(uint32_t *)(FOE_INFO_START_ADDR(skb)) = 0U)
+	(*((uint32_t *)(FOE_INFO_START_ADDR(skb))) = 0U)
 
 /* full clear FoE Info */
 #define DO_FULL_CLEAR_FOE(skb) \
@@ -138,11 +113,11 @@ struct PdmaRxDescInfo4 {
 
 /* fast fill FoE desc field */
 #define DO_FILL_FOE_DESC(skb,desc) \
-	(*(uint32_t *)(FOE_INFO_START_ADDR(skb) + 2) = (uint32_t)(desc))
+	(*((uint32_t *)(FOE_INFO_START_ADDR(skb) + 2)) = (uint32_t)(desc))
 
 /* fast fill FoE desc to DPORT PPE (magic_tag,entry_num) */
 #define DO_FILL_FOE_DPORT_PPE(skb) \
-	(*(uint32_t *)(FOE_INFO_START_ADDR(skb)) = FOE_MAGIC_PPE_DWORD)
+	(*((uint32_t *)(FOE_INFO_START_ADDR(skb))) = FOE_MAGIC_PPE_DWORD)
 
 //////////////////////////////////////////////////////////////////////
 
@@ -190,7 +165,15 @@ struct gmac_info {
 			uint32_t queue_id:	6;	/* QDMA QoS queue (0..63) */
 			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
 			uint32_t is_wan:	1;	/* assume upstream path */
+#ifdef CONFIG_RA_HW_NAT_WHNAT
+			uint32_t wdmaid:	1;	/* WDMA0/1 */
+			uint32_t wi_bssid:	6;	/* BSSID */
+			uint32_t wi_wcid:	8;	/* WCID */
+			uint32_t wi_rxid:	2;	/* Ring */
+			uint32_t resv:		5;
+#else
 			uint32_t resv:		22;
+#endif
 		} bits;
 		uint32_t word;
 	};

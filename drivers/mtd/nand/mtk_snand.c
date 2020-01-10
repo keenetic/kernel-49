@@ -2720,16 +2720,17 @@ bool mtk_nand_exec_read_page(struct mtd_info *mtd, u32 u4RowAddr,
 	if (!virt_addr_valid(pPageBuf))
 		buf = g_snand_k_temp;
 
-	u4RowAddr = mtk_snand_dev_die_select(mtd, u4RowAddr);
-	mtk_snand_rs_reconfig_nfiecc(u4RowAddr);
 	if (mtk_snand_rs_if_require_split())
 		u4SecNum--;
 
 	retry = 0;
 
 mtk_nand_exec_read_page_retry:
-
 	bRet = 1;
+
+	u4RowAddr = mtk_snand_dev_die_select(mtd, u4RowAddr);
+	mtk_snand_rs_reconfig_nfiecc(u4RowAddr);
+
 	if (g_snand_rs_ecc_bit != 0) {
 		if (mtk_snand_ready_for_read_custom(snfc, nand, u4RowAddr, 0,
 						    u4SecNum, buf, 1, 1, 1)) {
@@ -3309,7 +3310,6 @@ static void mtk_snand_dev_erase(struct mtk_snfc *snfc, u32 row_addr)
 
 	/* write enable */
 	mtk_snand_dev_command(snfc, SNAND_CMD_WRITE_ENABLE, 1);
-	mtk_snand_reset_dev(snfc);
 
 	/* erase address */
 	snfi_writel(snfc, row_addr, NFI_SNAND_ER_CTL2);

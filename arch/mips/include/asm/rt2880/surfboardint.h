@@ -175,10 +175,7 @@
  * Surfboard registers are memory mapped on 32-bit aligned boundaries and
  * only word access are allowed.
  */
-#ifdef CONFIG_MIPS_TC3262
-extern void tc_enable_irq(unsigned int irq);
-extern void tc_disable_irq(unsigned int irq);
-#else
+#ifndef CONFIG_MIPS_TC3262
 #define RALINK_IRQ0STAT		(RALINK_INTCL_BASE + 0x9C) //IRQ_STAT
 #define RALINK_IRQ1STAT		(RALINK_INTCL_BASE + 0xA0) //FIQ_STAT
 #define RALINK_INTTYPE		(RALINK_INTCL_BASE + 0x6C) //FIQ_SEL

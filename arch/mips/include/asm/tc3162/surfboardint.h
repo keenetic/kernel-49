@@ -76,8 +76,4 @@
 #define SURFBOARDINT_END		40	/* 1 offset + 40 TC */
 
 #endif
-
-extern void tc_enable_irq(unsigned int irq);
-extern void tc_disable_irq(unsigned int irq);
-
 #endif

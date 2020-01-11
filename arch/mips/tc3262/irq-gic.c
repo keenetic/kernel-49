@@ -94,28 +94,6 @@ static int get_gic_shared_intr(unsigned int irqNum)
 	return -1;
 }
 
-void tc_enable_irq(unsigned int irq)
-{
-	int intr = get_gic_shared_intr(irq);
-
-	if (intr < 0 || !gic_present)
-		return;
-
-	GIC_SET_INTR_MASK(intr);
-}
-EXPORT_SYMBOL(tc_enable_irq);
-
-void tc_disable_irq(unsigned int irq)
-{
-	int intr = get_gic_shared_intr(irq);
-
-	if (intr < 0 || !gic_present)
-		return;
-
-	GIC_CLR_INTR_MASK(intr);
-}
-EXPORT_SYMBOL(tc_disable_irq);
-
 void tc_disable_irq_all(void)
 {
 	unsigned long flags;

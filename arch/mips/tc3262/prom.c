@@ -121,7 +121,6 @@ static inline void tc_mips_setup(void)
 	if (oconfig7 != nconfig7) {
 		__asm__ __volatile("sync");
 		write_c0_config7(nconfig7);
-		ehb();
 	}
 #else
 	strcat(arcs_cmdline, " es=1");

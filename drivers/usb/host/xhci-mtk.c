@@ -151,6 +151,8 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 	 * wait for clocks to be stable, and clock domains reset to
 	 * be inactive after power on and enable ports
 	 */
+	usleep_range(10000, 15000);
+
 	check_val = STS1_SYSPLL_STABLE | STS1_REF_RST |
 			STS1_SYS125_RST | STS1_XHCI_RST;
 
@@ -158,7 +160,7 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 		check_val |= STS1_U3_MAC_RST;
 
 	ret = readl_poll_timeout(&ippc->ip_pw_sts1, value,
-			  (check_val == (value & check_val)), 100, 100000);
+			  (check_val == (value & check_val)), 1000, 100000);
 	if (ret) {
 		dev_err(mtk->dev, "clocks are not stable (0x%x)\n", value);
 		return ret;

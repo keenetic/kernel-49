@@ -1721,7 +1721,9 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #endif
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #ifdef CONFIG_FAST_NAT_V2
+#ifdef CONFIG_XFRM
 		if (!nf_fastnat_xfrm_control)
+#endif /* CONFIG_XFRM */
 #endif /* CONFIG_FAST_NAT_V2 */
 			ct->fast_ext = 1;
 #endif

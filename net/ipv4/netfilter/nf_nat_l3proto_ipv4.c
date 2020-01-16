@@ -407,6 +407,7 @@ nf_nat_ipv4_out(void *priv, struct sk_buff *skb,
 	}
 #endif
 
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
 	if (ret != NF_DROP &&
 		ret != NF_STOLEN &&
 		((skb->ndm_mark & XT_NDMMARK_DNAT) == XT_NDMMARK_DNAT)) {
@@ -439,6 +440,7 @@ nf_nat_ipv4_out(void *priv, struct sk_buff *skb,
 				}
 		}
 	}
+#endif
 
 	return ret;
 }

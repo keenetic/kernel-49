@@ -497,6 +497,55 @@ void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
 	usbnet_link_change(dev, !!event->wValue, 0);
 }
 
+static int usbnet_cdc_nodesc_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	u8				*buf = intf->cur_altsetting->extra;
+	int				len = intf->cur_altsetting->extralen;
+	struct cdc_state		*info = (void *) &dev->data;
+	int				status;
+	struct usb_driver		*driver = driver_of(intf);
+	struct usb_cdc_parsed_header header;
+
+	if (sizeof(dev->data) < sizeof(*info))
+		return -EDOM;
+
+	memset(info, 0, sizeof(*info));
+
+	/* combined interface */
+	info->control = intf;
+	info->data = intf;
+
+	cdc_parse_cdc_header(&header, intf, buf, len);
+
+	info->u = header.usb_cdc_union_desc;
+	info->header = header.usb_cdc_header_desc;
+	info->ether = header.usb_cdc_ether_desc;
+
+	if (!info->header)
+		dev_dbg(&intf->dev, "missing cdc %s%s%sdescriptors, ignore\n",
+			info->header ? "" : "header ",
+			info->u ? "" : "union ",
+			info->ether ? "" : "ether ");
+
+	if (info->ether && info->ether->wMaxSegmentSize)
+		dev->hard_mtu = le16_to_cpu(info->ether->wMaxSegmentSize);
+
+	status = usbnet_get_endpoints(dev, info->data);
+	if (status < 0) {
+		/* ensure immediate exit from usbnet_disconnect */
+		usb_set_intfdata(info->data, NULL);
+		if (info->data != info->control)
+			usb_driver_release_interface(driver, info->data);
+		return status;
+	}
+
+	usbnet_cdc_update_filter(dev);
+
+	eth_hw_addr_random(dev->net);
+
+	return 0;
+}
+
 static const struct driver_info	cdc_info = {
 	.description =	"CDC Ethernet Device",
 	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT,
@@ -522,6 +571,16 @@ static const struct driver_info wwan_info = {
 	.description =	"Mobile Broadband Network Device",
 	.flags =	FLAG_WWAN,
 	.bind =		usbnet_cdc_bind,
+	.unbind =	usbnet_cdc_unbind,
+	.status =	usbnet_cdc_status,
+	.set_rx_mode =	usbnet_cdc_update_filter,
+	.manage_power =	usbnet_manage_power,
+};
+
+static const struct driver_info nodesc_wwan_info = {
+	.description =	"Mobile Broadband Network Device",
+	.flags =	FLAG_WWAN,
+	.bind =		usbnet_cdc_nodesc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	usbnet_cdc_status,
 	.set_rx_mode =	usbnet_cdc_update_filter,
@@ -869,6 +928,12 @@ static const struct usb_device_id	products[] = {
 				      USB_CDC_SUBCLASS_ETHERNET,
 				      USB_CDC_PROTO_NONE),
 	.driver_info = (unsigned long)&zte_cdc_info,
+}, {
+	/* Digma DW1961, DMW1969 */
+	USB_DEVICE_AND_INTERFACE_INFO(0x161c, 0xf101, USB_CLASS_VENDOR_SPEC,
+				      USB_SUBCLASS_VENDOR_SPEC,
+				      0xff),
+	.driver_info = (unsigned long)&nodesc_wwan_info,
 }, {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
 			USB_CDC_PROTO_NONE),

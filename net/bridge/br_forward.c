@@ -20,16 +20,15 @@
 #include <linux/if_vlan.h>
 #include <linux/netfilter_bridge.h>
 #include "br_private.h"
+#include "br_nf_hook.h"
 
 /* Don't forward packets to originating port or forwarding disabled */
 static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
 {
-	struct net_bridge_vlan_group *vg;
-
-	vg = nbp_vlan_group_rcu(p);
 	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
-		br_allowed_egress(vg, skb) && p->state == BR_STATE_FORWARDING &&
+		p->state == BR_STATE_FORWARDING &&
+		br_allowed_egress(nbp_vlan_group_rcu(p), skb) &&
 		nbp_switchdev_allowed_egress(p, skb);
 }
 
@@ -64,7 +63,7 @@ EXPORT_SYMBOL_GPL(br_dev_queue_push_xmit);
 
 int br_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING,
+	return BR_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING,
 		       net, sk, skb, NULL, skb->dev,
 		       br_dev_queue_push_xmit);
 
@@ -74,23 +73,29 @@ EXPORT_SYMBOL_GPL(br_forward_finish);
 static void __br_forward(const struct net_bridge_port *to,
 			 struct sk_buff *skb, bool local_orig)
 {
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group *vg;
+#endif
 	struct net_device *indev;
 	struct net *net;
 	int br_hook;
 
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	vg = nbp_vlan_group_rcu(to);
 	skb = br_handle_vlan(to->br, vg, skb);
 	if (!skb)
 		return;
+#endif
 
 	indev = skb->dev;
 	skb->dev = to->dev;
 	if (!local_orig) {
+#ifdef CONFIG_INET_LRO
 		if (skb_warn_if_lro(skb)) {
 			kfree_skb(skb);
 			return;
 		}
+#endif
 		br_hook = NF_BR_FORWARD;
 		skb_forward_csum(skb);
 		net = dev_net(indev);
@@ -110,7 +115,7 @@ static void __br_forward(const struct net_bridge_port *to,
 		indev = NULL;
 	}
 
-	NF_HOOK(NFPROTO_BRIDGE, br_hook,
+	BR_HOOK(NFPROTO_BRIDGE, br_hook,
 		net, NULL, skb, indev, skb->dev,
 		br_forward_finish);
 }

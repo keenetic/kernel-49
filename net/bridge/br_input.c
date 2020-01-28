@@ -21,6 +21,7 @@
 #include <linux/export.h>
 #include <linux/rculist.h>
 #include "br_private.h"
+#include "br_nf_hook.h"
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 #include <../ndm/hw_nat/ra_nat.h>
@@ -36,6 +37,11 @@ br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
 EXPORT_SYMBOL(br_should_route_hook);
 #endif
 
+#if IS_ENABLED(CONFIG_BRIDGE_NF_EBTABLES)
+int brnf_call_ebtables __read_mostly;
+EXPORT_SYMBOL_GPL(brnf_call_ebtables);
+#endif
+
 static int
 br_netif_receive_skb(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -47,7 +53,9 @@ static int br_pass_frame_up(struct sk_buff *skb)
 {
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
 	struct net_bridge *br = netdev_priv(brdev);
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group *vg;
+#endif
 
 	if (likely(1
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
@@ -65,6 +73,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 		u64_stats_update_end(&brstats->syncp);
 	}
 
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	vg = br_vlan_group_rcu(br);
 	/* Bridge is just like any other port.  Make sure the
 	 * packet is allowed except in promisc modue when someone
@@ -75,17 +84,20 @@ static int br_pass_frame_up(struct sk_buff *skb)
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
+#endif
 
 	indev = skb->dev;
 	skb->dev = brdev;
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	skb = br_handle_vlan(br, vg, skb);
 	if (!skb)
 		return NET_RX_DROP;
+#endif
 	/* update the multicast stats if the packet is IGMP/MLD */
 	br_multicast_count(br, NULL, skb, br_multicast_igmp_type(skb),
 			   BR_MCAST_DIR_TX);
 
-	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
+	return BR_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
 		       dev_net(indev), NULL, skb, indev, NULL,
 		       br_netif_receive_skb);
 }
@@ -254,7 +266,7 @@ drop:
 }
 EXPORT_SYMBOL_GPL(br_handle_frame_finish);
 
-static void __br_handle_local_finish(struct sk_buff *skb)
+static inline void __br_handle_local_finish(struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	u16 vid = 0;
@@ -376,7 +388,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		 *   - returns = 0 (stolen/nf_queue)
 		 * Thus return 1 from the okfn() to signal the skb is ok to pass
 		 */
-		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
+		if (BR_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
 			    dev_net(skb->dev), NULL, skb, skb->dev, NULL,
 			    br_handle_local_finish) == 1) {
 			return RX_HANDLER_PASS;
@@ -403,7 +415,7 @@ forward:
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
-		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
+		BR_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
 			dev_net(skb->dev), NULL, skb, skb->dev, NULL,
 			br_handle_frame_finish);
 		break;

@@ -47,7 +47,7 @@
 #define COUNTER_BASE(c, n, cpu) ((struct ebt_counter *)(((char *)c) + \
 				 COUNTER_OFFSET(n) * cpu))
 
-
+extern int brnf_call_ebtables;
 
 static DEFINE_MUTEX(ebt_mutex);
 
@@ -2468,12 +2468,16 @@ static int __init ebtables_init(void)
 		return ret;
 	}
 
+	brnf_call_ebtables = 1;
+
 	printk(KERN_INFO "Ebtables v2.0 registered\n");
 	return 0;
 }
 
 static void __exit ebtables_fini(void)
 {
+	brnf_call_ebtables = 0;
+
 	nf_unregister_sockopt(&ebt_sockopts);
 	xt_unregister_target(&ebt_standard_target);
 	printk(KERN_INFO "Ebtables v2.0 unregistered\n");

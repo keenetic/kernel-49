@@ -142,24 +142,19 @@ EXPORT_SYMBOL(SPI_SEM);
 
 static u32 ra_spic_clk_div = 4;
 
-static void usleep(unsigned int usecs)
-{
-	unsigned long timeout = usecs_to_jiffies(usecs);
-
-	while (timeout)
-		timeout = schedule_timeout_interruptible(timeout);
-}
-
 static int bbu_spic_busy_wait(void)
 {
-	int n = 100000;
+	const unsigned long end = jiffies + msecs_to_jiffies(100); // ms.
+
 	do {
 		if ((ra_inl(SPI_REG_CTL) & SPI_CTL_BUSY) == 0)
 			return 0;
-		udelay(1);
-	} while (--n > 0);
 
-	printk(KERN_ERR "%s: wait failed\n", __func__);
+		cond_resched();
+	} while (time_before(jiffies, end));
+
+	pr_err("%s: SPI controller wait timed out\n", __func__);
+
 	return -1;
 }
 
@@ -566,7 +561,7 @@ static inline int raspi_write_sr(u8 *val)
 	return raspi_write_rg(OPCODE_WRSR, val);
 }
 
-static int raspi_wait_ready(int sleep_ms);
+static int raspi_wait_ready(const unsigned int sleep_ms);
 
 #if defined(RD_MODE_QIOR) || defined(RD_MODE_QOR)
 static int raspi_write_rg16(u8 code, u8 *val)
@@ -725,43 +720,28 @@ static int raspi_unprotect(void)
  * Service routine to read status register until ready, or timeout occurs.
  * Returns non-zero if error.
  */
-static int raspi_wait_ready(int sleep_ms)
+static int raspi_wait_ready(const unsigned int sleep_ms)
 {
-	int count;
+	const unsigned long end = jiffies + msecs_to_jiffies(sleep_ms);
 	u8 sr = 0;
 
 	/* one chip guarantees max 5 msec wait here after page writes,
 	 * but potentially three seconds (!) after page erase.
 	 */
-	for (count = 0; count < ((sleep_ms+1)*1000*10); count++) {
-		if ((raspi_read_sr(&sr)) < 0)
-			break;
-		else if (!(sr & SR_WIP))
+	do {
+		if (raspi_read_sr(&sr) < 0) {
+			pr_err("%s: failed to read status\n", __func__);
+			return -EIO;
+		}
+
+		if (!(sr & SR_WIP))
 			return 0;
-		udelay(5);
-	}
 
-	printk(KERN_ERR "%s: read failed (%x)\n", __func__, sr);
-	return -EIO;
-}
+		usleep_range(20, 50);
+	} while (time_before(jiffies, end));
 
-static int raspi_wait_sleep_ready(int sleep_ms)
-{
-	int count;
-	u8 sr = 0;
+	pr_err("%s: %u ms. wait timed out (0x%02hhx)\n", __func__, sleep_ms, sr);
 
-	/* one chip guarantees max 5 msec wait here after page writes,
-	 * but potentially three seconds (!) after page erase.
-	 */
-	for (count = 0; count < ((sleep_ms+1)*1000); count++) {
-		if ((raspi_read_sr(&sr)) < 0)
-			break;
-		else if (!(sr & SR_WIP))
-			return 0;
-		usleep(50);
-	}
-
-	printk(KERN_ERR "%s: read failed (%x)\n", __func__, sr);
 	return -EIO;
 }
 
@@ -780,7 +760,7 @@ static int raspi_erase_sector(u32 offset)
 	/* Send write enable, then erase commands. */
 	raspi_write_enable();
 	bbu_spic_trans(OPCODE_SE, offset, NULL, 4, 0, 0);
-	raspi_wait_sleep_ready(950);
+	raspi_wait_ready(950);
 
 	return 0;
 }
@@ -1120,7 +1100,7 @@ static int ramtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 		buf += page_size;
 		count++;
 		if ((count & 0xf) == 0)
-			raspi_wait_sleep_ready(1);
+			raspi_wait_ready(10);
 	}
 
 	raspi_wait_ready(100);

@@ -95,6 +95,10 @@ extern void init_IRQ(void);
 extern void fork_init(void);
 extern void radix_tree_init(void);
 
+#ifdef CONFIG_NDM_RNG_SEED
+void ndm_rng_seed(void);
+#endif
+
 /*
  * Debug helper: via this flag we know that we are in 'early bootup code'
  * where only the boot processor is running with IRQ disabled.  This means
@@ -959,6 +963,10 @@ static int __ref kernel_init(void *unused)
 	numa_default_policy();
 
 	rcu_end_inkernel_boot();
+
+#ifdef CONFIG_NDM_RNG_SEED
+	ndm_rng_seed();
+#endif
 
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);

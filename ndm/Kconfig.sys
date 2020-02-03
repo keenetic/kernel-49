@@ -1,0 +1,5 @@
+config NDM_RNG_SEED
+	bool "Helper for seed RNG during kernel init"
+	select MTD
+	select CRYPTO_SHA256
+	default y

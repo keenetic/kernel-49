@@ -1,5 +1,8 @@
 menu "NDM Systems options"
 
+comment "System options"
+source "ndm/Kconfig.sys"
+
 comment "Network options"
 source "ndm/Kconfig.net"
 

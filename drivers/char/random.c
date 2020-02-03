@@ -1966,6 +1966,24 @@ SYSCALL_DEFINE3(getrandom, char __user *, buf, size_t, count,
 	return urandom_read(NULL, buf, count, NULL);
 }
 
+#ifdef CONFIG_NDM_RNG_SEED
+int random_add_entropy(void *p, size_t size, size_t ent_count)
+{
+	int retval = write_pool(&input_pool, p, size);
+
+	if (retval < 0)
+		return retval;
+
+	return credit_entropy_bits_safe(&input_pool, ent_count);
+}
+
+void crng_wait_ready_external(void)
+{
+	if (!crng_ready())
+		crng_wait_ready();
+}
+#endif
+
 /********************************************************************
  *
  * Sysctl interface

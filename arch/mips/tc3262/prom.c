@@ -258,14 +258,6 @@ static inline void tc_fe_setup(void)
 	/* de-assert FE, QDMA2, QDMA1 reset */
 	reg_val &= ~((1U << 21) | (1U << 2) | (1U << 1));
 	VPint(CR_AHB_BASE + 0x834) = reg_val;
-
-	/* wait FE & PPE init done */
-	udelay(2000);
-
-	/* disable PPE engine by default */
-	reg_val = VPint(CR_MAC_BASE + 0x0E00);
-	reg_val &= ~(1U << 0);
-	VPint(CR_MAC_BASE + 0x0E00) = reg_val;
 }
 
 #define VECTORSPACING 0x100	/* for EI/VI mode */

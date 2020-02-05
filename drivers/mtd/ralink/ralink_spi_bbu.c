@@ -41,6 +41,10 @@ static const char *part_probes[] __initdata = {
 //#define SPI_DEBUG
 //#define TEST_CS1_FLASH
 
+#define BBU_MAX_BUSY_MS		500
+#define BBU_MAX_ERASE_MS	3000
+#define BBU_MAX_WRITE_MS	500
+
 #if defined(CONFIG_MTD_SPI_READ_FAST)
 #define RD_MODE_FAST
 #endif
@@ -144,7 +148,7 @@ static u32 ra_spic_clk_div = 4;
 
 static int bbu_spic_busy_wait(void)
 {
-	const unsigned long end = jiffies + msecs_to_jiffies(100); // ms.
+	const unsigned long end = jiffies + msecs_to_jiffies(BBU_MAX_BUSY_MS);
 
 	do {
 		if ((ra_inl(SPI_REG_CTL) & SPI_CTL_BUSY) == 0)
@@ -561,7 +565,7 @@ static inline int raspi_write_sr(u8 *val)
 	return raspi_write_rg(OPCODE_WRSR, val);
 }
 
-static int raspi_wait_ready(const unsigned int sleep_ms);
+static int raspi_wait_write_ready(const unsigned int sleep_ms);
 
 #if defined(RD_MODE_QIOR) || defined(RD_MODE_QOR)
 static int raspi_write_rg16(u8 code, u8 *val)
@@ -587,7 +591,7 @@ static int raspi_set_quad(void)
 			raspi_read_sr(&reg[0]);
 			raspi_write_enable();
 			raspi_write_rg16(OPCODE_WRSR, reg);
-			raspi_wait_ready(1);
+			raspi_wait_write_ready(10);
 			raspi_read_rg(OPCODE_RDCR, &cr);
 			if (reg[1] != cr)
 				printk(KERN_WARNING "warning: set quad failed %x %x\n", reg[1], cr);
@@ -604,7 +608,7 @@ static int raspi_set_quad(void)
 			sr |= (1 << 6);
 			raspi_write_enable();
 			raspi_write_sr(&sr);
-			raspi_wait_ready(1);
+			raspi_wait_write_ready(10);
 			raspi_read_sr(&get_sr);
 			if (get_sr != sr)
 				printk(KERN_WARNING "warning: quad sr write failed %x %x %x\n", sr, get_sr, sr2);
@@ -618,7 +622,7 @@ static int raspi_4byte_mode(int enable)
 	int retval;
 	u32 reg_ctl, reg_qctl;
 
-	raspi_wait_ready(1);
+	raspi_wait_write_ready(10);
 
 	reg_ctl = ra_inl(SPI_REG_CTL);
 	reg_qctl = ra_inl(SPI_REG_Q_CTL);
@@ -642,7 +646,7 @@ static int raspi_4byte_mode(int enable)
 
 		br = (enable)? 0x81 : 0x0;
 		raspi_write_rg(OPCODE_BRWR, &br);
-		raspi_wait_ready(1);
+		raspi_wait_write_ready(10);
 		raspi_read_rg(OPCODE_BRRD, &br_cfn);
 
 		if (br_cfn != br) {
@@ -720,7 +724,7 @@ static int raspi_unprotect(void)
  * Service routine to read status register until ready, or timeout occurs.
  * Returns non-zero if error.
  */
-static int raspi_wait_ready(const unsigned int sleep_ms)
+static int raspi_wait_write_ready(const unsigned int sleep_ms)
 {
 	const unsigned long end = jiffies + msecs_to_jiffies(sleep_ms);
 	u8 sr = 0;
@@ -754,13 +758,13 @@ static int raspi_wait_ready(const unsigned int sleep_ms)
 static int raspi_erase_sector(u32 offset)
 {
 	/* Wait until finished previous write command. */
-	if (raspi_wait_ready(10))
+	if (raspi_wait_write_ready(10))
 		return -EIO;
 
 	/* Send write enable, then erase commands. */
 	raspi_write_enable();
 	bbu_spic_trans(OPCODE_SE, offset, NULL, 4, 0, 0);
-	raspi_wait_ready(950);
+	raspi_wait_write_ready(BBU_MAX_ERASE_MS);
 
 	return 0;
 }
@@ -828,7 +832,7 @@ static int ramtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	bbu_spic_master();
 
 	/* wait until finished previous command. */
-	if (raspi_wait_ready(10)) {
+	if (raspi_wait_write_ready(10)) {
 		instr->state = MTD_ERASE_FAILED;
 #if defined(CONFIG_RALINK_SLIC_CONNECT_SPI_CS1)
 		up(&SPI_SEM);
@@ -929,7 +933,7 @@ static int ramtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 	reg_master = bbu_spic_master();
 
 	/* Wait till previous write/erase is done. */
-	if (raspi_wait_ready(1)) {
+	if (raspi_wait_write_ready(10)) {
 #if defined(CONFIG_RALINK_SLIC_CONNECT_SPI_CS1)
 		up(&SPI_SEM);
 #endif
@@ -1036,7 +1040,7 @@ static int ramtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 	reg_master = bbu_spic_master();
 
 	/* wait until finished previous write command. */
-	if (raspi_wait_ready(2)) {
+	if (raspi_wait_write_ready(10)) {
 #if defined(CONFIG_RALINK_SLIC_CONNECT_SPI_CS1)
 		up(&SPI_SEM);
 #endif
@@ -1065,7 +1069,7 @@ static int ramtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 		while (wrlen > 0) {
 			int w_part = (wrlen > SPI_BBU_MAX_XFER) ? SPI_BBU_MAX_XFER : wrlen;
 
-			raspi_wait_ready(100);
+			raspi_wait_write_ready(BBU_MAX_WRITE_MS);
 			raspi_write_enable();
 #ifdef MORE_BUF_MODE
 			ra_outl(SPI_REG_MASTER, (reg_master | 0x4));
@@ -1100,10 +1104,10 @@ static int ramtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 		buf += page_size;
 		count++;
 		if ((count & 0xf) == 0)
-			raspi_wait_ready(10);
+			raspi_wait_write_ready(BBU_MAX_WRITE_MS / 4);
 	}
 
-	raspi_wait_ready(100);
+	raspi_wait_write_ready(BBU_MAX_WRITE_MS);
 
 exit_mtd_write:
 

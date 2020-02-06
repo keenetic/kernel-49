@@ -307,8 +307,7 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	if (likely(!is_ccp && !SWNAT_KA_CHECK_MARK(skb))) {
 		if (SWNAT_PPP_CHECK_MARK(skb)) {
 			/* We already have PPP encap, do skip it */
-			SWNAT_FNAT_RESET_MARK(skb);
-			SWNAT_PPP_RESET_MARK(skb);
+			SWNAT_RESET_MARKS(skb);
 		} else if (SWNAT_FNAT_CHECK_MARK(skb)) {
 			typeof(prebind_from_pptptx) swnat_prebind;
 
@@ -319,7 +318,6 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 				swnat_prebind(skb, (struct iphdr *)iph_int, sk,
 					      iph->saddr, iph->daddr);
 
-				SWNAT_FNAT_RESET_MARK(skb);
 				SWNAT_PPP_SET_MARK(skb);
 			}
 			rcu_read_unlock();

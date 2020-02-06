@@ -23,7 +23,11 @@ enum ip_conntrack_info;
 
 #define SWNAT_FNAT_MARK		0x01
 #define SWNAT_PPP_MARK		0x02
-#define SWNAT_KA_MARK		0x04
+
+#define SWNAT_RESET_MARKS(skb_) \
+do { \
+	(skb_)->cb[SWNAT_CB_OFFSET] = 0; \
+} while (0);
 
 /* FNAT mark */
 
@@ -34,11 +38,6 @@ do { \
 
 #define SWNAT_FNAT_CHECK_MARK(skb_) \
 	((skb_)->cb[SWNAT_CB_OFFSET] == SWNAT_FNAT_MARK)
-
-#define SWNAT_FNAT_RESET_MARK(skb_) \
-do { \
-	(skb_)->cb[SWNAT_CB_OFFSET] = 0; \
-} while (0);
 
 /* End of FNAT mark */
 
@@ -52,28 +51,17 @@ do { \
 #define SWNAT_PPP_CHECK_MARK(skb_) \
 	((skb_)->cb[SWNAT_CB_OFFSET] == SWNAT_PPP_MARK)
 
-#define SWNAT_PPP_RESET_MARK(skb_) \
-do { \
-	(skb_)->cb[SWNAT_CB_OFFSET] = 0; \
-} while (0);
-
 /* End of PPP mark */
 
 /* KA mark */
 
 #define SWNAT_KA_SET_MARK(skb_) \
 do { \
-	(skb_)->cb[SWNAT_CB_OFFSET] = SWNAT_KA_MARK; \
+	(skb_)->swnat_ka_mark = 1; \
 } while (0);
 
 #define SWNAT_KA_CHECK_MARK(skb_) \
-	((skb_)->cb[SWNAT_CB_OFFSET] == SWNAT_KA_MARK)
-
-#define SWNAT_KA_RESET_MARK(skb_) \
-do { \
-	(skb_)->cb[SWNAT_CB_OFFSET] = 0; \
-} while (0);
-
+	((skb_)->swnat_ka_mark != 0)
 
 /* End of KA mark */
 

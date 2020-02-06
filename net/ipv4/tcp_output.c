@@ -42,6 +42,10 @@
 #include <linux/gfp.h>
 #include <linux/module.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+#endif
+
 /* People can turn this off for buggy TCP's found in printers etc. */
 int sysctl_tcp_retrans_collapse __read_mostly = 1;
 
@@ -1038,6 +1042,10 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 	/* Cleanup our debris for IP stacks */
 	memset(skb->cb, 0, max(sizeof(struct inet_skb_parm),
 			       sizeof(struct inet6_skb_parm)));
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	SWNAT_RESET_MARKS(skb);
+#endif
 
 	err = icsk->icsk_af_ops->queue_xmit(sk, skb, &inet->cork.fl);
 

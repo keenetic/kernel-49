@@ -400,8 +400,7 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	if (likely(!SWNAT_KA_CHECK_MARK(skb))) {
 		if (SWNAT_PPP_CHECK_MARK(skb)) {
 			/* We already have PPP encap, do skip it */
-			SWNAT_FNAT_RESET_MARK(skb);
-			SWNAT_PPP_RESET_MARK(skb);
+			SWNAT_RESET_MARKS(skb);
 		} else if (SWNAT_FNAT_CHECK_MARK(skb) &&
 			   uhlen > 0 &&
 			   !session->lns_mode &&
@@ -426,12 +425,11 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 					inet->inet_sport,
 					inet->inet_dport);
 
-				SWNAT_FNAT_RESET_MARK(skb);
 				SWNAT_PPP_SET_MARK(skb);
 			}
 			rcu_read_unlock();
 		} else {
-			SWNAT_FNAT_RESET_MARK(skb);
+			SWNAT_RESET_MARKS(skb);
 		}
 	}
 #endif

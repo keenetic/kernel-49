@@ -766,6 +766,9 @@ struct sk_buff {
 #ifdef CONFIG_NETFILTER_FP_SMB
 	__u8			nf_fp_cache:1;
 #endif
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	__u8			swnat_ka_mark:1;
+#endif
 	/* 1, 2, 4 or 5 bit hole */
 
 #ifdef CONFIG_NET_SCHED

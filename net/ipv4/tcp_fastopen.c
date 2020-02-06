@@ -50,7 +50,11 @@ int tcp_fastopen_reset_cipher(void *key, unsigned int len)
 	if (IS_ERR(ctx->tfm)) {
 		err = PTR_ERR(ctx->tfm);
 error:		kfree(ctx);
+#if IS_BUILTIN(CONFIG_CRYPTO_AES)
 		pr_err("TCP: TFO aes cipher alloc error: %d\n", err);
+#else
+		pr_debug("TCP: TFO aes cipher alloc error: %d\n", err);
+#endif
 		return err;
 	}
 	err = crypto_cipher_setkey(ctx->tfm, key, len);

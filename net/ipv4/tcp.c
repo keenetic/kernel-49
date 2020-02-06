@@ -2709,11 +2709,9 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_FASTOPEN:
 		if (val >= 0 && ((1 << sk->sk_state) & (TCPF_CLOSE |
 		    TCPF_LISTEN))) {
-#if 0
 			tcp_fastopen_init_key_once(true);
 
 			fastopen_queue_tune(sk, val);
-#endif
 		} else {
 			err = -EINVAL;
 		}

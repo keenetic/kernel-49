@@ -2312,6 +2312,10 @@ static bool neigh_ifindex_filtered(struct net_device *dev, int filter_idx)
 	return false;
 }
 
+static const struct nla_policy ifindex_policy[NDA_MAX + 1] = {
+	[NDA_IFINDEX]				= { .type = NLA_U32 }
+};
+
 static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 			    struct netlink_callback *cb)
 {
@@ -2322,23 +2326,27 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 	int rc, h, s_h = cb->args[1];
 	int idx, s_idx = idx = cb->args[2];
 	struct neigh_hash_table *nht;
-	int filter_master_idx = 0, filter_idx = 0;
+	int filter_master_idx = 0, filter_idx = 0, filter_idx_nested = 0;
 	unsigned int flags = NLM_F_MULTI;
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(struct ndmsg), tb, NDA_MAX, NULL);
 	if (!err) {
 		if (tb[NDA_IFINDEX]) {
-			if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))
-				return -EINVAL;
-			filter_idx = nla_get_u32(tb[NDA_IFINDEX]);
+			if (tb[NDA_IFINDEX]->nla_type & NLA_F_NESTED) {
+				filter_idx_nested = 1;
+			} else {
+				if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))
+					return -EINVAL;
+				filter_idx = nla_get_u32(tb[NDA_IFINDEX]);
+			}
 		}
 		if (tb[NDA_MASTER]) {
 			if (nla_len(tb[NDA_MASTER]) != sizeof(u32))
 				return -EINVAL;
 			filter_master_idx = nla_get_u32(tb[NDA_MASTER]);
 		}
-		if (filter_idx || filter_master_idx)
+		if (filter_idx || filter_master_idx || filter_idx_nested)
 			flags |= NLM_F_DUMP_FILTERED;
 	}
 
@@ -2353,6 +2361,29 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		     n = rcu_dereference_bh(n->next)) {
 			if (!net_eq(dev_net(n->dev), net))
 				continue;
+			if (filter_idx_nested) {
+				int rem = 0, skip = 1;
+				struct nlattr *attr, *attrs[NDA_MAX + 1];
+
+				nla_for_each_nested(attr, tb[NDA_IFINDEX], rem) {
+					int ret = nla_parse_nested(attrs, NDA_MAX, attr,
+											   ifindex_policy);
+					if (ret == 0) {
+						if (attrs[NDA_IFINDEX]) {
+							if (n->dev->ifindex ==
+									nla_get_u32(attrs[NDA_IFINDEX])) {
+								skip = 0;
+								break;
+							}
+						} else
+							pr_err_ratelimited("missing nested value\n");
+					} else
+						pr_err_ratelimited("empty nested request: %d\n", ret);
+				}
+
+				if (skip)
+					continue;
+			} else
 			if (neigh_ifindex_filtered(n->dev, filter_idx))
 				continue;
 			if (neigh_master_filtered(n->dev, filter_master_idx))

@@ -823,7 +823,7 @@ static int crng_fast_load(const char *cp, size_t len)
 	if (crng_init_cnt >= CRNG_INIT_CNT_THRESH) {
 		crng_init = 1;
 		wake_up_interruptible(&crng_init_wait);
-		pr_notice("random: fast init done\n");
+		pr_info("random: fast init done\n");
 	}
 	spin_unlock_irqrestore(&primary_crng.lock, flags);
 	return 1;
@@ -896,7 +896,7 @@ static void crng_reseed(struct crng_state *crng, struct entropy_store *r)
 		spin_unlock_irqrestore(&crng->lock, flags);
 		process_random_ready_list();
 		wake_up_interruptible(&crng_init_wait);
-		pr_notice("random: crng init done\n");
+		pr_info("random: crng init done\n");
 		if (unseeded_warning.missed) {
 			pr_notice("random: %d get_random_xx warning(s) missed "
 				  "due to ratelimiting\n",

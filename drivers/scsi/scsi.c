@@ -1186,7 +1186,7 @@ static int __init init_scsi(void)
 
 	scsi_netlink_init();
 
-	printk(KERN_NOTICE "SCSI subsystem initialized\n");
+	printk(KERN_INFO "SCSI subsystem initialized\n");
 	return 0;
 
 cleanup_sysctl:

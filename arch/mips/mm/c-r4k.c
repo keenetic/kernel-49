@@ -1536,17 +1536,17 @@ static void probe_pcache(void)
 		c->icache.ways = 1;
 	}
 
-	printk("Primary instruction cache %ldkB, %s, %s, linesize %d bytes.\n",
-	       icache_size >> 10,
-	       c->icache.flags & MIPS_CACHE_VTAG ? "VIVT" : "VIPT",
-	       way_string[c->icache.ways], c->icache.linesz);
+	pr_info("Primary instruction cache %ldkB, %s, %s, linesize %d bytes.\n",
+	        icache_size >> 10,
+	        c->icache.flags & MIPS_CACHE_VTAG ? "VIVT" : "VIPT",
+	        way_string[c->icache.ways], c->icache.linesz);
 
-	printk("Primary data cache %ldkB, %s, %s, %s, linesize %d bytes\n",
-	       dcache_size >> 10, way_string[c->dcache.ways],
-	       (c->dcache.flags & MIPS_CACHE_PINDEX) ? "PIPT" : "VIPT",
-	       (c->dcache.flags & MIPS_CACHE_ALIASES) ?
+	pr_info("Primary data cache %ldkB, %s, %s, %s, linesize %d bytes\n",
+	        dcache_size >> 10, way_string[c->dcache.ways],
+	        (c->dcache.flags & MIPS_CACHE_PINDEX) ? "PIPT" : "VIPT",
+	        (c->dcache.flags & MIPS_CACHE_ALIASES) ?
 			"cache aliases" : "no aliases",
-	       c->dcache.linesz);
+	        c->dcache.linesz);
 }
 
 static void probe_vcache(void)
@@ -1647,7 +1647,7 @@ static void __init loongson2_sc_init(void)
 	c->scache.waysize = scache_size / (c->scache.ways);
 	c->scache.sets = scache_size / (c->scache.linesz * c->scache.ways);
 	pr_info("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
-	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
+	        scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 
 	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }
@@ -1674,7 +1674,7 @@ static void __init loongson3_sc_init(void)
 	c->scache.waybit = 0;
 	c->scache.waysize = scache_size / c->scache.ways;
 	pr_info("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
-	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
+	        scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 	if (scache_size)
 		c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 	return;
@@ -1749,9 +1749,9 @@ static void setup_scache(void)
 #ifdef CONFIG_MIPS_CPU_SCACHE
 			if (mips_sc_init ()) {
 				scache_size = c->scache.ways * c->scache.sets * c->scache.linesz;
-				printk("MIPS secondary cache %ldkB, %s, linesize %d bytes.\n",
-				       scache_size >> 10,
-				       way_string[c->scache.ways], c->scache.linesz);
+				pr_info("MIPS secondary cache %ldkB, %s, linesize %d bytes.\n",
+				        scache_size >> 10,
+				        way_string[c->scache.ways], c->scache.linesz);
 			}
 #else
 			if (!(c->scache.flags & MIPS_CACHE_NOT_PRESENT))
@@ -1770,8 +1770,8 @@ static void setup_scache(void)
 
 	c->scache.sets = scache_size / (c->scache.linesz * c->scache.ways);
 
-	printk("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
-	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
+	pr_info("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
+	        scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 
 	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }

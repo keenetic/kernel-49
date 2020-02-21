@@ -1943,7 +1943,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			 * Issue command to spin up drive when not ready
 			 */
 			if (!spintime) {
-				sd_printk(KERN_NOTICE, sdkp, "Spinning up disk...");
+				sd_printk(KERN_INFO, sdkp, "Spinning up disk...");
 				cmd[0] = START_STOP;
 				cmd[1] = 1;	/* Return immediately */
 				memset((void *) &cmd[2], 0, 8);
@@ -1959,7 +1959,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			}
 			/* Wait 1 second for next try */
 			msleep(1000);
-			printk(".");
+			printk(KERN_INFO ".");
 
 		/*
 		 * Wait for USB flash devices with slow firmware.
@@ -1989,7 +1989,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 
 	if (spintime) {
 		if (scsi_status_is_good(the_result))
-			printk("ready\n");
+			printk(KERN_INFO "ready\n");
 		else
 			printk("not responding...\n");
 	}
@@ -2364,13 +2364,13 @@ got_data:
 				sizeof(cap_str_10));
 
 		if (sdkp->first_scan || old_capacity != sdkp->capacity) {
-			sd_printk(KERN_NOTICE, sdkp,
+			sd_printk(KERN_INFO, sdkp,
 				  "%llu %d-byte logical blocks: (%s/%s)\n",
 				  (unsigned long long)sdkp->capacity,
 				  sector_size, cap_str_10, cap_str_2);
 
 			if (sdkp->physical_block_size != sector_size)
-				sd_printk(KERN_NOTICE, sdkp,
+				sd_printk(KERN_INFO, sdkp,
 					  "%u-byte physical blocks\n",
 					  sdkp->physical_block_size);
 		}
@@ -2447,7 +2447,7 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, unsigned char *buffer)
 		sdkp->write_prot = ((data.device_specific & 0x80) != 0);
 		set_disk_ro(sdkp->disk, sdkp->write_prot);
 		if (sdkp->first_scan || old_wp != sdkp->write_prot) {
-			sd_printk(KERN_NOTICE, sdkp, "Write Protect is %s\n",
+			sd_printk(KERN_INFO, sdkp, "Write Protect is %s\n",
 				  sdkp->write_prot ? "on" : "off");
 			sd_printk(KERN_DEBUG, sdkp,
 				  "Mode Sense: %02x %02x %02x %02x\n",
@@ -3092,7 +3092,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 
 	sd_revalidate_disk(gd);
 
-	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
+	sd_printk(KERN_INFO, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
 	scsi_autopm_put_device(sdp);
 	put_device(&sdkp->dev);

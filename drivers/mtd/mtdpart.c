@@ -392,7 +392,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
 	name = kstrdup(part->name, GFP_KERNEL);
 	if (!name || !slave) {
-		printk(KERN_ERR"memory allocation error while creating partitions for \"%s\"\n",
+		pr_err("memory allocation error while creating partitions for \"%s\"\n",
 		       master->name);
 		kfree(name);
 		kfree(slave);
@@ -492,7 +492,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 		if (mtd_mod_by_eb(cur_offset, master) != 0) {
 			/* Round up to next erasesize */
 			slave->offset = (mtd_div_by_eb(cur_offset, master) + 1) * master->erasesize;
-			printk(KERN_NOTICE "Moving partition %d: "
+			pr_notice("moving partition %d: "
 			       "0x%012llx -> 0x%012llx\n", partno,
 			       (unsigned long long)cur_offset, (unsigned long long)slave->offset);
 		}
@@ -503,7 +503,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 			slave->mtd.size = master->size - slave->offset
 							- slave->mtd.size;
 		} else {
-			printk(KERN_ERR "mtd partition \"%s\" doesn't have enough space: %#llx < %#llx, disabled\n",
+			pr_err("MTD partition \"%s\" doesn't have enough space: %#llx < %#llx, disabled\n",
 				part->name, master->size - slave->offset,
 				slave->mtd.size);
 			/* register to preserve ordering */
@@ -513,7 +513,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 	if (slave->mtd.size == MTDPART_SIZ_FULL)
 		slave->mtd.size = master->size - slave->offset;
 
-	printk(KERN_NOTICE "0x%012llx-0x%012llx : \"%s\"\n", (unsigned long long)slave->offset,
+	pr_info("0x%012llx-0x%012llx : \"%s\"\n", (unsigned long long)slave->offset,
 		(unsigned long long)(slave->offset + slave->mtd.size), slave->mtd.name);
 
 	/* let's do some sanity checks */
@@ -521,13 +521,13 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 		/* let's register it anyway to preserve ordering */
 		slave->offset = 0;
 		slave->mtd.size = 0;
-		printk(KERN_ERR"mtd: partition \"%s\" is out of reach -- disabled\n",
+		pr_err("mtd: partition \"%s\" is out of reach -- disabled\n",
 			part->name);
 		goto out_register;
 	}
 	if (slave->offset + slave->mtd.size > master->size) {
 		slave->mtd.size = master->size - slave->offset;
-		printk(KERN_WARNING"mtd: partition \"%s\" extends beyond the end of device \"%s\" -- size truncated to %#llx\n",
+		pr_warn("mtd: partition \"%s\" extends beyond the end of device \"%s\" -- size truncated to %#llx\n",
 			part->name, master->name, (unsigned long long)slave->mtd.size);
 	}
 	if (master->numeraseregions > 1) {
@@ -562,13 +562,13 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 		/* FIXME: Let it be writable if it is on a boundary of
 		 * _minor_ erase size though */
 		slave->mtd.flags &= ~MTD_WRITEABLE;
-		printk(KERN_WARNING"mtd: partition \"%s\" doesn't start on an erase block boundary -- force read-only\n",
+		pr_warn("mtd: partition \"%s\" doesn't start on an erase block boundary -- force read-only\n",
 			part->name);
 	}
 	if ((slave->mtd.flags & MTD_WRITEABLE) &&
 	    mtd_mod_by_eb(slave->mtd.size, &slave->mtd)) {
 		slave->mtd.flags &= ~MTD_WRITEABLE;
-		printk(KERN_WARNING"mtd: partition \"%s\" doesn't end on an erase block -- force read-only\n",
+		pr_warn("mtd: partition \"%s\" doesn't end on an erase block -- force read-only\n",
 			part->name);
 	}
 
@@ -612,8 +612,7 @@ static int mtd_add_partition_attrs(struct mtd_part *new)
 {
 	int ret = sysfs_create_files(&new->mtd.dev.kobj, mtd_partition_attrs);
 	if (ret)
-		printk(KERN_WARNING
-		       "mtd: failed to create partition attrs, err=%d\n", ret);
+		pr_warn("mtd: failed to create partition attrs, err=%d\n", ret);
 	return ret;
 }
 
@@ -709,7 +708,7 @@ int add_mtd_partitions(struct mtd_info *master,
 	uint64_t cur_offset = 0;
 	int i, ret;
 
-	printk(KERN_NOTICE "Creating %d MTD partitions on \"%s\":\n", nbparts, master->name);
+	pr_info("mtd: creating %d MTD partitions on \"%s\":\n", nbparts, master->name);
 
 	for (i = 0; i < nbparts; i++) {
 		slave = allocate_partition(master, parts + i, i, cur_offset);
@@ -864,8 +863,8 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 		pr_debug("%s: parser %s: %i\n",
 			 master->name, parser->name, ret);
 		if (ret > 0) {
-			printk(KERN_NOTICE "%d %s partitions found on MTD device %s\n",
-			       ret, parser->name, master->name);
+			pr_info("%d %s partitions found on MTD device %s\n",
+			        ret, parser->name, master->name);
 			pparts->nr_parts = ret;
 			pparts->parser = parser;
 			return 0;

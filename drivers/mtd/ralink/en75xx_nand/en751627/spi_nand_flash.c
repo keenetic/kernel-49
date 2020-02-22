@@ -198,7 +198,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 #define _SPI_NAND_GET_DEVICE_INFO_PTR		&(_current_flash_info_t)
 
 /* Porting Replacement */
-#define _SPI_NAND_PRINTF			printk
+#define _SPI_NAND_PRINTF			pr_info
 #if defined(SPI_NAND_FLASH_DEBUG)
 #define _SPI_NAND_DEBUG_PRINTF			spi_nand_flash_debug_printf
 #define _SPI_NAND_DEBUG_PRINTF_ARRAY		spi_nand_flash_debug_printf_array

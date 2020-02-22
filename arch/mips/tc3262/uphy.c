@@ -202,10 +202,10 @@ u2_slew_rate_calibration(int port_id, u32 u2_phy_reg_base)
 		/* set reg = (1024/FM_OUT) * 20 * 0.028 (round to the nearest digits) */
 		u4Tmp = (((1024 * REF_CK * U2_SR_COEFF) / u4FmOut) + 500) / 1000;
 		reg_val |= ((u4Tmp & 0x07) << 16);
-		printk("U2PHY P%d set SRCTRL %s value: %d\n", port_id, "calibration", u4Tmp);
+		printk(KERN_INFO "U2PHY P%d set SRCTRL %s value: %d\n", port_id, "calibration", u4Tmp);
 	} else {
 		reg_val |= (0x4 << 16);
-		printk("U2PHY P%d set SRCTRL %s value: %d\n", port_id, "default", 4);
+		printk(KERN_INFO "U2PHY P%d set SRCTRL %s value: %d\n", port_id, "default", 4);
 	}
 	uphy_write32(u2_phy_reg_base + OFS_U2_PHY_ACR0, reg_val);
 }

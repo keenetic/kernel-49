@@ -68,6 +68,9 @@
 #include <net/fast_nat.h>
 #include <net/fast_vpn.h>
 #endif
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
 
 #include "l2tp_core.h"
 
@@ -1046,6 +1049,10 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	tunnel = l2tp_sock_to_tunnel(sk);
 	if (tunnel == NULL)
 		goto pass_up;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	FOE_ALG_SKIP(skb);
+#endif
 
 #ifdef CONFIG_FAST_NAT_V2
 	tunnel->last_recv = jiffies;

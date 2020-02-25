@@ -18,6 +18,10 @@
 #include <net/protocol.h>
 #include <net/udp.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 struct esp_skb_cb {
 	struct xfrm_skb_cb xfrm;
 	void *tmp;
@@ -220,6 +224,10 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		__be32 *udpdata32;
 		__be16 sport, dport;
 		int encap_type;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		FOE_AI_UNHIT(skb);
+#endif
 
 		spin_lock_bh(&x->lock);
 		sport = encap->encap_sport;
@@ -451,6 +459,12 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 		seqhilen += sizeof(__be32);
 		assoclen += seqhilen;
 	}
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	/* this is non-NULL only with UDP Encapsulation */
+	if (x->encap)
+		FOE_ALG_SKIP(skb);
+#endif
 
 	err = -ENOMEM;
 	tmp = esp_alloc_tmp(aead, nfrags, seqhilen);

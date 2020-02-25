@@ -107,6 +107,9 @@
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/fast_vpn.h>
 #endif
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
 
 #define PPPOL2TP_DRV_VERSION	"V2.0"
 
@@ -432,6 +435,9 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 			SWNAT_RESET_MARKS(skb);
 		}
 	}
+#endif
+#if IS_ENABLED(CONFIG_RA_HW_NAT) && !defined(CONFIG_RA_HW_NAT_PPTP_L2TP)
+	FOE_AI_UNHIT(skb);
 #endif
 
 	/* Setup PPP header */

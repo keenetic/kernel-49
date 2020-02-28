@@ -30,31 +30,41 @@
 #include <linux/watchdog.h>
 #include <linux/delay.h>
 
-#define WDT_MAX_TIMEOUT		31
-#define WDT_MIN_TIMEOUT		1
-#define WDT_LENGTH_TIMEOUT(n)	((n) << 5)
+#define WDT_MAX_TIMEOUT			31
+#define WDT_MIN_TIMEOUT			1
+#define WDT_LENGTH_TIMEOUT(n)		((n) << 5)
 
-#define WDT_LENGTH		0x04
-#define WDT_LENGTH_KEY		0x8
+#define WDT_LENGTH			0x04
+#define WDT_LENGTH_KEY			0x8
 
-#define WDT_RST			0x08
-#define WDT_RST_RELOAD		0x1971
+#define WDT_RST				0x08
+#define WDT_RST_RELOAD			0x1971
 
-#define WDT_MODE		0x00
-#define WDT_MODE_EN		(1 << 0)
-#define WDT_MODE_EXT_POL_LOW	(0 << 1)
-#define WDT_MODE_EXT_POL_HIGH	(1 << 1)
-#define WDT_MODE_EXRST_EN	(1 << 2)
-#define WDT_MODE_IRQ_EN		(1 << 3)
-#define WDT_MODE_AUTO_START	(1 << 4)
-#define WDT_MODE_DUAL_EN	(1 << 6)
-#define WDT_MODE_KEY		0x22000000
+#define WDT_MODE			0x00
+#define WDT_MODE_EN			(1 << 0)
+#define WDT_MODE_EXT_POL_LOW		(0 << 1)
+#define WDT_MODE_EXT_POL_HIGH		(1 << 1)
+#define WDT_MODE_EXRST_EN		(1 << 2)
+#define WDT_MODE_IRQ_EN			(1 << 3)
+#define WDT_MODE_AUTO_START		(1 << 4)
+#define WDT_MODE_DUAL_EN		(1 << 6)
+#define WDT_MODE_KEY			0x22000000
 
-#define WDT_SWRST		0x14
-#define WDT_SWRST_KEY		0x1209
+#define WDT_STATUS_HW_RST		(0 << 0)	/* Hardware reset				*/
+#define WDT_STATUS_SPM_THERMAL_RST	(1 << 0)	/* Thermal reset (by SCPSYS)			*/
+#define WDT_STATUS_SPM_WDT_RST		(1 << 1)	/* SCPSYS time-out generated reset		*/
+#define WDT_STATUS_THERMAL_DIRECT_RST	(1 << 18)	/* Thermal reset (by thermal controller)	*/
+#define WDT_STATUS_DEBUG_WDT_RST	(1 << 19)	/* Debug generated reset			*/
+#define WDT_STATUS_SECURITY_RST		(1 << 28)	/* Security reset				*/
+#define WDT_STATUS_IRQ_WDT_RST		(1 << 29)	/* IRQ is asserted instead of reset		*/
+#define WDT_STATUS_SW_WDT_RST		(1 << 30)	/* Software watchdog generated reset		*/
+#define WDT_STATUS_HW_WDT_RST		(1 << 31)	/* Hardware watchdog generated reset		*/
 
-#define DRV_NAME		"mtk-wdt"
-#define DRV_VERSION		"1.0"
+#define WDT_SWRST			0x14
+#define WDT_SWRST_KEY			0x1209
+
+#define DRV_NAME			"mtk-wdt"
+#define DRV_VERSION			"1.0"
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static unsigned int timeout;
@@ -62,7 +72,51 @@ static unsigned int timeout;
 struct mtk_wdt_dev {
 	struct watchdog_device wdt_dev;
 	void __iomem *wdt_base;
+	void __iomem *sta_reg;
 };
+
+static void mtk_wdt_set_bootstatus(struct watchdog_device *wdt_dev)
+{
+	struct device *dev;
+	struct mtk_wdt_dev *mtk_wdt = watchdog_get_drvdata(wdt_dev);
+	u32 reg;
+
+	dev = wdt_dev->parent;
+	reg = readl(mtk_wdt->sta_reg);
+
+	switch (reg) {
+	case WDT_STATUS_HW_RST:
+		dev_info(dev, "last reset due to hard reset\n");
+		break;
+	case WDT_STATUS_SPM_THERMAL_RST:
+	case WDT_STATUS_THERMAL_DIRECT_RST:
+		wdt_dev->bootstatus |= WDIOF_OVERHEAT;
+		dev_warn(dev, "last reset due to overheat (%s)\n",
+			 (reg & WDT_STATUS_SPM_THERMAL_RST) ? "SPM" : "direct");
+		break;
+	case WDT_STATUS_HW_WDT_RST:
+	case WDT_STATUS_SPM_WDT_RST:
+		wdt_dev->bootstatus |= WDIOF_CARDRESET;
+		dev_warn(dev, "last reset due to %stime out\n",
+			 (reg & WDT_STATUS_HW_WDT_RST) ? "" : "SPM ");
+		break;
+	case WDT_STATUS_DEBUG_WDT_RST:
+		dev_warn(dev, "last reset due to debug reset\n");
+		break;
+	case WDT_STATUS_SECURITY_RST:
+		dev_warn(dev, "last reset due to security reset\n");
+		break;
+	case WDT_STATUS_IRQ_WDT_RST:
+		dev_warn(dev, "last reset due to IRQ\n");
+		break;
+	case WDT_STATUS_SW_WDT_RST:
+		dev_info(dev, "last reset due to soft reset\n");
+		break;
+	default:
+		dev_warn(dev, "illegal status code (%08x)\n", reg);
+		break;
+	}
+}
 
 static int mtk_wdt_restart(struct watchdog_device *wdt_dev,
 			   unsigned long action, void *data)
@@ -148,7 +202,9 @@ static const struct watchdog_info mtk_wdt_info = {
 	.identity	= DRV_NAME,
 	.options	= WDIOF_SETTIMEOUT |
 			  WDIOF_KEEPALIVEPING |
-			  WDIOF_MAGICCLOSE,
+			  WDIOF_MAGICCLOSE |
+			  WDIOF_CARDRESET |
+			  WDIOF_OVERHEAT,
 };
 
 static const struct watchdog_ops mtk_wdt_ops = {
@@ -177,6 +233,11 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(mtk_wdt->wdt_base))
 		return PTR_ERR(mtk_wdt->wdt_base);
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	mtk_wdt->sta_reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mtk_wdt->sta_reg))
+		return PTR_ERR(mtk_wdt->sta_reg);
+
 	mtk_wdt->wdt_dev.info = &mtk_wdt_info;
 	mtk_wdt->wdt_dev.ops = &mtk_wdt_ops;
 	mtk_wdt->wdt_dev.timeout = WDT_MAX_TIMEOUT;
@@ -189,6 +250,8 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	watchdog_set_restart_priority(&mtk_wdt->wdt_dev, 128);
 
 	watchdog_set_drvdata(&mtk_wdt->wdt_dev, mtk_wdt);
+
+	mtk_wdt_set_bootstatus(&mtk_wdt->wdt_dev);
 
 	mtk_wdt_start(&mtk_wdt->wdt_dev);
 	set_bit(WDOG_HW_RUNNING, &mtk_wdt->wdt_dev.status);

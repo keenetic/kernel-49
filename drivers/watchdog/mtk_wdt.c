@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
@@ -50,6 +51,8 @@
 #define WDT_MODE_DUAL_EN		(1 << 6)
 #define WDT_MODE_KEY			0x22000000
 
+#define WDT_STATUS			0x4c		/* GPT4_COMPARE register			*/
+#define WDT_STATUS_INV			0x5c		/* GPT5_COMPARE register			*/
 #define WDT_STATUS_HW_RST		(0 << 0)	/* Hardware reset				*/
 #define WDT_STATUS_SPM_THERMAL_RST	(1 << 0)	/* Thermal reset (by SCPSYS)			*/
 #define WDT_STATUS_SPM_WDT_RST		(1 << 1)	/* SCPSYS time-out generated reset		*/
@@ -72,17 +75,28 @@ static unsigned int timeout;
 struct mtk_wdt_dev {
 	struct watchdog_device wdt_dev;
 	void __iomem *wdt_base;
-	void __iomem *sta_reg;
 };
 
-static void mtk_wdt_set_bootstatus(struct watchdog_device *wdt_dev)
+static int mtk_wdt_set_bootstatus(struct watchdog_device *wdt_dev)
 {
-	struct device *dev;
-	struct mtk_wdt_dev *mtk_wdt = watchdog_get_drvdata(wdt_dev);
+	struct device *dev = wdt_dev->parent;
+	struct device_node *np;
+	void __iomem *gpt_base;
 	u32 reg;
 
-	dev = wdt_dev->parent;
-	reg = readl(mtk_wdt->sta_reg);
+	np = of_parse_phandle(dev->of_node, "mediatek,timer", 0);
+	if (!np)
+		return 0;
+
+	gpt_base = of_iomap(np, 0);
+	of_node_put(np);
+	if (!gpt_base) {
+		dev_err(dev, "failed to of_iomap\n");
+		return -ENOMEM;
+	}
+
+	reg = readl(gpt_base + WDT_STATUS);
+	iounmap(gpt_base);
 
 	switch (reg) {
 	case WDT_STATUS_HW_RST:
@@ -116,6 +130,8 @@ static void mtk_wdt_set_bootstatus(struct watchdog_device *wdt_dev)
 		dev_warn(dev, "illegal status code (%08x)\n", reg);
 		break;
 	}
+
+	return 0;
 }
 
 static int mtk_wdt_restart(struct watchdog_device *wdt_dev,
@@ -223,20 +239,15 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	int err;
 
 	mtk_wdt = devm_kzalloc(&pdev->dev, sizeof(*mtk_wdt), GFP_KERNEL);
-	if (!mtk_wdt)
+	if (unlikely(!mtk_wdt))
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, mtk_wdt);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mtk_wdt->wdt_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(mtk_wdt->wdt_base))
+	if (unlikely(IS_ERR(mtk_wdt->wdt_base)))
 		return PTR_ERR(mtk_wdt->wdt_base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	mtk_wdt->sta_reg = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(mtk_wdt->sta_reg))
-		return PTR_ERR(mtk_wdt->sta_reg);
 
 	mtk_wdt->wdt_dev.info = &mtk_wdt_info;
 	mtk_wdt->wdt_dev.ops = &mtk_wdt_ops;
@@ -251,7 +262,9 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&mtk_wdt->wdt_dev, mtk_wdt);
 
-	mtk_wdt_set_bootstatus(&mtk_wdt->wdt_dev);
+	err = mtk_wdt_set_bootstatus(&mtk_wdt->wdt_dev);
+	if (unlikely(err))
+		return err;
 
 	mtk_wdt_start(&mtk_wdt->wdt_dev);
 	set_bit(WDOG_HW_RUNNING, &mtk_wdt->wdt_dev.status);

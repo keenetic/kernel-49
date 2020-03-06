@@ -261,7 +261,7 @@
 	timer: timer@10004000 {
 		compatible = "mediatek,mt7622-timer",
 			     "mediatek,mt6577-timer";
-		reg = <0 0x10004000 0 0x40>;
+		reg = <0 0x10004000 0 0x80>;
 		interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&infracfg CLK_INFRA_APXGPT_PD>, <&topckgen CLK_TOP_RTC>;
 		clock-names = "system-clk", "rtc-clk";
@@ -394,9 +394,10 @@
 	watchdog: watchdog@10212000 {
 		compatible = "mediatek,mt7622-wdt",
 			     "mediatek,mt6589-wdt";
-		reg = <0 0x10212000 0 0x1000>, <0 0x1000404c 0 0x4>;
+		reg = <0 0x10212000 0 0x1000>;
 		timeout-sec = <20>;
 		interrupts = <GIC_SPI 128 IRQ_TYPE_EDGE_FALLING>;
+		mediatek,timer = <&timer>;
 		#reset-cells = <1>;
 	};
 

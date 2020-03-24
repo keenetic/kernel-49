@@ -465,7 +465,7 @@ static u32 g_snand_rs_ecc_bit;
 
 static u8 g_snand_k_spare_per_sec;
 #if __INTERNAL_USE_AHB_MODE__
-static dma_addr_t dma_addr;
+static dma_addr_t g_dma_addr;
 #endif
 
 /* Supported SPI protocols */
@@ -2006,32 +2006,31 @@ static bool mtk_snand_check_RW_count(struct mtk_snfc *snfc, u16 u2WriteSize)
 	return 1;
 }
 
-static bool mtk_snand_ready_for_read_custom(struct mtk_snfc *snfc,
+static int mtk_snand_ready_for_read_custom(struct mtk_snfc *snfc,
 					    struct nand_chip *nand,
 					    u32 u4RowAddr, u32 u4ColAddr,
 					    u32 u4SecNum, u8 *buf, u8 mtk_ecc,
 					    u8 auto_fmt, u8 ahb_mode)
 {
-	u8  ret = 1;
-	u32 cmd, reg, rc;
+	int ret = 0;
+	u32 cmd, reg;
 	u32 col_addr = u4ColAddr;
 	SNAND_Mode mode = SPIQ;
 	struct timeval stimer, etimer;
 
 #if __INTERNAL_USE_AHB_MODE__
-	dma_addr = dma_map_single(snfc->dev, (void *)buf, u4SecNum *
+	g_dma_addr = dma_map_single(snfc->dev, (void *)buf, u4SecNum *
 				  (NAND_SECTOR_SIZE + g_snand_k_spare_per_sec),
 				  DMA_FROM_DEVICE);
-	rc = dma_mapping_error(snfc->dev, dma_addr);
-	if (rc) {
+	if (unlikely(dma_mapping_error(snfc->dev, g_dma_addr))) {
 		dev_err(snfc->dev, "dma mapping error\n");
-		return -EINVAL;
+		return -ENOMEM;
 	}
 #endif
 
 	do_gettimeofday(&stimer);
 	if (!mtk_snand_reset_con(snfc)) {
-		ret = 0;
+		ret = -EIO;
 		goto cleanup;
 	}
 
@@ -2109,7 +2108,7 @@ static bool mtk_snand_ready_for_read_custom(struct mtk_snfc *snfc,
 	if (ahb_mode) {
 		reg = snfi_readw(snfc, NFI_CNFG) | CNFG_AHB;
 		snfi_writew(snfc, reg, NFI_CNFG);
-		snfi_writel(snfc, (u32)dma_addr, NFI_STRADDR);
+		snfi_writel(snfc, (u32)g_dma_addr, NFI_STRADDR);
 	} else {
 		reg = snfi_readw(snfc, NFI_CNFG);
 		reg &= ~CNFG_AHB;
@@ -2136,23 +2135,22 @@ cleanup:
 	return ret;
 }
 
-static bool mtk_snand_ready_for_write(struct nand_chip *nand, u32 u4RowAddr,
+static int mtk_snand_ready_for_write(struct nand_chip *nand, u32 u4RowAddr,
 				      u32 col_addr, u8 *buf, u8 mtk_ecc,
 				      u8 auto_fmt, u8 ahb_mode)
 {
 	struct mtk_snfc *snfc = nand_get_controller_data(nand);
 	u32 sec_num = 1 << (nand->page_shift - 9);
-	u32 reg, rc;
+	u32 reg;
 	SNAND_Mode mode = SPIQ;
 
 #if __INTERNAL_USE_AHB_MODE__
-	dma_addr = dma_map_single(snfc->dev, (void *)buf, sec_num*
+	g_dma_addr = dma_map_single(snfc->dev, (void *)buf, sec_num *
 				  (NAND_SECTOR_SIZE + g_snand_k_spare_per_sec),
 				  DMA_TO_DEVICE);
-	rc = dma_mapping_error(snfc->dev, dma_addr);
-	if (rc) {
+	if (unlikely(dma_mapping_error(snfc->dev, g_dma_addr))) {
 		dev_err(snfc->dev, "dma mapping error\n");
-		return -EINVAL;
+		return -ENOMEM;
 	}
 #endif
 
@@ -2161,7 +2159,7 @@ static bool mtk_snand_ready_for_write(struct nand_chip *nand, u32 u4RowAddr,
 		mode = SPI;
 
 	if (!mtk_snand_reset_con(snfc))
-		return 0;
+		return -EIO;
 
 	/* 1. Write Enable */
 	mtk_snand_dev_command(snfc, SNAND_CMD_WRITE_ENABLE, 1);
@@ -2217,7 +2215,7 @@ static bool mtk_snand_ready_for_write(struct nand_chip *nand, u32 u4RowAddr,
 	if (ahb_mode) {
 		reg = snfi_readw(snfc, NFI_CNFG) | CNFG_AHB;
 		snfi_writew(snfc, reg, NFI_CNFG);
-		snfi_writel(snfc, (u32)dma_addr, NFI_STRADDR);
+		snfi_writel(snfc, (u32)g_dma_addr, NFI_STRADDR);
 	} else {
 		reg = snfi_readw(snfc, NFI_CNFG);
 		reg &= ~CNFG_AHB;
@@ -2235,7 +2233,7 @@ static bool mtk_snand_ready_for_write(struct nand_chip *nand, u32 u4RowAddr,
 		snfi_writew(snfc, reg, NFI_CNFG);
 	}
 
-	return 1;
+	return 0;
 }
 
 static bool mtk_snand_check_dececc_done(struct mtk_snfc *snfc, u32 u4SecNum)
@@ -2523,22 +2521,20 @@ static bool mtk_snand_read_page_part2(struct mtd_info *mtd, u32 row_addr,
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct mtk_snfc *snfc = nand_get_controller_data(nand);
-	bool    bRet = 1;
+	bool    bRet = true;
 	u32     reg;
 	u32     col_part2, i, len;
 	u32     spare_per_sector;
 	u8      *buf_part2;
 	u32     timeout = 0xFFFF;
 	u32     old_dec_mode = 0;
-	u32     rc;
 
 #if __INTERNAL_USE_AHB_MODE__
-	dma_addr = dma_map_single(snfc->dev, (void *)buf, NAND_SECTOR_SIZE
+	g_dma_addr = dma_map_single(snfc->dev, (void *)buf, NAND_SECTOR_SIZE
 				  + OOB_PER_SECTOR, DMA_FROM_DEVICE);
-	rc = dma_mapping_error(snfc->dev, dma_addr);
-	if (rc) {
+	if (unlikely(dma_mapping_error(snfc->dev, g_dma_addr))) {
 		dev_err(snfc->dev, "dma mapping error\n");
-		return -EINVAL;
+		return false;
 	}
 #endif
 
@@ -2591,7 +2587,7 @@ static bool mtk_snand_read_page_part2(struct mtd_info *mtd, u32 row_addr,
 			snfi_writew(snfc, reg, NFI_CNFG);
 			mtk_snand_set_autoformat(snfc, 0);
 		}
-		snfi_writel(snfc, (u32)dma_addr, NFI_STRADDR);
+		snfi_writel(snfc, (u32)g_dma_addr, NFI_STRADDR);
 		snfi_writel(snfc, SPIDMA_SEC_EN | (len & SPIDMA_SEC_SIZE_MASK),
 			    NFI_SPIDMA);
 
@@ -2609,7 +2605,7 @@ static bool mtk_snand_read_page_part2(struct mtd_info *mtd, u32 row_addr,
 		while (!(snfi_readw(snfc, NFI_INTR_STA) & INTR_AHB_DONE)) {
 			timeout--;
 			if (timeout == 0) {
-				bRet = 0;
+				bRet = false;
 				goto unmap_and_cleanup;
 			}
 		}
@@ -2617,7 +2613,7 @@ static bool mtk_snand_read_page_part2(struct mtd_info *mtd, u32 row_addr,
 		while (((snfi_readw(snfc, NFI_BYTELEN) & 0x1f000) >> 12) != 1) {
 			timeout--;
 			if (timeout == 0) {
-				bRet = 0;
+				bRet = false;
 				goto unmap_and_cleanup;
 			}
 		}
@@ -2640,12 +2636,16 @@ static bool mtk_snand_read_page_part2(struct mtd_info *mtd, u32 row_addr,
 
 		mtk_snand_nfi_enable_bypass(snfc, 0);
 	}
-	dma_unmap_single(snfc->dev, dma_addr, NAND_SECTOR_SIZE
-			 + OOB_PER_SECTOR, DMA_FROM_DEVICE);
 
 	if (g_bHwEcc) {
+		dma_addr_t dma_addr;
+
 		dma_addr = dma_map_single(snfc->dev, (void *)buf, NAND_SECTOR_SIZE
 					  + OOB_PER_SECTOR, DMA_BIDIRECTIONAL);
+		if (unlikely(dma_mapping_error(snfc->dev, dma_addr))) {
+			bRet = false;
+			goto unmap_and_cleanup;
+		}
 
 		mtk_snand_nfi_enable_bypass(snfc, 1);
 
@@ -2674,7 +2674,7 @@ static bool mtk_snand_read_page_part2(struct mtd_info *mtd, u32 row_addr,
 			reg &= 0x1F;
 
 			if (reg == 0x1F) {
-				bRet = 0;
+				bRet = false;
 				pr_debug("ECC-U(2), PA=%d, S=%d\n",
 					row_addr, (num_sec - 1));
 			} else {
@@ -2696,6 +2696,8 @@ static bool mtk_snand_read_page_part2(struct mtd_info *mtd, u32 row_addr,
 	}
 
 unmap_and_cleanup:
+	dma_unmap_single(snfc->dev, g_dma_addr, NAND_SECTOR_SIZE
+			 + OOB_PER_SECTOR, DMA_FROM_DEVICE);
 
 	mtk_snand_nfi_enable_bypass(snfc, 0);
 
@@ -2732,8 +2734,10 @@ mtk_nand_exec_read_page_retry:
 	mtk_snand_rs_reconfig_nfiecc(u4RowAddr);
 
 	if (g_snand_rs_ecc_bit != 0) {
-		if (mtk_snand_ready_for_read_custom(snfc, nand, u4RowAddr, 0,
-						    u4SecNum, buf, 1, 1, 1)) {
+		int res = mtk_snand_ready_for_read_custom(snfc, nand, u4RowAddr, 0,
+							  u4SecNum, buf, 1, 1, 1);
+
+		if (res == 0) {
 			if (!mtk_snand_read_page_data(mtd, buf, u4SecNum, 1))
 				bRet = 0;
 
@@ -2756,9 +2760,10 @@ mtk_nand_exec_read_page_retry:
 			bm_swap(mtd, pFDMBuf, buf);
 			mtk_snand_stop_read_custom(snfc, 0);
 		}
-		dma_unmap_single(snfc->dev, dma_addr, u4SecNum * (NAND_SECTOR_SIZE
-				 + g_snand_k_spare_per_sec),
-				 DMA_FROM_DEVICE);
+
+		if (res != -ENOMEM)
+			dma_unmap_single(snfc->dev, g_dma_addr, u4SecNum * (NAND_SECTOR_SIZE
+				 + g_snand_k_spare_per_sec), DMA_FROM_DEVICE);
 
 		if (buf != pPageBuf)
 			memcpy(pPageBuf, buf, u4PageSize);
@@ -2842,8 +2847,10 @@ int mtk_nand_exec_write_page(struct mtd_info *mtd, u32 u4RowAddr,
 	mtk_snand_rs_reconfig_nfiecc(u4RowAddr);
 	bm_swap(mtd, pFDMBuf, buf);
 	if (g_snand_rs_ecc_bit != 0) {
-		if (mtk_snand_ready_for_write(nand, u4RowAddr, 0, buf, mtk_ecc, 1,
-						 1)) {
+		int res = mtk_snand_ready_for_write(nand, u4RowAddr, 0, buf, mtk_ecc,
+						    1, 1);
+
+		if (res == 0) {
 			mtk_snand_write_fdm_data(nand, pFDMBuf, u4SecNum);
 			if (!mtk_snand_write_page_data(mtd, buf, u4PageSize, 1))
 				status |= NAND_STATUS_FAIL;
@@ -2863,7 +2870,9 @@ int mtk_nand_exec_write_page(struct mtd_info *mtd, u32 u4RowAddr,
 			mtk_snand_stop_write(snfc, 0);
 			status |= NAND_STATUS_FAIL;
 		}
-		dma_unmap_single(snfc->dev, dma_addr, u4SecNum * (NAND_SECTOR_SIZE +
+
+		if (res != -ENOMEM)
+			dma_unmap_single(snfc->dev, g_dma_addr, u4SecNum * (NAND_SECTOR_SIZE +
 				 g_snand_k_spare_per_sec), DMA_TO_DEVICE);
 	}
 	/* Swap back after write operation */
@@ -3420,9 +3429,11 @@ static int mtk_snand_read_oob_raw(struct mtd_info *mtd, uint8_t *buf,
 
 	/* read the 1st sector, with MTK ECC enabled */
 	if (g_snand_rs_ecc_bit != 0) {
-		if (mtk_snand_ready_for_read_custom(snfc, nand, page_addr, 0,
+		int res = mtk_snand_ready_for_read_custom(snfc, nand, page_addr, 0,
 						    num_sec, g_snand_k_temp,
-						    1, 1, 1)) {
+						    1, 1, 1);
+
+		if (res == 0) {
 			if (!mtk_snand_read_page_data(mtd, g_snand_k_temp,
 						      num_sec, 1))
 				bRet = 0;
@@ -3439,9 +3450,10 @@ static int mtk_snand_read_oob_raw(struct mtd_info *mtd, uint8_t *buf,
 			mtk_snand_stop_read_custom(snfc, 0);
 			bRet = 0;
 		}
-		dma_unmap_single(snfc->dev, dma_addr, num_sec * (NAND_SECTOR_SIZE
-				 + g_snand_k_spare_per_sec),
-				 DMA_FROM_DEVICE);
+
+		if (res != -ENOMEM)
+			dma_unmap_single(snfc->dev, g_dma_addr, num_sec * (NAND_SECTOR_SIZE
+				 + g_snand_k_spare_per_sec), DMA_FROM_DEVICE);
 	}
 
 	if (((num_sec_original * NAND_SECTOR_SIZE) == mtd->writesize)

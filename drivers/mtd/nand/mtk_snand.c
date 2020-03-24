@@ -2717,7 +2717,7 @@ bool mtk_nand_exec_read_page(struct mtd_info *mtd, u32 u4RowAddr,
 
 	buf = pPageBuf;
 
-	if (!virt_addr_valid(pPageBuf))
+	if (!virt_addr_valid(pPageBuf) || !IS_ALIGNED((unsigned long)pPageBuf, 64))
 		buf = g_snand_k_temp;
 
 	if (mtk_snand_rs_if_require_split())
@@ -2830,7 +2830,7 @@ int mtk_nand_exec_write_page(struct mtd_info *mtd, u32 u4RowAddr,
 
 	buf = pPageBuf;
 
-	if (!virt_addr_valid(pPageBuf)) {
+	if (!virt_addr_valid(pPageBuf) || !IS_ALIGNED((unsigned long)pPageBuf, 64)) {
 		buf = g_snand_k_temp;
 		memcpy(buf, pPageBuf, u4PageSize);
 	}

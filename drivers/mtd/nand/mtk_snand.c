@@ -548,13 +548,13 @@ struct mtk_snand_host_hw mtk_nand_hw = {
 };
 
 #define SNAND_MAX_PAGE_SIZE             (4096)
+#define SNAND_MAX_OOB_SIZE              (256)
 #define NAND_SECTOR_SIZE                (512)
 #define OOB_PER_SECTOR                  (28)
 #define OOB_AVAI_PER_SECTOR             (8)
 #define _SNAND_CACHE_LINE_SIZE		(64)
 
-static unsigned char __aligned(64) g_snand_k_spare[128];
-
+static unsigned char __aligned(64) g_snand_k_spare[SNAND_MAX_OOB_SIZE];
 static u8 *g_snand_k_temp;
 
 #if defined(MTK_COMBO_NAND_SUPPORT)
@@ -3879,7 +3879,8 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	g_snand_k_temp = kzalloc(4096+128, GFP_KERNEL);
+	g_snand_k_temp = kzalloc(SNAND_MAX_PAGE_SIZE + SNAND_MAX_OOB_SIZE,
+				 GFP_KERNEL);
 	if (!g_snand_k_temp) {
 		kfree(host);
 		host = NULL;

@@ -106,7 +106,11 @@ static gfp_t massage_gfp_flags(const struct device *dev, gfp_t gfp)
 		dma_flag = __GFP_DMA;
 	else
 #endif
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_MIPS_L2_CACHE_ER35)
+		dma_flag = __GFP_DMA;
+#else
 		dma_flag = 0;
+#endif
 
 	/* Don't invoke OOM killer */
 	gfp |= __GFP_NORETRY;

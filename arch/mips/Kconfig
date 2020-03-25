@@ -191,6 +191,8 @@ config RALINK_MT7621
 	select IRQ_GIC
 #	select MIPS_GIC
 	select WEAK_REORDERING_BEYOND_LLSC
+	select ZONE_DMA
+	select MIPS_L2_CACHE_ER35
 	help
 	  Ralink evaluation board based on MT7621
 
@@ -1450,6 +1452,9 @@ config MIPS_L1_CACHE_SHIFT
 	default "5" if MIPS_L1_CACHE_SHIFT_5
 	default "4" if MIPS_L1_CACHE_SHIFT_4
 	default "5"
+
+config MIPS_L2_CACHE_ER35
+	bool
 
 config HAVE_STD_PC_SERIAL_PORT
 	bool
@@ -3247,6 +3252,11 @@ config ZONE_DMA
 
 config ZONE_DMA32
 	bool
+
+config ZONE_DMA_SIZE
+	hex
+	default 0x1000000 if MIPS_L2_CACHE_ER35
+	default 0x0
 
 source "drivers/pcmcia/Kconfig"
 

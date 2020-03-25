@@ -57,7 +57,7 @@ SECTIONS
 	/* read-only */
 	_text = .;	/* Text and read-only data */
 	.text : {
-#ifndef CONFIG_MIPS_TC3262
+#ifdef CONFIG_RALINK_MT7628
 		. = . + 0x8000;
 #endif
 		TEXT_TEXT

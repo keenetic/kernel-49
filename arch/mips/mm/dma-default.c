@@ -331,10 +331,9 @@ static dma_addr_t mips_dma_map_page(struct device *dev, struct page *page,
 	return plat_map_dma_mem_page(dev, page) + offset;
 }
 
-static void __maybe_unused
-mips_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
-		  int nhwentries, enum dma_data_direction direction,
-		  unsigned long attrs)
+static void mips_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
+	int nhwentries, enum dma_data_direction direction,
+	unsigned long attrs)
 {
 	int i;
 	struct scatterlist *sg;
@@ -419,9 +418,9 @@ static struct dma_map_ops mips_default_dma_map_ops = {
 	.mmap = mips_dma_mmap,
 	.map_page = mips_dma_map_page,
 	.map_sg = mips_dma_map_sg,
+	.unmap_sg = mips_dma_unmap_sg,
 #ifdef CONFIG_DMA_UNMAP_POST_FLUSH
 	.unmap_page = mips_dma_unmap_page,
-	.unmap_sg = mips_dma_unmap_sg,
 	.sync_single_for_cpu = mips_dma_sync_single_for_cpu,
 	.sync_sg_for_cpu = mips_dma_sync_sg_for_cpu,
 #endif

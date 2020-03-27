@@ -355,7 +355,9 @@ asmlinkage void start_secondary(void)
 	mips_clockevent_init();
 	mp_ops->init_secondary();
 	cpu_report();
+#if defined(CONFIG_CPU_MIPS32_R5_FEATURES)
 	maar_init();
+#endif
 
 	/*
 	 * XXX parity protection should be folded in here when it's converted

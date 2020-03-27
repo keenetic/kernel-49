@@ -109,7 +109,9 @@ static inline void r4k_on_each_cpu(unsigned int type,
  */
 static unsigned long icache_size __read_mostly;
 static unsigned long dcache_size __read_mostly;
+#if defined(CONFIG_CPU_LOONGSON3)
 static unsigned long vcache_size __read_mostly;
+#endif
 static unsigned long scache_size __read_mostly;
 
 /*
@@ -320,8 +322,10 @@ static void r4k_blast_icache_page_setup(void)
 		r4k_blast_icache_page = (void *)cache_noop;
 	else if (ic_lsize == 16)
 		r4k_blast_icache_page = blast_icache16_page;
+#if defined(CONFIG_CPU_LOONGSON2)
 	else if (ic_lsize == 32 && current_cpu_type() == CPU_LOONGSON2)
 		r4k_blast_icache_page = loongson2_blast_icache32_page;
+#endif
 	else if (ic_lsize == 32)
 		r4k_blast_icache_page = blast_icache32_page;
 	else if (ic_lsize == 64)
@@ -369,9 +373,11 @@ static void r4k_blast_icache_page_indexed_setup(void)
 		else if (TX49XX_ICACHE_INDEX_INV_WAR)
 			r4k_blast_icache_page_indexed =
 				tx49_blast_icache32_page_indexed;
+#if defined(CONFIG_CPU_LOONGSON2)
 		else if (current_cpu_type() == CPU_LOONGSON2)
 			r4k_blast_icache_page_indexed =
 				loongson2_blast_icache32_page_indexed;
+#endif
 		else
 			r4k_blast_icache_page_indexed =
 				blast_icache32_page_indexed;
@@ -395,8 +401,10 @@ static void r4k_blast_icache_setup(void)
 			r4k_blast_icache = blast_r4600_v1_icache32;
 		else if (TX49XX_ICACHE_INDEX_INV_WAR)
 			r4k_blast_icache = tx49_blast_icache32;
+#if defined(CONFIG_CPU_LOONGSON2)
 		else if (current_cpu_type() == CPU_LOONGSON2)
 			r4k_blast_icache = loongson2_blast_icache32;
+#endif
 		else
 			r4k_blast_icache = blast_icache32;
 	} else if (ic_lsize == 64)
@@ -462,6 +470,10 @@ static void r4k_blast_scache_setup(void)
 static inline void local_r4k___flush_cache_all(void * args)
 {
 	switch (current_cpu_type()) {
+#if defined(CONFIG_CPU_LOONGSON3) || \
+    defined(CONFIG_CPU_LOONGSON2) || \
+    defined(CONFIG_CPU_R4X00) || \
+    defined(CONFIG_CPU_R10000)
 	case CPU_LOONGSON2:
 	case CPU_LOONGSON3:
 	case CPU_R4000SC:
@@ -479,11 +491,14 @@ static inline void local_r4k___flush_cache_all(void * args)
 		 */
 		r4k_blast_scache();
 		break;
+#endif
 
+#if defined(CONFIG_CPU_BMIPS5000)
 	case CPU_BMIPS5000:
 		r4k_blast_scache();
 		__sync();
 		break;
+#endif
 
 	default:
 		r4k_blast_dcache();
@@ -584,6 +599,7 @@ static inline void local_r4k_flush_cache_mm(void * args)
 	if (!has_valid_asid(mm, R4K_INDEX))
 		return;
 
+#if defined(CONFIG_CPU_R4X00)
 	/*
 	 * Kludge alert.  For obscure reasons R4000SC and R4400SC go nuts if we
 	 * only flush the primary caches but R1x000 behave sane ...
@@ -597,6 +613,7 @@ static inline void local_r4k_flush_cache_mm(void * args)
 		r4k_blast_scache();
 		return;
 	}
+#endif
 
 	r4k_blast_dcache();
 }
@@ -748,9 +765,11 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 		r4k_blast_icache();
 	else {
 		switch (boot_cpu_type()) {
+#if defined(CONFIG_CPU_LOONGSON2)
 		case CPU_LOONGSON2:
 			protected_loongson2_blast_icache_range(start, end);
 			break;
+#endif
 
 		default:
 			if (user)
@@ -1139,6 +1158,7 @@ static inline int alias_74k_erratum(struct cpuinfo_mips *c)
 	return present;
 }
 
+#if defined(CONFIG_CPU_BMIPS5000)
 static void b5k_instruction_hazard(void)
 {
 	__sync();
@@ -1150,6 +1170,7 @@ static void b5k_instruction_hazard(void)
 	"       nop; nop; nop; nop; nop; nop; nop; nop\n"
 	: : : "memory");
 }
+#endif
 
 static char *way_string[] = { NULL, "direct mapped", "2-way",
 	"3-way", "4-way", "5-way", "6-way", "7-way", "8-way",
@@ -1199,6 +1220,7 @@ static void probe_pcache(void)
 		c->options |= MIPS_CPU_CACHE_CDEX_P | MIPS_CPU_PREFETCH;
 		break;
 
+#if defined(CONFIG_CPU_TX49XX)
 	case CPU_TX49XX:
 		icache_size = 1 << (12 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
@@ -1213,7 +1235,10 @@ static void probe_pcache(void)
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
+#endif
 
+#if defined(CONFIG_CPU_R4X00) || \
+    defined(CONFIG_CPU_R4300)
 	case CPU_R4000PC:
 	case CPU_R4000SC:
 	case CPU_R4000MC:
@@ -1233,7 +1258,9 @@ static void probe_pcache(void)
 
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		break;
+#endif
 
+#if defined(CONFIG_CPU_R10000)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
@@ -1250,7 +1277,9 @@ static void probe_pcache(void)
 
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
+#endif
 
+#if defined(CONFIG_CPU_VR41XX)
 	case CPU_VR4133:
 		write_c0_config(config & ~VR41_CONF_P4K);
 	case CPU_VR4131:
@@ -1293,7 +1322,9 @@ static void probe_pcache(void)
 
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		break;
+#endif
 
+#if defined(CONFIG_CPU_RM7000)
 	case CPU_RM7000:
 		rm7k_erratum31();
 
@@ -1310,7 +1341,9 @@ static void probe_pcache(void)
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
+#endif
 
+#if defined(CONFIG_CPU_LOONGSON2)
 	case CPU_LOONGSON2:
 		icache_size = 1 << (12 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
@@ -1328,7 +1361,9 @@ static void probe_pcache(void)
 			c->dcache.ways = 2;
 		c->dcache.waybit = 0;
 		break;
+#endif
 
+#if defined(CONFIG_CPU_LOONGSON3)
 	case CPU_LOONGSON3:
 		config1 = read_c0_config1();
 		lsize = (config1 >> 19) & 7;
@@ -1357,7 +1392,9 @@ static void probe_pcache(void)
 		if ((prid & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2)
 			c->options |= MIPS_CPU_PREFETCH;
 		break;
+#endif
 
+#if defined(CONFIG_CPU_CAVIUM_OCTEON)
 	case CPU_CAVIUM_OCTEON3:
 		/* For now lie about the number of ways. */
 		c->icache.linesz = 128;
@@ -1372,6 +1409,7 @@ static void probe_pcache(void)
 		dcache_size = c->dcache.sets * c->dcache.ways * c->dcache.linesz;
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
+#endif
 
 	default:
 		if (!(config & MIPS_CONF_M))
@@ -1557,6 +1595,7 @@ static void probe_pcache(void)
 	        c->dcache.linesz);
 }
 
+#if defined(CONFIG_CPU_LOONGSON3)
 static void probe_vcache(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -1582,7 +1621,11 @@ static void probe_vcache(void)
 	pr_info("Unified victim cache %ldkB %s, linesize %d bytes.\n",
 		vcache_size >> 10, way_string[c->vcache.ways], c->vcache.linesz);
 }
+#else
+static inline void probe_vcache(void) {}
+#endif
 
+#if defined(CONFIG_CPU_R4X00)
 /*
  * If you even _breathe_ on this function, look at the gcc output and make sure
  * it does not pop things on and off the stack for the cache sizing loop that
@@ -1643,7 +1686,9 @@ static int probe_scache(void)
 
 	return 1;
 }
+#endif
 
+#if defined(CONFIG_CPU_LOONGSON2)
 static void __init loongson2_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -1659,7 +1704,9 @@ static void __init loongson2_sc_init(void)
 
 	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }
+#endif
 
+#if defined(CONFIG_CPU_LOONGSON3)
 static void __init loongson3_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -1687,6 +1734,7 @@ static void __init loongson3_sc_init(void)
 		c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 	return;
 }
+#endif
 
 extern int r5k_sc_init(void);
 extern int rm7k_sc_init(void);
@@ -1695,7 +1743,9 @@ extern int mips_sc_init(void);
 static void setup_scache(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
+#if defined(CONFIG_CPU_R10000)
 	unsigned int config = read_c0_config();
+#endif
 	int sc_present = 0;
 
 	/*
@@ -1704,6 +1754,7 @@ static void setup_scache(void)
 	 * Linux memory management.
 	 */
 	switch (current_cpu_type()) {
+#if defined(CONFIG_CPU_R4X00)
 	case CPU_R4000SC:
 	case CPU_R4000MC:
 	case CPU_R4400SC:
@@ -1712,7 +1763,9 @@ static void setup_scache(void)
 		if (sc_present)
 			c->options |= MIPS_CPU_CACHE_CDEX_S;
 		break;
+#endif
 
+#if defined(CONFIG_CPU_R10000)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
@@ -1723,6 +1776,7 @@ static void setup_scache(void)
 		c->scache.waybit= 0;
 		sc_present = 1;
 		break;
+#endif
 
 	case CPU_R5000:
 	case CPU_NEVADA:
@@ -1738,11 +1792,15 @@ static void setup_scache(void)
 		return;
 
 	case CPU_LOONGSON2:
+#if defined(CONFIG_CPU_LOONGSON2)
 		loongson2_sc_init();
+#endif
 		return;
 
 	case CPU_LOONGSON3:
+#if defined(CONFIG_CPU_LOONGSON3)
 		loongson3_sc_init();
+#endif
 		return;
 
 	case CPU_CAVIUM_OCTEON3:
@@ -1859,6 +1917,7 @@ static void coherency_setup(void)
 	 * silly idea of putting something else there ...
 	 */
 	switch (current_cpu_type()) {
+#if defined(CONFIG_CPU_R4X00)
 	case CPU_R4000PC:
 	case CPU_R4000SC:
 	case CPU_R4000MC:
@@ -1867,6 +1926,7 @@ static void coherency_setup(void)
 	case CPU_R4400MC:
 		clear_c0_config(CONF_CU);
 		break;
+#endif
 	/*
 	 * We need to catch the early Alchemy SOCs with
 	 * the write-only co_config.od bit and set it back to one on:
@@ -1994,6 +2054,7 @@ void r4k_cache_init(void)
 		/* No IPI is needed because all CPUs share the same D$ */
 		flush_data_cache_page = r4k_blast_dcache_page;
 		break;
+#if defined(CONFIG_CPU_BMIPS5000)
 	case CPU_BMIPS5000:
 		/* We lose our superpowers if L2 is disabled */
 		if (c->scache.flags & MIPS_CACHE_NOT_PRESENT)
@@ -2012,6 +2073,8 @@ void r4k_cache_init(void)
 		/* Optimization: an L2 flush implicitly flushes the L1 */
 		current_cpu_data.options |= MIPS_CPU_INCLUSIVE_CACHES;
 		break;
+#endif
+#if defined(CONFIG_CPU_LOONGSON3)
 	case CPU_LOONGSON3:
 		/* Loongson-3 maintains cache coherency by hardware */
 		__flush_cache_all	= cache_noop;
@@ -2026,6 +2089,7 @@ void r4k_cache_init(void)
 		flush_data_cache_page	= (void *)cache_noop;
 		local_flush_data_cache_page	= (void *)cache_noop;
 		break;
+#endif
 	}
 }
 

@@ -257,6 +257,7 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 #endif
 }
 
+#if defined(CONFIG_CPU_MIPS32_R5_FEATURES)
 unsigned __weak platform_maar_init(unsigned num_pairs)
 {
 	struct maar_config cfg[BOOT_MEM_MAP_MAX];
@@ -368,6 +369,7 @@ void maar_init(void)
 		}
 	}
 }
+#endif
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 int page_is_ram(unsigned long pagenr)
@@ -466,7 +468,9 @@ void __init mem_init(void)
 #endif
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
+#if defined(CONFIG_CPU_MIPS32_R5_FEATURES)
 	maar_init();
+#endif
 	free_all_bootmem();
 	setup_zero_pages();	/* Setup zeroed pages.  */
 	mem_init_free_highmem();

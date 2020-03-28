@@ -446,7 +446,7 @@ static int                     g_snand_cmd_status      = NAND_STATUS_READY;
 static int                     g_snand_erase_cmds;
 static int                     g_snand_erase_addr;
 
-static u8 g_snand_id_data[SNAND_MAX_ID + 1];
+static u8 g_snand_id_data[8];
 static u8 g_snand_id_data_idx;
 
 /* Read Split related definitions and variables */
@@ -864,8 +864,12 @@ static const snand_flashdev_info gen_snand_FlashTable[] = {
 		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F4GQ4UAYIG", 0x00000000},
 	{{0xC8, 0xD1}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
 		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F1GQ4UX", 0x00000000},
+	{{0xC8, 0xD9}, 2, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F1GQ4UE", 0x00000000},
 	{{0xC8, 0xD2}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
 		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F2GQ4UX", 0x00000000},
+	{{0xC8, 0x32}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000014,
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "GD5F2GQ4UE", 0x00000000},
 	{{0xC2, 0x22}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000000,
 		0x00000000, 0x0552000A, 0x3F00, 0x0000, "MX35LF2GE4AB", 0x00000000},
 	{{0xC2, 0x20}, 2, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000000,
@@ -892,6 +896,14 @@ static const snand_flashdev_info gen_snand_FlashTable[] = {
 		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TC58CVG1S3HRAIG", 0x00000000},
 	{{0x98, 0xCD}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000000,
 		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TC58CVG2S3HRAIG", 0x00000000},
+	{{0x98, 0xE2}, 2, 128, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TC58CVG0S3HRAIJ", 0x00000000},
+	{{0x98, 0xEB}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TC58CVG1S3HRAIJ", 0x00000000},
+	{{0x98, 0xED}, 2, 512, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TC58CVG2S0HRAIJ", 0x00000000},
+	{{0x98, 0xE4}, 2, 1024, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "TH58CVG3S0HRAIJ", 0x00000000},
 	{{0xD5, 0x11}, 2, 128, 128, 2048, 120, 0x00000000, 0x00000000, 0x00000014,
 		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73C01G44SNB", 0x00000000},
 	{{0xD5, 0x12}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000014,
@@ -912,6 +924,8 @@ static const snand_flashdev_info gen_snand_FlashTable[] = {
 		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73B044VCA", 0x00000000},
 	{{0xD5, 0x24}, 2, 1024, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000028,
 		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73F044SNA", 0x00000000},
+	{{0xD5, 0x2D}, 2, 1024, 256, 4096, 256, 0x00000000, 0x00000000, 0x00000028,
+		0x00000000, 0x0552000A, 0x3F00, 0x0000, "EM73F044VCA", 0x00000000},
 	{{0x6B, 0x01}, 2, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
 		0x00000000, 0x0552000A, 0x0, 0x0, "CS11G1T0A0AA", 0x00000000},
 	{{0x6B, 0x02}, 2, 512, 128, 2048, 128, 0x00000000, 0x00000000, 0x1A00001A,
@@ -2154,8 +2168,8 @@ static int mtk_snand_ready_for_write(struct nand_chip *nand, u32 u4RowAddr,
 	}
 #endif
 
-	/* Toshiba spi nand just use SPI mode*/
-	if (devinfo.id[0] == 0x98)
+	/* For Toshiba spi nand 1st generation just support SPI mode*/
+	if ((devinfo.id[0] == 0x98) && ((devinfo.id[1] & 0xf0) != 0xe0))
 		mode = SPI;
 
 	if (!mtk_snand_reset_con(snfc))

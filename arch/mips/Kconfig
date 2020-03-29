@@ -169,7 +169,6 @@ config MIPS_GENERIC
 config RALINK_MT7621
 	bool "Ralink MT7621 board"
 	select DMA_NONCOHERENT
-#	select DMA_MAYBE_COHERENT
 	select IRQ_MIPS_CPU
 	select HW_HAS_PCI
 	select SWAP_IO_SPACE
@@ -191,7 +190,6 @@ config RALINK_MT7621
 	select IRQ_GIC
 #	select MIPS_GIC
 	select WEAK_REORDERING_BEYOND_LLSC
-	select ZONE_DMA
 	select MIPS_L2_CACHE_ER35
 	help
 	  Ralink evaluation board based on MT7621
@@ -1455,6 +1453,7 @@ config MIPS_L1_CACHE_SHIFT
 
 config MIPS_L2_CACHE_ER35
 	bool
+	select ZONE_DMA
 
 config HAVE_STD_PC_SERIAL_PORT
 	bool
@@ -3256,7 +3255,6 @@ config ZONE_DMA32
 config ZONE_DMA_SIZE
 	hex
 	default 0x1000000 if MIPS_L2_CACHE_ER35
-	default 0x0
 
 source "drivers/pcmcia/Kconfig"
 

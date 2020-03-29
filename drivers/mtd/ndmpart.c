@@ -248,6 +248,18 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 	uint32_t size = PART_SIZE_UNKNOWN;
 
 #if defined(CONFIG_MACH_MT7622)
+
+#if defined(CONFIG_FIRST_IF_MT7915) || \
+    defined(CONFIG_SECOND_IF_MT7915)
+/* AX boards */
+#define PART_RF_EEPROM_SIZE_NOR		0x080000
+#define PART_RF_EEPROM_SIZE_NAND	0x100000
+#else
+/* AC boards */
+#define PART_RF_EEPROM_SIZE_NOR		0x020000
+#define PART_RF_EEPROM_SIZE_NAND	0x040000
+#endif
+
 	/*
 	 * Partitions size hardcoded in MTK uboot, see "mt7622_evb.h".
 	 * We now support NOR and SLC NAND layouts.
@@ -268,7 +280,10 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x80000;
 		break;
 	case PART_RF_EEPROM:
-		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x40000;
+		if (master->type == MTD_NORFLASH)
+			size = PART_RF_EEPROM_SIZE_NOR;
+		else
+			size = PART_RF_EEPROM_SIZE_NAND;
 		break;
 	case PART_CONFIG_1:
 		size = master->erasesize * 4;

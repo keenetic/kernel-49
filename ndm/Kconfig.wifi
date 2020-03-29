@@ -35,11 +35,18 @@ choice
 	select CHIP_MT7603E
 
 	config FIRST_IF_MT7615E
-	bool "MT7615E"
+	bool "MT7615D/N"
 	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7623)
 	select MT_MAC
 	select WIFI_MT_MAC
 	select CHIP_MT7615E
+
+	config FIRST_IF_MT7915
+	bool "MT7915D/A"
+	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7622 || MACH_MT7623)
+	select MT_MAC
+	select WIFI_MT_MAC
+	select CHIP_MT7915
 endchoice
 
 choice
@@ -58,7 +65,7 @@ endchoice
 
 choice
 	prompt "PA & LNA type of 1st card"
-	depends on (FIRST_IF_MT7615E || FIRST_IF_MT7622)
+	depends on (FIRST_IF_MT7615E || FIRST_IF_MT7622 || FIRST_IF_MT7915)
 
 	config FIRST_IF_EPAELNA
 	bool "ePA/eLNA"
@@ -93,10 +100,16 @@ choice
 	select CHIP_MT7663E
 
 	config SECOND_IF_MT7615E
-	bool "MT7615E"
+	bool "MT7615D/N"
 	select MT_MAC
 	select WIFI_MT_MAC
 	select CHIP_MT7615E
+
+	config SECOND_IF_MT7915
+	bool "MT7915D/A"
+	select MT_MAC
+	select WIFI_MT_MAC
+	select CHIP_MT7915
 endchoice
 
 choice
@@ -115,7 +128,7 @@ endchoice
 
 choice
 	prompt "PA & LNA type of 2nd card"
-	depends on (SECOND_IF_MT7613E || SECOND_IF_MT7615E)
+	depends on (SECOND_IF_MT7613E || SECOND_IF_MT7615E || SECOND_IF_MT7915)
 
 	config SECOND_IF_EPAELNA
 	bool "ePA/eLNA"
@@ -135,6 +148,7 @@ config RT_FIRST_CARD
 	default 7602 if FIRST_IF_MT7602E
 	default 7603 if FIRST_IF_MT7603E
 	default 7615 if FIRST_IF_MT7615E
+	default 7915 if FIRST_IF_MT7915
 
 config RT_SECOND_CARD
 	int
@@ -143,6 +157,7 @@ config RT_SECOND_CARD
 	default 7612 if SECOND_IF_MT7612E
 	default 7613 if SECOND_IF_MT7613E
 	default 7615 if SECOND_IF_MT7615E
+	default 7915 if SECOND_IF_MT7915
 
 config RT_FIRST_IF_RF_OFFSET
 	hex "EEPROM offset of 1st card"
@@ -210,6 +225,10 @@ config CHIP_MT7615E
 	bool
 	select RTMP_PCI_SUPPORT
 
+config CHIP_MT7915
+	bool
+	select RTMP_PCI_SUPPORT
+
 config CHIP_MT7622
 	bool
 	select RTMP_RBUS_SUPPORT
@@ -245,13 +264,22 @@ source "ndm/mt7615_ap/Kconfig"
 source "ndm/mt7615/Kconfig"
 endmenu
 
+menu "MediaTek MT7915 PCIe Wireless driver"
+source "ndm/mt7915_ap/Kconfig"
+source "ndm/mt7915/Kconfig"
+endmenu
+
 menu "Common Wi-Fi settings"
 config ATE_SUPPORT
-	bool "ATE/QA Support"
+	bool "ATE/QA support"
 	default n
 
 config WIFI_DEBUG_SUPPORT
-	bool "Debug Mode Support"
+	bool "Debug Mode support"
+	default n
+
+config WIFI_SYSTEM_DVT
+	bool "Design Validation Test support"
 	default n
 
 config WIFI_MEMORY_OPTIMIZATION

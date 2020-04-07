@@ -41,9 +41,9 @@ static const char *part_probes[] __initdata = {
 //#define SPI_DEBUG
 //#define TEST_CS1_FLASH
 
-#define BBU_MAX_BUSY_MS		500
+#define BBU_MAX_BUSY_MS		800
 #define BBU_MAX_ERASE_MS	3000
-#define BBU_MAX_WRITE_MS	500
+#define BBU_MAX_WRITE_MS	800
 
 #if defined(CONFIG_MTD_SPI_READ_FAST)
 #define RD_MODE_FAST
@@ -98,7 +98,6 @@ static const char *part_probes[] __initdata = {
 #define SR_BP1			0x08	/* Block protect 1 */
 #define SR_BP2			0x10	/* Block protect 2 */
 #define SR_BP3			0x20	/* Block protect 3 */
-#define SR_EPE			0x20	/* Erase/Program error */
 #define SR_SRWD			0x80	/* SR write protect */
 
 #define OPCODE_BRRD		0x16
@@ -254,6 +253,7 @@ static struct chip_info chips_data [] = {
 	{ "N25Q064A",		0x20, 0xba171000, 64 * 1024, 128, 0 },
 	{ "N25Q128A",		0x20, 0xba181000, 64 * 1024, 256, 0 },
 	{ "N25Q256A",		0x20, 0xba191000, 64 * 1024, 512, 1 },
+	{ "XM25QH256B",		0x20, 0x60192060, 64 * 1024, 512, 1 },
 	{ "MT25QL512AB",	0x20, 0xba201044, 64 * 1024, 1024, 1 },
 
 	{ "F25L32QA",		0x8c, 0x41168c41, 64 * 1024, 64,  0 }, /* ESMT */
@@ -621,6 +621,7 @@ static int raspi_4byte_mode(int enable)
 {
 	int retval;
 	u32 reg_ctl, reg_qctl;
+	struct chip_info *chip = flash->chip;
 
 	raspi_wait_write_ready(10);
 
@@ -640,7 +641,7 @@ static int raspi_4byte_mode(int enable)
 	ra_outl(SPI_REG_CTL, reg_ctl);
 	ra_outl(SPI_REG_Q_CTL, reg_qctl);
 
-	if (flash->chip->id == 0x1) {
+	if (chip->id == 0x1) {
 		/* Spansion */
 		u8 br, br_cfn;
 
@@ -657,10 +658,15 @@ static int raspi_4byte_mode(int enable)
 		u8 code;
 
 		code = (enable)? 0xB7 : 0xE9; /* B7: enter 4B, E9: exit 4B */
+
+		/* for XMC XM25QH256B, EX4B is 29h */
+		if (!enable && chip->id == 0x20 && (chip->jedec_id >> 24) == 0x60)
+			code = 0x29;
+
 		retval = bbu_spic_trans(code, 0, NULL, 1, 0, 0);
 
 		/* for Winbond's W25Q256FV, need to clear extend address register */
-		if ((!enable) && (flash->chip->id == 0xef)) {
+		if ((!enable) && (chip->id == 0xef)) {
 			code = 0x0;
 			raspi_write_enable();
 			raspi_write_rg(0xc5, &code);

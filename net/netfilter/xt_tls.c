@@ -296,7 +296,9 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 						name_length);
 #endif
 					if (name_length > (NAME_BUFFER - 1)) {
+#ifdef XT_TLS_DEBUG
 						pr_info("XXX %d %d\n", name_length, NAME_BUFFER - 1);
+#endif
 						return -EPROTO;
 					}
 

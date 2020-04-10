@@ -55,9 +55,15 @@ static DEFINE_PER_CPU(struct delayed_work, pagecache_reclaim_dw);
 
 unsigned long shrink_all_pagecache_memory(unsigned long nr_pages);
 
-#define PAGECACHE_RECLAIM_DELAY		(HZ / 2)
+#if defined(CONFIG_RALINK_RAM_SIZE) && (CONFIG_RALINK_RAM_SIZE < 128)
+#define PAGECACHE_RECLAIM_DELAY		(HZ / 5)			/* 200ms */
+#define PAGECACHE_RECLAIM_THRESHOLD	(1024 * 1024 / PAGE_SIZE)	/* 1.0MB */
+#define PAGECACHE_LIMIT_MIN		( 512 * 1024 / PAGE_SIZE)	/* 0.5MB */
+#else
+#define PAGECACHE_RECLAIM_DELAY		(HZ / 2)			/* 500ms */
 #define PAGECACHE_RECLAIM_THRESHOLD	(2 * 1024 * 1024 / PAGE_SIZE)	/* 2MB */
 #define PAGECACHE_LIMIT_MIN		(1 * 1024 * 1024 / PAGE_SIZE)	/* 1MB */
+#endif
 
 unsigned long check_pagecache_overlimit(void)
 {

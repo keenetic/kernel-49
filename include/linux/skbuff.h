@@ -2476,7 +2476,7 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int length,
 static inline struct sk_buff *netdev_alloc_skb(struct net_device *dev,
 					       unsigned int length)
 {
-	return __netdev_alloc_skb(dev, length, GFP_ATOMIC);
+	return __netdev_alloc_skb(dev, length, GFP_ATOMIC | __GFP_NOWARN);
 }
 
 /* legacy helper around __netdev_alloc_skb() */
@@ -2506,7 +2506,7 @@ static inline struct sk_buff *__netdev_alloc_skb_ip_align(struct net_device *dev
 static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
 		unsigned int length)
 {
-	return __netdev_alloc_skb_ip_align(dev, length, GFP_ATOMIC);
+	return __netdev_alloc_skb_ip_align(dev, length, GFP_ATOMIC | __GFP_NOWARN);
 }
 
 static inline void skb_free_frag(void *addr)
@@ -2520,7 +2520,7 @@ struct sk_buff *__napi_alloc_skb(struct napi_struct *napi,
 static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
 					     unsigned int length)
 {
-	return __napi_alloc_skb(napi, length, GFP_ATOMIC);
+	return __napi_alloc_skb(napi, length, GFP_ATOMIC | __GFP_NOWARN);
 }
 void napi_consume_skb(struct sk_buff *skb, int budget);
 

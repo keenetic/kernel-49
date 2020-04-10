@@ -1146,12 +1146,13 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 
 	/* allocate a new OUT skb */
 	if (!skb_out) {
-		skb_out = alloc_skb(ctx->tx_max, GFP_ATOMIC);
+		skb_out = alloc_skb(ctx->tx_max, GFP_ATOMIC | __GFP_NOWARN);
 		if (skb_out == NULL) {
 			if (skb != NULL) {
 				dev_kfree_skb_any(skb);
 				dev->net->stats.tx_dropped++;
 			}
+			dev_crit_ratelimited(&dev->udev->dev, "no tx skb\n");
 			goto exit_no_skb;
 		}
 		/* fill out the initial 16-bit NTB header */

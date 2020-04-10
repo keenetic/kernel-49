@@ -385,7 +385,7 @@ void *netdev_alloc_frag(unsigned int fragsz)
 {
 	fragsz = SKB_DATA_ALIGN(fragsz);
 
-	return __netdev_alloc_frag(fragsz, GFP_ATOMIC | __GFP_COLD);
+	return __netdev_alloc_frag(fragsz, GFP_ATOMIC | __GFP_COLD | __GFP_NOWARN);
 }
 EXPORT_SYMBOL(netdev_alloc_frag);
 
@@ -400,7 +400,7 @@ void *napi_alloc_frag(unsigned int fragsz)
 {
 	fragsz = SKB_DATA_ALIGN(fragsz);
 
-	return __napi_alloc_frag(fragsz, GFP_ATOMIC | __GFP_COLD);
+	return __napi_alloc_frag(fragsz, GFP_ATOMIC | __GFP_COLD | __GFP_NOWARN);
 }
 EXPORT_SYMBOL(napi_alloc_frag);
 

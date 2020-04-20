@@ -59,7 +59,6 @@ config MT7613_MBO_SUPPORT
 
 config MT7613_OCE_SUPPORT
 	bool "Optimized Connectivity Experience support"
-	depends on MT7613_MBO_SUPPORT
 	default n
 
 config MT7613_MAP_SUPPORT

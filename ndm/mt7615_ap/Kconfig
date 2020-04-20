@@ -57,6 +57,10 @@ config MT7615_MBO_SUPPORT
 	select MT7615_DOT11U_GAS_SUPPORT
 	default n
 
+config MT7615_OCE_SUPPORT
+	bool "Optimized Connectivity Experience support"
+	default n
+
 config MT7615_MAP_SUPPORT
 	bool "Multi-AP Support"
 	default y

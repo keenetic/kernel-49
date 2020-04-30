@@ -65,3 +65,9 @@ config NETFILTER_XT_MATCH_TLS
 	select GLOB
 	---help---
 	  This option adds a "tls" match.
+
+config NF_CT_PROTO_ESP
+	tristate 'ESP protocol connection tracking support'
+	depends on NETFILTER_ADVANCED
+	default m
+

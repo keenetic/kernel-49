@@ -33,6 +33,10 @@ static bool nf_generic_should_process(u8 proto)
 	case IPPROTO_UDPLITE:
 		return false;
 #endif
+#ifdef CONFIG_NF_CT_PROTO_ESP_MODULE
+	case IPPROTO_ESP:
+		return false;
+#endif
 	default:
 		return true;
 	}

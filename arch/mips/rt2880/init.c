@@ -127,14 +127,17 @@ static inline void prom_show_pstat(void)
 	soc_power_status = (int)simple_strtoul(s, NULL, 0);
 
 	switch (soc_power_status) {
+	default:
+		pr_warn("SoC power status: unknown");
+		break;
 	case 3:
-		printk(KERN_WARNING "SoC power status: %s\n", "Watchdog reset occured");
+		pr_warn("SoC power status: watchdog reset occurred");
 		break;
 	case 2:
-		printk(KERN_INFO "SoC power status: %s\n", "Soft reset occured");
+		pr_info("SoC power status: soft reset occurred");
 		break;
 	case 1:
-		printk(KERN_INFO "SoC power status: %s\n", "Hard reset occured");
+		pr_info("SoC power status: hard reset occurred");
 		break;
 	}
 }

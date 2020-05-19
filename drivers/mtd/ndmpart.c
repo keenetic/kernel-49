@@ -76,6 +76,12 @@
 
 #define PART_SIZE_UNKNOWN		(~0)
 
+#if defined(CONFIG_FIRST_IF_MT7915) || \
+    defined(CONFIG_SECOND_IF_MT7915)
+/* MT7915 AX boards */
+#define PART_RF_EEPROM_AX_BOARD
+#endif
+
 enum part {
 	/* Image 1 */
 #if defined(CONFIG_MACH_MT7622)
@@ -249,8 +255,7 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 
 #if defined(CONFIG_MACH_MT7622)
 
-#if defined(CONFIG_FIRST_IF_MT7915) || \
-    defined(CONFIG_SECOND_IF_MT7915)
+#ifdef PART_RF_EEPROM_AX_BOARD
 /* AX boards */
 #define PART_RF_EEPROM_SIZE_NOR		0x080000
 #define PART_RF_EEPROM_SIZE_NAND	0x100000
@@ -326,6 +331,19 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 	default:
 		break;
 	}
+
+#ifdef PART_RF_EEPROM_AX_BOARD
+	if (part == PART_RF_EEPROM) {
+		if (master->type == MTD_NANDFLASH)
+#ifdef NAND_BB_MODE_SKIP
+			size = master->erasesize << 2;	/* 512K */
+#else
+			size = master->erasesize << 1;	/* 256K */
+#endif
+		else
+			size = 4 * master->erasesize;	/* 256K */
+	}
+#endif /* PART_RF_EEPROM_AX_BOARD */
 #endif
 
 	return size;

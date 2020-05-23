@@ -41,9 +41,9 @@ static const char *part_probes[] __initdata = {
 //#define SPI_DEBUG
 //#define TEST_CS1_FLASH
 
-#define BBU_MAX_BUSY_MS		800
-#define BBU_MAX_ERASE_MS	3000
-#define BBU_MAX_WRITE_MS	800
+#define BBU_MAX_BUSY_MS		2000
+#define BBU_MAX_ERASE_MS	4000
+#define BBU_MAX_WRITE_MS	2000
 
 #if defined(CONFIG_MTD_SPI_READ_FAST)
 #define RD_MODE_FAST

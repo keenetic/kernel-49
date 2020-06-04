@@ -964,6 +964,7 @@ static const struct sdp_media_type sdp_media_types[] = {
 	SDP_MEDIA_TYPE("audio ", SIP_EXPECT_AUDIO),
 	SDP_MEDIA_TYPE("video ", SIP_EXPECT_VIDEO),
 	SDP_MEDIA_TYPE("image ", SIP_EXPECT_IMAGE),
+	SDP_MEDIA_TYPE("application ", SIP_EXPECT_APPLICATION),
 };
 
 static const struct sdp_media_type *sdp_media_type(const char *dptr,
@@ -1613,6 +1614,11 @@ static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1
 	[SIP_EXPECT_IMAGE] = {
 		.name		= "image",
 		.max_expected	= IP_CT_DIR_MAX,
+		.timeout	= 3 * 60,
+	},
+	[SIP_EXPECT_APPLICATION] = {
+		.name		= "application",
+		.max_expected	= 2 * IP_CT_DIR_MAX,
 		.timeout	= 3 * 60,
 	},
 };

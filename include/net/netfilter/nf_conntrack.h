@@ -53,7 +53,7 @@ union nf_conntrack_expect_proto {
 struct nf_conntrack_helper;
 
 /* Must be kept in sync with the classes defined by helpers */
-#define NF_CT_MAX_EXPECT_CLASSES	4
+#define NF_CT_MAX_EXPECT_CLASSES	5
 
 /* nf_conn feature for connections that have a helper */
 struct nf_conn_help {

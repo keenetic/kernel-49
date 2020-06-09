@@ -256,7 +256,7 @@ PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 	struct parse_events_term *term;
 	struct list_head *list;
 	char pmu_name[128];
-	snprintf(&pmu_name, 128, "%s-%s", $1, $3);
+	snprintf(pmu_name, sizeof(pmu_name), "%s-%s", $1, $3);
 
 	ALLOC_LIST(head);
 	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,

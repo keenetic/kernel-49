@@ -1606,7 +1606,7 @@ static inline u8 ndm_sc_to_dscp(const u8 sc)
 	static const u8 SC_TO_DSCP_[] =
 	{
 		0x00, /* 0 -> DF */
-		0x2c, /* 1 -> EF */
+		0x2e, /* 1 -> EF */
 		0x22, /* 2 -> AF41 */
 		0x1a, /* 3 -> AF31 */
 		0x12, /* 4 -> AF21 */

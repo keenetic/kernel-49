@@ -3,14 +3,18 @@
 
 #include <linux/types.h>
 
-/* Copyright (C) 2002,2004 MARA Systems AB <http://www.marasystems.com>
- * by Henrik Nordstrom <hno@marasystems.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/* Must be in-sync with ndm/Netfilter/Typedefs.h */
+
+enum xt_connndmmark_list {
+	XT_CONNNDMMARK_DNAT          = 0x80,
+	XT_CONNNDMMARK_DNS           = 0x40,
+	XT_CONNNDMMARK_TLS           = 0x20,
+	XT_CONNNDMMARK_CS_MASK       = 0x1C,
+	XT_CONNNDMMARK_CS_SHIFT      = 0x02,
+	XT_CONNNDMMARK_IPSEC_IN      = 0x01,
+	XT_CONNNDMMARK_IPSEC_OUT     = 0x02,
+	XT_CONNNDMMARK_IPSEC_MASK    = 0x03,
+};
 
 enum {
 	XT_CONNNDMMARK_SET = 0,

@@ -19,6 +19,10 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_DSCP.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("Xtables: DSCP/TOS field modification");
 MODULE_LICENSE("GPL");
@@ -37,10 +41,13 @@ dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		if (!skb_make_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		FOE_ALG_MARK(skb);
+#endif
+
 		ipv4_change_dsfield(ip_hdr(skb),
 				    (__force __u8)(~XT_DSCP_MASK),
 				    dinfo->dscp << XT_DSCP_SHIFT);
-
 	}
 	return XT_CONTINUE;
 }
@@ -54,6 +61,10 @@ dscp_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	if (dscp != dinfo->dscp) {
 		if (!skb_make_writable(skb, sizeof(struct ipv6hdr)))
 			return NF_DROP;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		FOE_ALG_MARK(skb);
+#endif
 
 		ipv6_change_dsfield(ipv6_hdr(skb),
 				    (__force __u8)(~XT_DSCP_MASK),
@@ -86,6 +97,11 @@ tos_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	if (orig != nv) {
 		if (!skb_make_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		FOE_ALG_MARK(skb);
+#endif
+
 		iph = ip_hdr(skb);
 		ipv4_change_dsfield(iph, 0, nv);
 	}
@@ -106,6 +122,11 @@ tos_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	if (orig != nv) {
 		if (!skb_make_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+		FOE_ALG_MARK(skb);
+#endif
+
 		iph = ipv6_hdr(skb);
 		ipv6_change_dsfield(iph, 0, nv);
 	}

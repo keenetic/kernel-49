@@ -1,8 +1,6 @@
 /*
  * ZyXEL Keenetic Plus DSL driver based on the Davicom DM96xx driver.
  *
- * <developers@ndmsystems.com>
- *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
@@ -750,6 +748,6 @@ static struct usb_driver kpdsl_driver = {
 
 module_usb_driver(kpdsl_driver);
 
-MODULE_AUTHOR("<developers@ndmsystems.com>");
+MODULE_AUTHOR("Sergey Korolev <s.korolev@ndmsystems.com>");
 MODULE_DESCRIPTION("ZyXEL Keenetic Plus DSL");
 MODULE_LICENSE("GPL");

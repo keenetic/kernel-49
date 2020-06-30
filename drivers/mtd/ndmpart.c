@@ -1,5 +1,5 @@
 /*
- * Copyright © 2007 Eugene Konev <ejka@openwrt.org>
+ * Copyright (C) 2016 Alexander Papenko <ap@ndmsystems.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,9 +15,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * TI AR7 flash partition table.
+ * NDM flash partition table.
+ *
+ * Based on ar7part by Eugene Konev <ejka@openwrt.org>
  * Based on ar7 map by Felix Fietkau <nbd@openwrt.org>
  *
+ * 2016-2019, Eugene Yudin <e.yudin@ndmsystems.com>
+ *  - Dual Image support
+ *  - "U-State" search
  */
 
 #include <linux/module.h>
@@ -1295,5 +1300,6 @@ module_init(ndm_parser_init);
 module_exit(ndm_parser_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("NDM Systems Inc. <info@ndmsystems.com>");
+MODULE_AUTHOR("Alexander Papenko <ap@ndmsystems.com>, "
+		"Eugene Yudin <e.yudin@ndmsystems.com>");
 MODULE_DESCRIPTION("MTD partitioning for NDM devices");

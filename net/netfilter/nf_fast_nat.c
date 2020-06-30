@@ -1,13 +1,18 @@
 /*
- * Packet matching code.
+ * Fastpath module for NAT speedup.
  *
- * Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
- * Copyright (C) 2009-2002 Netfilter core team <coreteam@netfilter.org>
+ * Based on bcm_nat by BCM LTD and additional GPLv2 code blocks.
  *
- * 19 Jan 2002 Harald Welte <laforge@gnumonks.org>
- * 	- increase module usage count as soon as we have rules inside
- * 	  a table
+ *      This program is free software, you can redistribute it and/or
+ *      modify it under the terms of the GNU General Public License
+ *      as published by the Free Software Foundation; either version
+ *      2 of the License, or (at your option) any later version.
+ *
+ * 2016, Ilya Ponetaev <i.ponetaev@ndmsystems.com> ported to Linux 3.x
+ * 2019, Andrey Zolotarev <a.zolotarev@ndmsystems.com> ported to Linux 4.x
+ * 2019, Ilya Ponetayev <i.ponetaev@ndmsystems.com> XFRM ESP fastpath
  */
+
 #include <linux/cache.h>
 #include <linux/skbuff.h>
 #include <linux/kmod.h>
@@ -335,4 +340,5 @@ module_init(fast_nat_init);
 module_exit(fast_nat_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("http://www.ndmsystems.com");
+MODULE_AUTHOR("Broadcom Corporation");
+MODULE_DESCRIPTION("Fastpath module for NAT offload");

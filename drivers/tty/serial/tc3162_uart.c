@@ -530,6 +530,7 @@ stop_thread:
 
 module_init(tc3162_uart_init);
 
-MODULE_AUTHOR("http://www.ndmsystems.com");
+MODULE_AUTHOR("Andrey Zolotarev <a.zolotarev@ndmsystems.com>, "
+		"Sergey Korolev <s.korolev@ndmsystems.com>");
 MODULE_DESCRIPTION("UART driver for EN751x SoC with buffered output");
 MODULE_LICENSE("GPL");

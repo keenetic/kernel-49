@@ -1,7 +1,7 @@
 #define DRV_NAME		"ubridge"
 #define DRV_VERSION		"1.2"
 #define DRV_DESCRIPTION		"Tiny bridge driver"
-#define DRV_COPYRIGHT		"(C) 2012-2019 NDM Systems Inc. <ap@ndmsystems.com>"
+#define DRV_AUTHOR		"Alexander Papenko <ap@ndmsystems.com>"
 
 /**
  * UBR_UC_SYNC - allow sync unicast list for slave device.
@@ -1011,5 +1011,5 @@ module_init(ubridge_init);
 module_exit(ubridge_exit);
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_AUTHOR(DRV_COPYRIGHT);
+MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_LICENSE("GPL");

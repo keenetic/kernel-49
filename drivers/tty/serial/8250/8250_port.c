@@ -2584,7 +2584,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 #if defined(CONFIG_RALINK_MT7621) || \
     defined(CONFIG_RALINK_MT7628)
-	if (baud > 115200) {
+	if (baud >= 115200) {
 		quot = DIV_ROUND_UP(port->uartclk, 256 * baud);
 		serial_port_out(port, MTK_UART_HIGHS, 0x3);
 	} else {
@@ -2697,7 +2697,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 #if defined(CONFIG_RALINK_MT7621) || \
     defined(CONFIG_RALINK_MT7628)
-	if (baud > 115200) {
+	if (baud >= 115200) {
 		unsigned int scount;
 		unsigned short fraction_L_mapping[] = {
 			0, 1, 0x5, 0x15, 0x55, 0x57, 0x57, 0x77, 0x7F, 0xFF, 0xFF

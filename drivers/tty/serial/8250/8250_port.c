@@ -55,6 +55,15 @@
 
 #define BOTH_EMPTY	(UART_LSR_TEMT | UART_LSR_THRE)
 
+#if defined(CONFIG_RALINK_MT7621) || \
+    defined(CONFIG_RALINK_MT7628)
+#define MTK_UART_HIGHS		0x09	/* Highspeed register */
+#define MTK_UART_SAMPLE_COUNT	0x0a	/* Sample count register */
+#define MTK_UART_SAMPLE_POINT	0x0b	/* Sample point register */
+#define MTK_UART_FRACDIV_L	0x15	/* Fractional divider LSB address */
+#define MTK_UART_FRACDIV_M	0x16	/* Fractional divider MSB address */
+#endif
+
 /*
  * Here we define the default xmit fifo size used for each type of UART.
  */
@@ -2573,6 +2582,17 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	serial8250_rpm_get(up);
 	spin_lock_irqsave(&port->lock, flags);
 
+#if defined(CONFIG_RALINK_MT7621) || \
+    defined(CONFIG_RALINK_MT7628)
+	if (baud > 115200) {
+		quot = DIV_ROUND_UP(port->uartclk, 256 * baud);
+		serial_port_out(port, MTK_UART_HIGHS, 0x3);
+	} else {
+		/* reset HS register */
+		serial_port_out(port, MTK_UART_HIGHS, 0x0);
+	}
+#endif
+
 	up->lcr = cval;					/* Save computed LCR */
 
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
@@ -2674,6 +2694,35 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			serial_port_out(port, UART_FCR, UART_FCR_ENABLE_FIFO);
 		serial_port_out(port, UART_FCR, up->fcr);	/* set fcr */
 	}
+
+#if defined(CONFIG_RALINK_MT7621) || \
+    defined(CONFIG_RALINK_MT7628)
+	if (baud > 115200) {
+		unsigned int scount;
+		unsigned short fraction_L_mapping[] = {
+			0, 1, 0x5, 0x15, 0x55, 0x57, 0x57, 0x77, 0x7F, 0xFF, 0xFF
+		};
+		unsigned short fraction_M_mapping[] = {
+			0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 3
+		};
+
+		scount = (port->uartclk / (baud * quot)) - 1;
+		serial_port_out(port, MTK_UART_SAMPLE_COUNT, scount);
+		serial_port_out(port, MTK_UART_SAMPLE_POINT, (scount >> 1) - 1);
+
+		frac = ((port->uartclk * 100) / baud / quot) % 100;
+		frac = DIV_ROUND_CLOSEST(frac, 10);
+		serial_port_out(port, MTK_UART_FRACDIV_L, fraction_L_mapping[frac]);
+		serial_port_out(port, MTK_UART_FRACDIV_M, fraction_M_mapping[frac]);
+	} else {
+		/* reset SAMPLE_COUNT & FRACDIV registers */
+		serial_port_out(port, MTK_UART_SAMPLE_COUNT, 0x00);
+		serial_port_out(port, MTK_UART_SAMPLE_POINT, 0xff);
+		serial_port_out(port, MTK_UART_FRACDIV_L, 0x00);
+		serial_port_out(port, MTK_UART_FRACDIV_M, 0x00);
+	}
+#endif
+
 	serial8250_set_mctrl(port, port->mctrl);
 	spin_unlock_irqrestore(&port->lock, flags);
 	serial8250_rpm_put(up);

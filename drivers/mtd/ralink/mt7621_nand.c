@@ -2304,7 +2304,7 @@ static int mtk_nand_probe(struct platform_device *pdev)
 out_err:
 	MSG(INIT, "%s: [%s] failed, err = %d!\n", MTK_NAND_MODULE_TEXT, __FUNCTION__, err);
 
-	nand_release(mtd);
+	nand_release(mtd_to_nand(mtd));
 	kfree(host);
 
 	return err;
@@ -2313,14 +2313,11 @@ out_err:
 static int mtk_nand_remove(struct platform_device *pdev)
 {
 	struct mtk_nand_host *host = platform_get_drvdata(pdev);
-	struct mtd_info *mtd;
 
 	if (!host)
 		return 0;
 
-	mtd = nand_to_mtd(&host->nand_chip);
-
-	nand_release(mtd);
+	nand_release(&host->nand_chip);
 	kfree(host);
 
 	return 0;

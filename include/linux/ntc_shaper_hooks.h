@@ -6,6 +6,12 @@
 struct net;
 struct sock;
 struct sk_buff;
+struct nf_conn;
+
+struct swnat_ntc_privdata_t {
+	u8			 origin;
+	u8			 set_ce;
+};
 
 struct ntc_shaper_fwd_t {
 	uint32_t	 saddr_ext;
@@ -19,11 +25,17 @@ struct ntc_shaper_fwd_t {
 	struct sock	*sk;
 };
 
+typedef bool
+ntc_shaper_bound_hook_fn(
+	uint32_t ipaddr,
+	const uint8_t *const mac,
+	const struct nf_conn *const ct);
+
+extern ntc_shaper_bound_hook_fn *ntc_shaper_check_bound_hook;
+
 typedef unsigned int
 ntc_shaper_hook_fn(struct sk_buff *skb,
 		   const struct ntc_shaper_fwd_t *const sfwd);
-
-extern int (*ntc_shaper_check_ip_and_mac)(uint32_t ipaddr, uint8_t *mac);
 
 extern rwlock_t ntc_shaper_lock;
 extern ntc_shaper_hook_fn *ntc_shaper_ingress_hook;
@@ -73,4 +85,3 @@ extern void (*ntce_enq_pkt_hook_func)(struct sk_buff *skb);
 #endif
 
 #endif
-

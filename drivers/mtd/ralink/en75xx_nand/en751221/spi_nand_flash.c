@@ -3719,7 +3719,7 @@ static int en75xx_spinand_probe(void)
 	return 0;
 
 out_err_release:
-	nand_release(mtd_to_nand(mtd));
+	nand_cleanup(chip);
 
 out_err_free:
 	kfree(host->state.oob_buf);
@@ -3756,7 +3756,7 @@ static void __init spi_nand_flash_exit(void)
 
 	g_en75xx_mtd = NULL;
 
-	nand_release(mtd_to_nand(mtd));
+	nand_release(chip);
 	kfree(host->state.oob_buf);
 	kfree(host->state.buf);
 	kfree(host);

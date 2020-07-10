@@ -4081,7 +4081,7 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	return 0;
 
 out_release:
-	nand_release(mtd);
+	nand_cleanup(nand_chip);
 
 clk_disable:
 	mtk_snfc_disable_clk(&snfc->clk);
@@ -4101,14 +4101,11 @@ out:
 static int mtk_snand_remove(struct platform_device *pdev)
 {
 	struct mtk_snfc *snfc = platform_get_drvdata(pdev);
-	struct mtd_info *mtd;
 
 	if (!host)
 		return 0;
 
-	mtd = nand_to_mtd(&host->nand_chip);
-
-	nand_release(mtd);
+	nand_release(&host->nand_chip);
 
 	kfree(host);
 	host = NULL;

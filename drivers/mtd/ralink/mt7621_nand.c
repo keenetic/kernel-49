@@ -2304,7 +2304,7 @@ static int mtk_nand_probe(struct platform_device *pdev)
 out_err:
 	MSG(INIT, "%s: [%s] failed, err = %d!\n", MTK_NAND_MODULE_TEXT, __FUNCTION__, err);
 
-	nand_release(mtd_to_nand(mtd));
+	nand_cleanup(chip);
 	kfree(host);
 
 	return err;

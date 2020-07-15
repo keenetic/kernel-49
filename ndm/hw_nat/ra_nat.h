@@ -82,6 +82,9 @@ struct PdmaRxDescInfo4 {
 #ifndef HIT_BIND_KEEPALIVE_DUP_OLD_HDR
 #define HIT_BIND_KEEPALIVE_DUP_OLD_HDR 0x15
 #endif
+#ifndef NO_FLOW_IS_ASSIGNED
+#define NO_FLOW_IS_ASSIGNED 0x07
+#endif
 
 #define IS_MAGIC_TAG_VALID(skb) \
 	((FOE_MAGIC_TAG(skb) == FOE_MAGIC_GE))

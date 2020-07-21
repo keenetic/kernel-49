@@ -1076,7 +1076,7 @@ static int safexcel_request_ring_irq(void *pdev, int irqid,
 				     irq_handler_t threaded_handler,
 				     struct safexcel_ring_irq_data *ring_irq_priv)
 {
-	int ret, irq;
+	int ret, irq, cpu;
 	struct device *dev;
 	struct platform_device *plf_pdev = pdev;
 	char irq_name[6] = {0}; /* "ringX\0" */
@@ -1098,6 +1098,10 @@ static int safexcel_request_ring_irq(void *pdev, int irqid,
 		dev_err(dev, "unable to request IRQ %d\n", irq);
 		return ret;
 	}
+
+	/* Set affinity */
+	cpu = cpumask_local_spread(irqid, NUMA_NO_NODE);
+	irq_set_affinity_hint(irq, get_cpu_mask(cpu));
 
 	return irq;
 }
@@ -1415,6 +1419,7 @@ static int safexcel_probe_generic(void *pdev,
 			return irq;
 		}
 
+		priv->ring[i].irq = irq;
 		priv->ring[i].work_data.priv = priv;
 		priv->ring[i].work_data.ring = i;
 		INIT_WORK(&priv->ring[i].work_data.work,
@@ -1551,8 +1556,10 @@ static int safexcel_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(priv->clk);
 
-	for (i = 0; i < priv->config.rings; i++)
+	for (i = 0; i < priv->config.rings; i++) {
+		irq_set_affinity_hint(priv->ring[i].irq, NULL);
 		destroy_workqueue(priv->ring[i].workqueue);
+	}
 
 	return 0;
 }

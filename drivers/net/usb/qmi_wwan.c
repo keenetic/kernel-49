@@ -966,6 +966,7 @@ static const struct usb_device_id products[] = {
 	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0195, 4)},	/* Quectel EG95 */
 	{QMI_FIXED_INTF(0x2c7c, 0x0296, 4)},	/* Quectel BG96 */
 	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0306, 4)},	/* Quectel EP06 Mini PCIe */
+	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0512, 4)},	/* Quectel EG12/EM12 */
 	{QMI_QUIRK_SET_DTR(0x31b7, 0x0011, 0)}, /* Keenetic LTE MDM9207 */
 
 	/* 4. Gobi 1000 devices */

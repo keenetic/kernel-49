@@ -430,7 +430,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		goto halt_fail_and_release;
 	}
 
-	if (bp[0] & 0x02)
+	if ((bp[0] & 0x02) || !is_valid_ether_addr(bp) || !is_unicast_ether_addr(bp))
 		eth_hw_addr_random(net);
 	else
 		ether_addr_copy(net->dev_addr, bp);

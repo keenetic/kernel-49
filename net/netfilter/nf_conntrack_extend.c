@@ -152,6 +152,28 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 	}
 }
 
+static unsigned long int nf_ct_ext_cust_id[CONFIG_NF_CONNTRACK_CUSTOM];
+static enum nf_ct_ext_id 
+nf_ct_extend_get_custom_id(unsigned long int ext_id)
+{
+	enum nf_ct_ext_id ret = 0;
+	int i;
+	mutex_lock(&nf_ct_ext_type_mutex);
+	for(i = 0; i < CONFIG_NF_CONNTRACK_CUSTOM; i++) {
+		if(!nf_ct_ext_cust_id[i]) {
+			nf_ct_ext_cust_id[i] = ext_id;
+			ret = i+NF_CT_EXT_CUSTOM;
+			break;
+		}
+		if(nf_ct_ext_cust_id[i] == ext_id) {
+			ret = i+NF_CT_EXT_CUSTOM;
+			break;
+		}
+	}
+	mutex_unlock(&nf_ct_ext_type_mutex);
+	return ret;
+}
+
 /* This MUST be called in process context. */
 int nf_ct_extend_register(struct nf_ct_ext_type *type)
 {
@@ -175,12 +197,32 @@ out:
 }
 EXPORT_SYMBOL_GPL(nf_ct_extend_register);
 
+int nf_ct_extend_custom_register(struct nf_ct_ext_type *type,
+				 unsigned long int cid)
+{
+	int ret;
+	enum nf_ct_ext_id new_id = nf_ct_extend_get_custom_id(cid);
+	if(!new_id)
+		return -EBUSY;
+	type->id = new_id;
+	ret = nf_ct_extend_register(type);
+	if(ret < 0) {
+		mutex_lock(&nf_ct_ext_type_mutex);
+		nf_ct_ext_cust_id[new_id - NF_CT_EXT_CUSTOM] = 0;
+		mutex_unlock(&nf_ct_ext_type_mutex);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_ct_extend_custom_register);
+
 /* This MUST be called in process context. */
 void nf_ct_extend_unregister(struct nf_ct_ext_type *type)
 {
 	mutex_lock(&nf_ct_ext_type_mutex);
 	RCU_INIT_POINTER(nf_ct_ext_types[type->id], NULL);
 	update_alloc_size(type);
+	if(type->id >= NF_CT_EXT_CUSTOM && type->id < NF_CT_EXT_NUM)
+		nf_ct_ext_cust_id[type->id-NF_CT_EXT_CUSTOM] = 0;
 	mutex_unlock(&nf_ct_ext_type_mutex);
 	synchronize_rcu();
 }

@@ -31,7 +31,8 @@ enum nf_ct_ext_id {
 	NF_CT_EXT_RTCACHE,
 #endif
 	NF_CT_EXT_MARK,
-	NF_CT_EXT_NUM,
+	NF_CT_EXT_CUSTOM,
+	NF_CT_EXT_NUM=NF_CT_EXT_CUSTOM+CONFIG_NF_CONNTRACK_CUSTOM,
 };
 
 #define NF_CT_EXT_HELPER_TYPE struct nf_conn_help
@@ -118,5 +119,6 @@ struct nf_ct_ext_type {
 };
 
 int nf_ct_extend_register(struct nf_ct_ext_type *type);
+int nf_ct_extend_custom_register(struct nf_ct_ext_type *type,unsigned long int cid);
 void nf_ct_extend_unregister(struct nf_ct_ext_type *type);
 #endif /* _NF_CONNTRACK_EXTEND_H */

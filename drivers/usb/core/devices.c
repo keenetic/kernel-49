@@ -654,7 +654,7 @@ static unsigned int usb_device_poll(struct file *file,
 		return POLLIN | POLLRDNORM;
 	}
 
-	return 0;
+	return POLLIN | POLLRDNORM;
 }
 
 const struct file_operations usbfs_devices_fops = {

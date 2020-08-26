@@ -1757,6 +1757,36 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	if (pf != PF_INET)
 		goto fast_nat_exit;
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+	if (likely(
+	    !skb_sec_path(skb) &&
+	     nf_ct_ext_id_ntc != 0 &&
+	     hooknum == NF_INET_PRE_ROUTING)) {
+		struct nf_ct_ext_ntc_label *ntc_ct_label = nf_ct_ext_find_ntc(ct);
+
+		if (ntc_ct_label == NULL)
+			ntc_ct_label = nf_ct_ext_add_ntc(ct);
+
+		if (unlikely(ntc_ct_label == NULL))
+			pr_debug("unable to allocate ntc ct label");
+		else {
+			if (ntc_ct_label->iface1 < 0)
+				ntc_ct_label->iface1 = skb->skb_iif;
+			else
+			if (ntc_ct_label->iface1 != skb->skb_iif &&
+			    ntc_ct_label->iface2 < 0)
+				ntc_ct_label->iface2 = skb->skb_iif;
+			else
+			if (nf_ct_ext_ntc_filled(ntc_ct_label) &&
+			    ntc_ct_label->iface1 != skb->skb_iif &&
+			    ntc_ct_label->iface2 != skb->skb_iif)
+				pr_err_ratelimited(
+					"unable to save third interface %d, already has %d and %d",
+					skb->skb_iif, ntc_ct_label->iface1, ntc_ct_label->iface2);
+		}
+	}
+#endif
+
 	/* check fastpath condition */
 	if (!(hooknum == NF_INET_PRE_ROUTING &&
 	      (ctinfo == IP_CT_ESTABLISHED || ctinfo == IP_CT_ESTABLISHED_REPLY) &&
@@ -2269,8 +2299,19 @@ void nf_conntrack_cleanup_start(void)
 	RCU_INIT_POINTER(ip_ct_attach, NULL);
 }
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+static struct nf_ct_ext_type ntc_extend = {
+	.len	= sizeof(struct nf_ct_ext_ntc_label),
+	.align	= __alignof__(int),
+};
+#endif
+
 void nf_conntrack_cleanup_end(void)
 {
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+	nf_ct_extend_unregister(&ntc_extend);
+#endif
+
 	RCU_INIT_POINTER(nf_ct_destroy, NULL);
 	while (untrack_refs() > 0)
 		schedule();
@@ -2580,6 +2621,16 @@ int nf_conntrack_init_start(void)
 	conntrack_gc_work_init(&conntrack_gc_work);
 	queue_delayed_work(system_power_efficient_wq, &conntrack_gc_work.dwork, HZ);
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+	/* "NTC" in hex */
+	ret = nf_ct_extend_custom_register(&ntc_extend, 0x4e544300);
+
+	if(ret < 0)
+		pr_err("unable to register ntc extend\n");
+	else
+		nf_ct_ext_id_ntc = ntc_extend.id;
+#endif
+
 	return 0;
 
 err_proto:
@@ -2660,6 +2711,7 @@ int nf_conntrack_init_net(struct net *net)
 	ret = nf_conntrack_proto_pernet_init(net);
 	if (ret < 0)
 		goto err_proto;
+
 	return 0;
 
 err_proto:

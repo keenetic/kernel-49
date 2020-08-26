@@ -16,7 +16,12 @@ enum xt_ndmmark_list {
 	XT_NDMMARK_SSTP_VPN         = 0x20, // with mask
 	XT_NDMMARK_L2TP_IPSEC_VPN   = 0x10, // with mask
 	XT_NDMMARK_CHILLI           = 0x08, // with mask
+	XT_NDMMARK_FWD              = 0x04, // with mask
 	XT_NDMMARK_ALL              = 0xff  // all-wide mask
+};
+
+enum xt_ndmmark_kernel_list {
+	XT_NDMMARK_KERNEL_NTC       = 0x01
 };
 
 struct xt_ndmmark_tginfo {

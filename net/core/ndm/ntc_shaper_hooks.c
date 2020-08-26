@@ -20,3 +20,8 @@ EXPORT_SYMBOL(ntce_pass_pkt_func);
 void (*ntce_enq_pkt_hook_func)(struct sk_buff *skb) = NULL;
 EXPORT_SYMBOL(ntce_enq_pkt_hook_func);
 #endif
+
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+enum nf_ct_ext_id nf_ct_ext_id_ntc = 0;
+EXPORT_SYMBOL(nf_ct_ext_id_ntc);
+#endif

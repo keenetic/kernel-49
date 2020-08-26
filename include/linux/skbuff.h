@@ -802,7 +802,8 @@ struct sk_buff {
 
 #if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
 	__u8			ndm_mark;
-	/* 24 bit hole */
+	__u8			ndm_mark_kernel;
+	/* 16 bit hole */
 #endif
 
 	union {

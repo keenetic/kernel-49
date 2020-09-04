@@ -579,20 +579,18 @@ static irqreturn_t mtk_pcie_intr_handler(int irq, void *data)
 		bit = INTX_SHIFT;
 
 		for_each_set_bit_from(bit, &status, PCI_NUM_INTX + INTX_SHIFT) {
-			/* Clear the INTx */
-			writel(1 << bit, port->base + PCIE_INT_STATUS);
 			virq = irq_find_mapping(port->irq_domain,
 						bit - INTX_SHIFT);
 			generic_handle_irq(virq);
+
+			/* Clear the INTx */
+			writel(1 << bit, port->base + PCIE_INT_STATUS);
 		}
 	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		while ((status = readl(port->base + PCIE_INT_STATUS)) & MSI_STATUS) {
 			unsigned long imsi_status;
-
-			/* Clear MSI interrupt status */
-			writel(MSI_STATUS, port->base + PCIE_INT_STATUS);
 
 			while ((imsi_status = readl(port->base + PCIE_IMSI_STATUS))) {
 				for_each_set_bit(bit, &imsi_status, MTK_MSI_IRQS_NUM) {
@@ -602,6 +600,9 @@ static irqreturn_t mtk_pcie_intr_handler(int irq, void *data)
 					generic_handle_irq(virq);
 				}
 			}
+
+			/* Clear MSI interrupt status */
+			writel(MSI_STATUS, port->base + PCIE_INT_STATUS);
 		}
 	}
 

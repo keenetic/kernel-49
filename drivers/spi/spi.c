@@ -1080,8 +1080,6 @@ out:
 	if (msg->status && master->handle_err)
 		master->handle_err(master, msg);
 
-	spi_res_release(master, msg);
-
 	spi_finalize_current_message(master);
 
 	return ret;
@@ -1339,6 +1337,13 @@ void spi_finalize_current_message(struct spi_master *master)
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 
 	spi_unmap_msg(master, mesg);
+
+	/* In the prepare_messages callback the spi bus has the opportunity to
+	 * split a transfer to smaller chunks.
+	 * Release splited transfers here since spi_map_msg is done on the
+	 * splited transfers.
+	 */
+	spi_res_release(master, mesg);
 
 	if (master->cur_msg_prepared && master->unprepare_message) {
 		ret = master->unprepare_message(master, mesg);

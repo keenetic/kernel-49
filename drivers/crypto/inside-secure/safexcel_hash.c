@@ -27,9 +27,6 @@ struct safexcel_ahash_ctx {
 	bool fb_init_done;
 	bool fb_do_setkey;
 
-	__le32 ipad[SHA3_512_BLOCK_SIZE / sizeof(__le32)];
-	__le32 opad[SHA3_512_BLOCK_SIZE / sizeof(__le32)];
-
 	struct crypto_cipher *kaes;
 	struct crypto_ahash *fback;
 	struct crypto_shash *shpre;
@@ -122,7 +119,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 	 */
 	if (unlikely(req->digest == CONTEXT_CONTROL_DIGEST_XCM)) {
 		if (req->xcbcmac)
-			memcpy(ctx->base.ctxr->data, ctx->ipad, ctx->key_sz);
+			memcpy(ctx->base.ctxr->data, &ctx->base.ipad, ctx->key_sz);
 		else
 			memcpy(ctx->base.ctxr->data, req->state, req->state_sz);
 
@@ -204,7 +201,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 		} else { /* HMAC */
 			/* Need outer digest for HMAC finalization */
 			memcpy(ctx->base.ctxr->data + (req->state_sz >> 2),
-			       ctx->opad, req->state_sz);
+			       &ctx->base.opad, req->state_sz);
 
 			/* Single pass HMAC - no digest count */
 			cdesc->control_data.control0 |=
@@ -273,7 +270,7 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv,
 			memcpy(sreq->cache, sreq->state,
 			       crypto_ahash_digestsize(ahash));
 
-			memcpy(sreq->state, ctx->opad, sreq->digest_sz);
+			memcpy(sreq->state, &ctx->base.opad, sreq->digest_sz);
 
 			sreq->len = sreq->block_sz +
 				    crypto_ahash_digestsize(ahash);
@@ -377,10 +374,14 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 				// 10- padding for XCBCMAC & CMAC
 				req->cache[cache_len + skip] = 0x80;
 				// HW will use K2 iso K3 - compensate!
-				for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++)
-					((__be32 *)req->cache)[i] ^=
-					  cpu_to_be32(le32_to_cpu(
-					    ctx->ipad[i] ^ ctx->ipad[i + 4]));
+				for (i = 0; i < AES_BLOCK_SIZE / 4; i++) {
+					u32 *cache = (void *)req->cache;
+					u32 *ipad = ctx->base.ipad.word;
+					u32 x;
+
+					x = ipad[i] ^ ipad[i + 4];
+					cache[i] ^= swab(x);
+				}
 			}
 			cache_len = AES_BLOCK_SIZE;
 			queued = queued + extra;
@@ -700,7 +701,7 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 		     /* invalidate for HMAC finish with odigest changed */
 		     (req->finish && req->hmac &&
 		      memcmp(ctx->base.ctxr->data + (req->state_sz>>2),
-			     ctx->opad, req->state_sz))))
+			     &ctx->base.opad, req->state_sz))))
 			/*
 			 * We're still setting needs_inv here, even though it is
 			 * cleared right away, because the needs_inv flag can be
@@ -797,7 +798,7 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 			    ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_MD5 &&
 			    req->len == sizeof(u32) && !areq->nbytes)) {
 		/* Zero length CRC32 */
-		memcpy(areq->result, ctx->ipad, sizeof(u32));
+		memcpy(areq->result, &ctx->base.ipad, sizeof(u32));
 		return 0;
 	} else if (unlikely(ctx->cbcmac && req->len == AES_BLOCK_SIZE &&
 			    !areq->nbytes)) {
@@ -809,9 +810,12 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 		/* Zero length (X)CBC/CMAC */
 		int i;
 
-		for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++)
-			((__be32 *)areq->result)[i] =
-				cpu_to_be32(le32_to_cpu(ctx->ipad[i + 4]));//K3
+		for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++) {
+			u32 *result = (void *)areq->result;
+
+			/* K3 */
+			result[i] = swab(ctx->base.ipad.word[i + 4]);
+		}
 		areq->result[0] ^= 0x80;			// 10- padding
 		crypto_cipher_encrypt_one(ctx->kaes, areq->result, areq->result);
 		return 0;
@@ -1005,7 +1009,7 @@ static int safexcel_hmac_sha1_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from ipad precompute */
-	memcpy(req->state, ctx->ipad, SHA1_DIGEST_SIZE);
+	memcpy(req->state, &ctx->base.ipad, SHA1_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
 	req->len	= SHA1_BLOCK_SIZE;
 	req->processed	= SHA1_BLOCK_SIZE;
@@ -1192,12 +1196,12 @@ static int safexcel_hmac_alg_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return ret;
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr &&
-	    (memcmp(ctx->ipad, istate.state, state_sz) ||
-	     memcmp(ctx->opad, ostate.state, state_sz)))
+	    (memcmp(&ctx->base.ipad, istate.state, state_sz) ||
+	     memcmp(&ctx->base.opad, ostate.state, state_sz)))
 		ctx->base.needs_inv = true;
 
-	memcpy(ctx->ipad, &istate.state, state_sz);
-	memcpy(ctx->opad, &ostate.state, state_sz);
+	memcpy(&ctx->base.ipad, &istate.state, state_sz);
+	memcpy(&ctx->base.opad, &ostate.state, state_sz);
 
 	return 0;
 }
@@ -1367,7 +1371,7 @@ static int safexcel_hmac_sha224_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from ipad precompute */
-	memcpy(req->state, ctx->ipad, SHA256_DIGEST_SIZE);
+	memcpy(req->state, &ctx->base.ipad, SHA256_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
 	req->len	= SHA256_BLOCK_SIZE;
 	req->processed	= SHA256_BLOCK_SIZE;
@@ -1438,7 +1442,7 @@ static int safexcel_hmac_sha256_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from ipad precompute */
-	memcpy(req->state, ctx->ipad, SHA256_DIGEST_SIZE);
+	memcpy(req->state, &ctx->base.ipad, SHA256_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
 	req->len	= SHA256_BLOCK_SIZE;
 	req->processed	= SHA256_BLOCK_SIZE;
@@ -1621,7 +1625,7 @@ static int safexcel_hmac_sha512_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from ipad precompute */
-	memcpy(req->state, ctx->ipad, SHA512_DIGEST_SIZE);
+	memcpy(req->state, &ctx->base.ipad, SHA512_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
 	req->len	= SHA512_BLOCK_SIZE;
 	req->processed	= SHA512_BLOCK_SIZE;
@@ -1692,7 +1696,7 @@ static int safexcel_hmac_sha384_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from ipad precompute */
-	memcpy(req->state, ctx->ipad, SHA512_DIGEST_SIZE);
+	memcpy(req->state, &ctx->base.ipad, SHA512_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
 	req->len	= SHA512_BLOCK_SIZE;
 	req->processed	= SHA512_BLOCK_SIZE;
@@ -1812,7 +1816,7 @@ static int safexcel_hmac_md5_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from ipad precompute */
-	memcpy(req->state, ctx->ipad, MD5_DIGEST_SIZE);
+	memcpy(req->state, &ctx->base.ipad, MD5_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
 	req->len	= MD5_HMAC_BLOCK_SIZE;
 	req->processed	= MD5_HMAC_BLOCK_SIZE;
@@ -1882,7 +1886,7 @@ static int safexcel_crc32_cra_init(struct crypto_tfm *tfm)
 	int ret = safexcel_ahash_cra_init(tfm);
 
 	/* Default 'key' is all zeroes */
-	memset(ctx->ipad, 0, sizeof(u32));
+	memset(&ctx->base.ipad, 0, sizeof(u32));
 	return ret;
 }
 
@@ -1894,7 +1898,7 @@ static int safexcel_crc32_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from loaded key */
-	req->state[0]	= (__force __le32)le32_to_cpu(~ctx->ipad[0]);
+	req->state[0]	= cpu_to_le32(~ctx->base.ipad.word[0]);
 	/* Set processed to non-zero to enable invalidation detection */
 	req->len	= sizeof(u32);
 	req->processed	= sizeof(u32);
@@ -1918,7 +1922,7 @@ static int safexcel_crc32_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return -EINVAL;
 	}
 
-	memcpy(ctx->ipad, key, sizeof(u32));
+	memcpy(&ctx->base.ipad, key, sizeof(u32));
 	return 0;
 }
 
@@ -1967,7 +1971,7 @@ static int safexcel_cbcmac_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from loaded keys */
-	memcpy(req->state, ctx->ipad, ctx->key_sz);
+	memcpy(req->state, &ctx->base.ipad, ctx->key_sz);
 	/* Set processed to non-zero to enable invalidation detection */
 	req->len	= AES_BLOCK_SIZE;
 	req->processed	= AES_BLOCK_SIZE;
@@ -1994,9 +1998,9 @@ static int safexcel_cbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return ret;
 	}
 
-	memset(ctx->ipad, 0, 2 * AES_BLOCK_SIZE);
+	memset(&ctx->base.ipad, 0, 2 * AES_BLOCK_SIZE);
 	for (i = 0; i < len / sizeof(u32); i++)
-		ctx->ipad[i + 8] = (__force __le32)cpu_to_be32(aes.key_enc[i]);
+		ctx->base.ipad.be[i + 8] = cpu_to_be32(aes.key_enc[i]);
 
 	if (len == AES_KEYSIZE_192) {
 		ctx->alg    = CONTEXT_CONTROL_CRYPTO_ALG_XCBC192;
@@ -2081,8 +2085,7 @@ static int safexcel_xcbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	crypto_cipher_encrypt_one(ctx->kaes, (u8 *)key_tmp + AES_BLOCK_SIZE,
 		"\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3");
 	for (i = 0; i < 3 * AES_BLOCK_SIZE / sizeof(u32); i++)
-		ctx->ipad[i] =
-			cpu_to_le32((__force u32)cpu_to_be32(key_tmp[i]));
+		ctx->base.ipad.word[i] = swab(key_tmp[i]);
 
 	crypto_cipher_clear_flags(ctx->kaes, CRYPTO_TFM_REQ_MASK);
 	crypto_cipher_set_flags(ctx->kaes, crypto_ahash_get_flags(tfm) &
@@ -2168,8 +2171,7 @@ static int safexcel_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	}
 
 	for (i = 0; i < len / sizeof(u32); i++)
-		ctx->ipad[i + 8] =
-			cpu_to_le32((__force u32)cpu_to_be32(aes.key_enc[i]));
+		ctx->base.ipad.word[i + 8] = swab(aes.key_enc[i]);
 
 	/* precompute the CMAC key material */
 	crypto_cipher_clear_flags(ctx->kaes, CRYPTO_TFM_REQ_MASK);
@@ -2202,7 +2204,7 @@ static int safexcel_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	/* end of code borrowed from crypto/cmac.c */
 
 	for (i = 0; i < 2 * AES_BLOCK_SIZE / sizeof(u32); i++)
-		ctx->ipad[i] = (__force __le32)cpu_to_be32(((u32 *)consts)[i]);
+		ctx->base.ipad.be[i] = cpu_to_be32(((u32 *)consts)[i]);
 
 	if (len == AES_KEYSIZE_192) {
 		ctx->alg    = CONTEXT_CONTROL_CRYPTO_ALG_XCBC192;
@@ -2287,11 +2289,11 @@ static int safexcel_sha3_fbcheck(struct ahash_request *req)
 				/* Set fallback cipher HMAC key */
 				u8 key[SHA3_224_BLOCK_SIZE];
 
-				memcpy(key, ctx->ipad,
+				memcpy(key, &ctx->base.ipad,
 				       crypto_ahash_blocksize(ctx->fback) / 2);
 				memcpy(key +
 				       crypto_ahash_blocksize(ctx->fback) / 2,
-				       ctx->opad,
+				       &ctx->base.opad,
 				       crypto_ahash_blocksize(ctx->fback) / 2);
 				ret = crypto_ahash_setkey(ctx->fback, key,
 					crypto_ahash_blocksize(ctx->fback));
@@ -2664,7 +2666,7 @@ static int safexcel_hmac_sha3_setkey(struct crypto_ahash *tfm, const u8 *key,
 		 * first using our fallback cipher
 		 */
 		ret = crypto_shash_digest(ctx->shdesc, key, keylen,
-					  (u8 *)ctx->ipad);
+					  ctx->base.ipad.byte);
 		keylen = crypto_shash_digestsize(ctx->shpre);
 
 		/*
@@ -2673,8 +2675,8 @@ static int safexcel_hmac_sha3_setkey(struct crypto_ahash *tfm, const u8 *key,
 		 */
 		if (keylen > crypto_ahash_blocksize(tfm) / 2)
 			/* Buffers overlap, need to use memmove iso memcpy! */
-			memmove(ctx->opad,
-				(u8 *)ctx->ipad +
+			memmove(&ctx->base.opad,
+				ctx->base.ipad.byte +
 					crypto_ahash_blocksize(tfm) / 2,
 				keylen - crypto_ahash_blocksize(tfm) / 2);
 	} else {
@@ -2684,11 +2686,11 @@ static int safexcel_hmac_sha3_setkey(struct crypto_ahash *tfm, const u8 *key,
 		 * to match the existing HMAC driver infrastructure.
 		 */
 		if (keylen <= crypto_ahash_blocksize(tfm) / 2) {
-			memcpy(ctx->ipad, key, keylen);
+			memcpy(&ctx->base.ipad, key, keylen);
 		} else {
-			memcpy(ctx->ipad, key,
+			memcpy(&ctx->base.ipad, key,
 			       crypto_ahash_blocksize(tfm) / 2);
-			memcpy(ctx->opad,
+			memcpy(&ctx->base.opad,
 			       key + crypto_ahash_blocksize(tfm) / 2,
 			       keylen - crypto_ahash_blocksize(tfm) / 2);
 		}
@@ -2696,11 +2698,11 @@ static int safexcel_hmac_sha3_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	/* Pad key with zeroes */
 	if (keylen <= crypto_ahash_blocksize(tfm) / 2) {
-		memset((u8 *)ctx->ipad + keylen, 0,
+		memset(ctx->base.ipad.byte + keylen, 0,
 		       crypto_ahash_blocksize(tfm) / 2 - keylen);
-		memset(ctx->opad, 0, crypto_ahash_blocksize(tfm) / 2);
+		memset(&ctx->base.opad, 0, crypto_ahash_blocksize(tfm) / 2);
 	} else {
-		memset((u8 *)ctx->opad + keylen -
+		memset(ctx->base.opad.byte + keylen -
 		       crypto_ahash_blocksize(tfm) / 2, 0,
 		       crypto_ahash_blocksize(tfm) - keylen);
 	}
@@ -2719,7 +2721,7 @@ static int safexcel_hmac_sha3_224_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Copy (half of) the key */
-	memcpy(req->state, ctx->ipad, SHA3_224_BLOCK_SIZE / 2);
+	memcpy(req->state, &ctx->base.ipad, SHA3_224_BLOCK_SIZE / 2);
 	/* Start of HMAC should have len == processed == blocksize */
 	req->len	= SHA3_224_BLOCK_SIZE;
 	req->processed	= SHA3_224_BLOCK_SIZE;
@@ -2790,7 +2792,7 @@ static int safexcel_hmac_sha3_256_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Copy (half of) the key */
-	memcpy(req->state, ctx->ipad, SHA3_256_BLOCK_SIZE / 2);
+	memcpy(req->state, &ctx->base.ipad, SHA3_256_BLOCK_SIZE / 2);
 	/* Start of HMAC should have len == processed == blocksize */
 	req->len	= SHA3_256_BLOCK_SIZE;
 	req->processed	= SHA3_256_BLOCK_SIZE;
@@ -2861,7 +2863,7 @@ static int safexcel_hmac_sha3_384_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Copy (half of) the key */
-	memcpy(req->state, ctx->ipad, SHA3_384_BLOCK_SIZE / 2);
+	memcpy(req->state, &ctx->base.ipad, SHA3_384_BLOCK_SIZE / 2);
 	/* Start of HMAC should have len == processed == blocksize */
 	req->len	= SHA3_384_BLOCK_SIZE;
 	req->processed	= SHA3_384_BLOCK_SIZE;
@@ -2932,7 +2934,7 @@ static int safexcel_hmac_sha3_512_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Copy (half of) the key */
-	memcpy(req->state, ctx->ipad, SHA3_512_BLOCK_SIZE / 2);
+	memcpy(req->state, &ctx->base.ipad, SHA3_512_BLOCK_SIZE / 2);
 	/* Start of HMAC should have len == processed == blocksize */
 	req->len	= SHA3_512_BLOCK_SIZE;
 	req->processed	= SHA3_512_BLOCK_SIZE;

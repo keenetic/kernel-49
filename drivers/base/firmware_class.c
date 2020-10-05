@@ -288,12 +288,10 @@ static void fw_free_buf(struct firmware_buf *buf)
 }
 
 /* direct firmware loading support */
-#ifndef CONFIG_EMBEDDED
 static char fw_path_para[256];
-#endif
 static const char * const fw_path[] = {
-#ifndef CONFIG_EMBEDDED
 	fw_path_para,
+#ifndef CONFIG_EMBEDDED
 	"/lib/firmware/updates/" UTS_RELEASE,
 	"/lib/firmware/updates",
 	"/lib/firmware/" UTS_RELEASE,
@@ -301,7 +299,6 @@ static const char * const fw_path[] = {
 	"/lib/firmware"
 };
 
-#ifndef CONFIG_EMBEDDED
 /*
  * Typical usage is that passing 'firmware_class.path=$CUSTOMIZED_PATH'
  * from kernel command line because firmware_class is generally built in
@@ -309,7 +306,6 @@ static const char * const fw_path[] = {
  */
 module_param_string(path, fw_path_para, sizeof(fw_path_para), 0644);
 MODULE_PARM_DESC(path, "customized firmware image search path with a higher priority than default path");
-#endif
 
 static void fw_finish_direct_load(struct device *device,
 				  struct firmware_buf *buf)

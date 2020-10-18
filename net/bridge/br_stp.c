@@ -483,7 +483,8 @@ static void br_topology_change_acknowledge(struct net_bridge_port *p)
 
 /* called under bridge lock */
 void br_received_config_bpdu(struct net_bridge_port *p,
-			     const struct br_config_bpdu *bpdu)
+			     const struct br_config_bpdu *bpdu,
+			     const unsigned char *source_mac)
 {
 	struct net_bridge *br;
 	int was_root;
@@ -508,6 +509,14 @@ void br_received_config_bpdu(struct net_bridge_port *p,
 		}
 
 		if (p->port_no == br->root_port) {
+			if (br->forward_delay != bpdu->forward_delay)
+				br_info(p->br,
+					"port %u(%s) received config bpdu"
+					"from %pM, "
+					"set forward_delay to %u msec",
+					(unsigned int) p->port_no, p->dev->name,
+					source_mac,
+					jiffies_to_msecs(bpdu->forward_delay));
 			br_record_config_timeout_values(br, bpdu);
 			br_config_bpdu_generation(br);
 			if (bpdu->topology_change_ack)

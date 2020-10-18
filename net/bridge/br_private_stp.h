@@ -56,7 +56,8 @@ void br_config_bpdu_generation(struct net_bridge *);
 void br_configuration_update(struct net_bridge *);
 void br_port_state_selection(struct net_bridge *);
 void br_received_config_bpdu(struct net_bridge_port *p,
-			     const struct br_config_bpdu *bpdu);
+			     const struct br_config_bpdu *bpdu,
+			     const unsigned char *source_mac);
 void br_received_tcn_bpdu(struct net_bridge_port *p);
 void br_transmit_config(struct net_bridge_port *p);
 void br_transmit_tcn(struct net_bridge *br);

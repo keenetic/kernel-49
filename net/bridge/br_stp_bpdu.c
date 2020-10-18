@@ -237,7 +237,7 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 			goto out;
 		}
 
-		br_received_config_bpdu(p, &bpdu);
+		br_received_config_bpdu(p, &bpdu, eth_hdr(skb)->h_source);
 	} else if (buf[0] == BPDU_TYPE_TCN) {
 		br_received_tcn_bpdu(p);
 	}

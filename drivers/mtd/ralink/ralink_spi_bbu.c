@@ -677,12 +677,17 @@ static inline int raspi_wait_write_ready_panic(const unsigned int sleep_ms)
 {
 	unsigned int i;
 
-	for (i = 0; i < (sleep_ms * 10); i++) {
-		if ((ra_inl(SPI_REG_CTL) & SPI_CTL_BUSY) == 0)
+	for (i = 0; i < sleep_ms; i++) {
+		u8 sr = 0;
+
+		if (raspi_read_sr(&sr) < 0)
+			return -EIO;
+
+		if (!(sr & SR_WIP))
 			return 0;
 
 		touch_softlockup_watchdog();
-		udelay(100);
+		mdelay(1);
 	}
 
 	return -1;

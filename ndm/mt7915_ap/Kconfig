@@ -18,6 +18,10 @@ config MT7915_APCLI_SUPPORT
 	bool "AP-Client support"
 	default y
 
+config MT7915_APCLI_ROAM_SUPPORT
+	bool "AP-Client Roam support"
+	default y
+
 config MT7915_APCLI_CERT_SUPPORT
 	bool "AP-Client TGN Cert support"
 	depends on MT7915_APCLI_SUPPORT

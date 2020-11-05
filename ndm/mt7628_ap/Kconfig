@@ -18,6 +18,10 @@ config MT7628_APCLI_SUPPORT
 	bool "AP-Client Support"
 	default y
 
+config MT7628_APCLI_ROAM_SUPPORT
+	bool "AP-Client Roam support"
+	default y
+
 config MT7628_APCLI_AUTO_BW_SUPPORT
 	bool "AP-Client Auto Bandwidth Support"
 	depends on MT7628_APCLI_SUPPORT

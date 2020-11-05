@@ -28,6 +28,10 @@ config APCLI_SUPPORT
 	bool "AP-Client Support"
 	default y
 
+config APCLI_ROAM_SUPPORT
+	bool "AP-Client Roam support"
+	default y
+
 config APCLI_CERT_SUPPORT
 	bool "AP-Client TGn Cert Support"
 	depends on APCLI_SUPPORT

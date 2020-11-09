@@ -48,13 +48,16 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/timer.h>
+#include <linux/cpumask.h>
+#include <linux/cpu.h>
 #include <asm/uaccess.h>
 
 #include <asm/rt2880/surfboard.h>
 
 #include "rt_timer.h"
 
-static int wdg_load_value;
+#define WDG_REFRESH_POLL	(HZ * CONFIG_RALINK_TIMER_WDG_REFRESH_INTERVAL)
+
 static struct timer_list wdg_timer;
 
 void set_wdg_timer_ebl(unsigned int timer, unsigned int ebl)
@@ -64,9 +67,9 @@ void set_wdg_timer_ebl(unsigned int timer, unsigned int ebl)
 	result = sysRegRead(timer);
 
 	if (ebl)
-		result |= (1<<7);
+		result |= (1 << 7);
 	else
-		result &= ~(1<<7);
+		result &= ~(1 << 7);
 
 	sysRegWrite(timer, result);
 
@@ -116,19 +119,37 @@ void set_wdg_timer_clock_prescale(int prescale)
 
 static void on_refresh_wdg_timer(unsigned long unused)
 {
-	sysRegWrite(TMRSTAT, (1 << 9)); //WDTRST
+	/* WDTRST */
+	sysRegWrite(TMRSTAT, (1 << 9));
 
-	mod_timer(&wdg_timer, jiffies + (HZ * CONFIG_RALINK_TIMER_WDG_REFRESH_INTERVAL));
+#ifdef CONFIG_SMP
+	if (!timer_pending(&wdg_timer)) {
+		const int current_cpu = get_cpu();
+		int next_cpu = cpumask_next(current_cpu, cpu_online_mask);
+
+		if (next_cpu >= nr_cpu_ids)
+			next_cpu = cpumask_first(cpu_online_mask);
+
+		wdg_timer.expires = jiffies + WDG_REFRESH_POLL;
+		add_timer_on(&wdg_timer, next_cpu);
+
+		put_cpu();
+	} else
+#endif
+		mod_timer(&wdg_timer, jiffies + WDG_REFRESH_POLL);
 }
 
 int __init ralink_wdt_init_module(void)
 {
-	// initialize WDG timer (Timer1)
+#ifdef CONFIG_SMP
+	setup_pinned_timer(&wdg_timer, on_refresh_wdg_timer, 0);
+#else
 	setup_timer(&wdg_timer, on_refresh_wdg_timer, 0);
+#endif
 
-	set_wdg_timer_clock_prescale(1000); //1ms
-	wdg_load_value = CONFIG_RALINK_TIMER_WDG_REBOOT_DELAY * 1000;
-	sysRegWrite(TMR1LOAD, wdg_load_value);
+	/* initialize WDG timer (Timer1) */
+	set_wdg_timer_clock_prescale(1000); /* 1ms */
+	sysRegWrite(TMR1LOAD, CONFIG_RALINK_TIMER_WDG_REBOOT_DELAY * 1000);
 
 	on_refresh_wdg_timer(0);
 
@@ -141,9 +162,8 @@ int __init ralink_wdt_init_module(void)
 
 void __exit ralink_wdt_exit_module(void)
 {
-	printk(KERN_INFO "Unload Ralink WDG Timer Module\n");
-
 	set_wdg_timer_ebl(TMR1CTL, 0);
+
 	del_timer_sync(&wdg_timer);
 }
 

@@ -144,10 +144,6 @@ $(call allow-override,LD,$(CROSS_COMPILE)ld)
 
 LD += $(EXTRA_LDFLAGS)
 
-HOSTCC  ?= gcc
-HOSTLD  ?= ld
-HOSTAR  ?= ar
-
 PKG_CONFIG = $(CROSS_COMPILE)pkg-config
 
 RM      = rm -f

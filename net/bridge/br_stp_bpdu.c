@@ -53,6 +53,9 @@ static void br_send_bpdu(struct net_bridge_port *p,
 	skb_reserve(skb, LLC_RESERVE);
 	memcpy(__skb_put(skb, length), data, length);
 
+	if (p->br->stp_log == BR_LOG_STP_ENABLE)
+		br_stp_bdpu_send_print(p->br, p->dev, skb);
+
 	llc_pdu_header_init(skb, LLC_PDU_TYPE_U, LLC_SAP_BSPAN,
 			    LLC_SAP_BSPAN, LLC_PDU_CMD);
 	llc_pdu_init_as_ui_cmd(skb);
@@ -185,6 +188,9 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 		br_stp_disable_port(p);
 		goto out;
 	}
+
+	if (br->stp_log == BR_LOG_STP_ENABLE)
+		br_stp_bdpu_recv_print(br, dev, skb);
 
 	buf = skb_pull(skb, 3);
 

@@ -67,4 +67,9 @@ void br_topology_change_detection(struct net_bridge *br);
 void br_send_config_bpdu(struct net_bridge_port *, struct br_config_bpdu *);
 void br_send_tcn_bpdu(struct net_bridge_port *);
 
+void br_stp_bdpu_recv_print(struct net_bridge *,
+			    struct net_device *, struct sk_buff *);
+void br_stp_bdpu_send_print(struct net_bridge *,
+			    struct net_device *, struct sk_buff *);
+
 #endif

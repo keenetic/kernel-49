@@ -126,7 +126,6 @@ static ssize_t stp_state_show(struct device *d,
 	return sprintf(buf, "%d\n", br->stp_enabled);
 }
 
-
 static int set_stp_state(struct net_bridge *br, unsigned long val)
 {
 	br_stp_set_enabled(br, val);
@@ -141,6 +140,28 @@ static ssize_t stp_state_store(struct device *d,
 	return store_bridge_parm(d, buf, len, set_stp_state);
 }
 static DEVICE_ATTR_RW(stp_state);
+
+static ssize_t stp_log_show(struct device *d,
+			      struct device_attribute *attr, char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br->stp_log);
+}
+
+static int set_stp_log(struct net_bridge *br, unsigned long val)
+{
+	br_stp_set_log(br, val);
+
+	return 0;
+}
+
+static ssize_t stp_log_store(struct device *d,
+			     struct device_attribute *attr, const char *buf,
+			     size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_stp_log);
+}
+static DEVICE_ATTR_RW(stp_log);
 
 static ssize_t group_fwd_mask_show(struct device *d,
 				   struct device_attribute *attr,
@@ -781,6 +802,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_max_age.attr,
 	&dev_attr_ageing_time.attr,
 	&dev_attr_stp_state.attr,
+	&dev_attr_stp_log.attr,
 	&dev_attr_group_fwd_mask.attr,
 	&dev_attr_priority.attr,
 	&dev_attr_bridge_id.attr,

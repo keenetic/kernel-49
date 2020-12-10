@@ -136,7 +136,8 @@ static int tc3162_uart_thread_fn(void *data)
 	for (;;) {
 		unsigned long flags;
 
-		wait_event(tc3162_uart_tx_wq, tc3162_uart_thread_proceed());
+		wait_event_interruptible(tc3162_uart_tx_wq,
+				         tc3162_uart_thread_proceed());
 
 		if (kthread_should_stop())
 			break;

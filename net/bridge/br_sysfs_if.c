@@ -177,6 +177,29 @@ static int store_stp_reset(struct net_bridge_port *p, unsigned long v)
 }
 static BRPORT_ATTR(stp_reset, S_IWUSR, NULL, store_stp_reset);
 
+static int store_stp_choke(struct net_bridge_port *p, unsigned long v)
+{
+	if (netif_running(p->br->dev)) {
+		p->stp_choke = (v != 0 ? BR_PORT_STP_CHOKE : BR_PORT_STP_PASS);
+
+		br_info(p->br, "%s STP choke for port %u(%s)\n",
+				(p->stp_choke == BR_PORT_STP_PASS) ?
+					"disabled" :
+					"enabled",
+				(unsigned int) p->port_no, p->dev->name);
+	}
+
+	return 0;
+}
+
+static ssize_t show_stp_choke(struct net_bridge_port *p,
+			      char *buf)
+{
+	return sprintf(buf, "%d\n", (p->stp_choke == BR_PORT_STP_CHOKE));
+}
+static BRPORT_ATTR(stp_choke, S_IWUSR | S_IRUGO,
+		   show_stp_choke, store_stp_choke);
+
 BRPORT_ATTR_FLAG(hairpin_mode, BR_HAIRPIN_MODE);
 BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
@@ -221,6 +244,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_hold_timer,
 	&brport_attr_flush,
 	&brport_attr_stp_reset,
+	&brport_attr_stp_choke,
 	&brport_attr_hairpin_mode,
 	&brport_attr_bpdu_guard,
 	&brport_attr_root_block,

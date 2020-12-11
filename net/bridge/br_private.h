@@ -227,6 +227,11 @@ struct net_bridge_port
 	struct kobject			kobj;
 	struct rcu_head			rcu;
 
+	enum {
+		BR_PORT_STP_PASS,
+		BR_PORT_STP_CHOKE,
+	} stp_choke;
+
 	unsigned long 			flags;
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING

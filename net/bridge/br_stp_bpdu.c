@@ -42,6 +42,9 @@ static void br_send_bpdu(struct net_bridge_port *p,
 {
 	struct sk_buff *skb;
 
+	if (p->stp_choke == BR_PORT_STP_CHOKE)
+		return;
+
 	skb = dev_alloc_skb(length+LLC_RESERVE);
 	if (!skb)
 		return;
@@ -188,6 +191,9 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 		br_stp_disable_port(p);
 		goto out;
 	}
+
+	if (p->stp_choke == BR_PORT_STP_CHOKE)
+		goto out;
 
 	if (br->stp_log == BR_LOG_STP_ENABLE)
 		br_stp_bdpu_recv_print(br, dev, skb);

@@ -225,7 +225,8 @@ static inline void tc_dmt_setup(void)
 	/* assert DMT reset */
 	VPint(CR_AHB_DMTCR) = 0x1;
 
-#ifndef CONFIG_TC3162_ADSL
+#if !defined(CONFIG_TC3162_ADSL) && \
+    !defined(CONFIG_RALINK_VDSL)
 	udelay(100);
 
 	/* disable DMT clock to power save */

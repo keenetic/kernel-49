@@ -10,20 +10,22 @@
 #include <asm/time.h>
 
 #include <asm/tc3162/tc3162.h>
-#ifdef CONFIG_TC3162_ADSL
+#if defined(CONFIG_TC3162_ADSL) || \
+    defined(CONFIG_RALINK_VDSL)
 struct sk_buff;
 #include <asm/tc3162/TCIfSetQuery_os.h>
 #endif
 
 extern void tc_disable_irq_all(void);
 
-#ifdef CONFIG_TC3162_ADSL
+#if defined(CONFIG_TC3162_ADSL) || \
+    defined(CONFIG_RALINK_VDSL)
 adsldev_ops *adsl_dev_ops = NULL;
 EXPORT_SYMBOL(adsl_dev_ops);
 
-void stop_adsl_dmt(void)
+void stop_dsl_dmt(void)
 {
-	/* stop adsl */
+	/* stop a DMT module */
 	if (adsl_dev_ops)
 		adsl_dev_ops->set(ADSL_SET_DMT_CLOSE, NULL, NULL);
 }
@@ -31,9 +33,10 @@ void stop_adsl_dmt(void)
 
 static inline void hw_uninit(void)
 {
-#ifdef CONFIG_TC3162_ADSL
+#if defined(CONFIG_TC3162_ADSL) || \
+    defined(CONFIG_RALINK_VDSL)
 	/* stop adsl */
-	stop_adsl_dmt();
+	stop_dsl_dmt();
 #endif
 
 	/* stop each module dma task */

@@ -16,8 +16,9 @@
 
 extern unsigned int surfboard_sysclk;
 extern unsigned int tc_mips_cpu_freq;
-#ifdef CONFIG_TC3162_ADSL
-extern void stop_adsl_dmt(void);
+#if defined(CONFIG_TC3162_ADSL) || \
+    defined(CONFIG_RALINK_VDSL)
+extern void stop_dsl_dmt(void);
 #endif
 
 static void tc_timer_ctl(
@@ -86,9 +87,9 @@ static irqreturn_t tc_watchdog_timer_interrupt(int irq, void *dev_id)
 
 	printk(KERN_WARNING "watchdog timer interrupt\n");
 
-#ifdef CONFIG_TC3162_ADSL
-	/* stop adsl */
-	stop_adsl_dmt();
+#if defined(CONFIG_TC3162_ADSL) || \
+    defined(CONFIG_RALINK_VDSL)
+	stop_dsl_dmt();
 #endif
 
 	dump_stack();

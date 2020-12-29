@@ -65,15 +65,25 @@ char *prom_getenv(char *envname)
 
 const char *get_system_type(void)
 {
-#ifdef CONFIG_ECONET_EN7516
-	if (isEN7516G)
-		return "EcoNet EN7516G SoC";
+#ifdef CONFIG_ECONET_EN7528
+	if (isEN7561DU)
+		return "EcoNet EN7561DU SoC";
+	if (isEN7528DU)
+		return "EcoNet EN7528DU SoC";
+	if (isEN7528)
+		return "EcoNet EN7528 SoC";
 #endif
 #ifdef CONFIG_ECONET_EN7527
+	if (isEN7561G)
+		return "EcoNet EN7561G SoC";
 	if (isEN7527G)
 		return "EcoNet EN7527G SoC";
 	if (isEN7527H)
 		return "EcoNet EN7527H SoC";
+#endif
+#ifdef CONFIG_ECONET_EN7516
+	if (isEN7516G)
+		return "EcoNet EN7516G SoC";
 #endif
 #ifdef CONFIG_ECONET_EN7512
 	if (isEN7513G)
@@ -313,6 +323,8 @@ void __init prom_init(void)
 #elif defined(CONFIG_ECONET_EN7516) || \
       defined(CONFIG_ECONET_EN7527)
 	if (!isEN751627)
+#elif defined(CONFIG_ECONET_EN7528)
+	if (!isEN7528)
 #endif
 		BUG();
 
@@ -357,7 +369,7 @@ void __init prom_init(void)
 		memregn = 0x1c000000 - memoffs - memresv;
 		add_memory_region(memoffs, memregn, BOOT_MEM_RAM);
 #ifdef CONFIG_HIGHMEM
-		/* 2. Highmem region 0x40000000..0x44000000 */
+		/* 2. Highmem region */
 		memregn = memsize - 0x1c000000;
 		add_memory_region(EN75XX_HIGHMEM_START, memregn, BOOT_MEM_RAM);
 #endif

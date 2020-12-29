@@ -73,7 +73,11 @@ static const struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
 	{ 0, WDMA1_P0_INTR - 1,    GIC_POL_POS, GIC_TRIG_LEVEL, 0		},	/* 56  WIFI DMA 1 port 0 */
 	{ 0, WDMA1_P1_INTR - 1,    GIC_POL_POS, GIC_TRIG_LEVEL, 0		},	/* 56  WIFI DMA 1 port 1 */
 	{ 0, WDMA1_WOE_INTR - 1,   GIC_POL_POS, GIC_TRIG_LEVEL, 0		},	/* 58  WIFI DMA 1 for WOE */
+#ifdef CONFIG_ECONET_EN7528
+	{ 2, RBUS_TOUT_INTR - 1,   GIC_POL_POS, GIC_TRIG_LEVEL, 0		},	/* 59  rbus timeout interrupt */
+#else
 	{ 0, EFUSE_ERR0_INTR - 1,  GIC_POL_POS, GIC_TRIG_LEVEL, 0		},	/* 59  efuse error for not setting key */
+#endif
 	{ 0, EFUSE_ERR1_INTR - 1,  GIC_POL_POS, GIC_TRIG_LEVEL, 0		},	/* 60  efuse error for prev action not finished */
 	{ 1, IPI_CALL_INT1 - 1,    GIC_POL_POS, GIC_TRIG_EDGE,  0		},	/* 61  ipi call 1 */
 	{ 2, IPI_CALL_INT2 - 1,    GIC_POL_POS, GIC_TRIG_EDGE,  0		},	/* 62  ipi call 2 */
@@ -137,7 +141,7 @@ static struct irqaction cpu_cm_pcint_irqaction = {
 
 void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
 {
-	int i;
+	int i, intSrc;
 
 	/* irqVec starts from 1 and ends at 63 */
 	for (i = 1; i < INTR_SOURCES_NUM; i++)
@@ -161,7 +165,16 @@ void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
 	}
 
 	/* bind watchdog Intr to CPU1 */
-	GIC_SH_MAP_TO_VPE_SMASK(get_gic_shared_intr(TIMER5_INT), 1);
+	intSrc = get_gic_shared_intr(TIMER5_INT);
+	if (intSrc >= 0)
+		GIC_SH_MAP_TO_VPE_SMASK(intSrc, 1);
+
+#ifdef CONFIG_ECONET_EN7528
+	/* set rbus timeout intr as NMI */
+	intSrc = get_gic_shared_intr(RBUS_TOUT_INTR);
+	if (intSrc >= 0)
+		GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_PIN(intSrc)), GIC_MAP_TO_NMI_MSK);
+#endif
 }
 
 void __init arch_init_irq(void)

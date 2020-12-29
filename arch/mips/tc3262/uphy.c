@@ -290,7 +290,8 @@ void uphy_init(void)
 	}
 
 #elif defined(CONFIG_ECONET_EN7516) || \
-      defined(CONFIG_ECONET_EN7527)
+      defined(CONFIG_ECONET_EN7527) || \
+      defined(CONFIG_ECONET_EN7528)
 
 	/* configure for XTAL 25MHz */
 	reg_val = VPint(CR_AHB_HWCONF);
@@ -300,7 +301,7 @@ void uphy_init(void)
 	uphy_write32(ADDR_U2_PHY_P0_BASE + 0x1c, 0xC0240008); /* enable port 0 */
 	uphy_write32(ADDR_U2_PHY_P1_BASE + 0x1c, 0xC0240000); /* enable port 1 */
 
-	printk(KERN_INFO "%s USB PHY config\n", "EN7516G");
+	printk(KERN_INFO "%s USB PHY config\n", "EN7516/EN7561");
 
 #endif
 

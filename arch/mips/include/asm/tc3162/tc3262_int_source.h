@@ -67,7 +67,11 @@ enum interrupt_source
 	CPU_CM_ERR,		/*  43      0       CPU Coherence Manager Error */
 	FE_ERR_INTR,		/*  44      33      Frame Engine Error */
 	EFUSE_ERR1_INTR,	/*  45      60      efuse error for prev action not finished */
+#ifdef CONFIG_ECONET_EN7528
+	RBUS_TOUT_INTR,		/*  46      59      rbus timeout interrupt */
+#else
 	EFUSE_ERR0_INTR,	/*  46      59      efuse error for not setting key */
+#endif
 	AUTO_MANUAL_INT,	/*  47      35      SPI Controller Error */
 	PCIE_SERR_INT,		/*  48      25      PCIE error      */
 	DRAM_PROTECTION,	/*  49      3       dram illegal access*/

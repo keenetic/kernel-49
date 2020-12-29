@@ -353,7 +353,7 @@ struct gic_shared_intr_map {
 #define GIC_CPU_PIN_OFFSET	2
 
 #ifdef CONFIG_MIPS_TC3262_1004K
-/* EN7516/27 GIC pins shifted by 1, pin_offset must be 0 */
+/* EN7516/7527/7528 GIC pins shifted by 1, pin_offset must be 0 */
 #define GIC_CPU_TO_VEC_OFFSET	(1)
 #else
 /* Add 2 to convert non-EIC hardware interrupt to EIC vector number. */

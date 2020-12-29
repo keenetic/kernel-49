@@ -293,8 +293,8 @@ config  RA_HW_NAT_WIFI
 	default n
 
 config  RA_HW_NAT_WHNAT
-	bool "MT7622 WiFi Warp Acceleration"
-	depends on RA_HW_NAT_WIFI && MACH_MT7622
+	bool "WiFi Warp Acceleration"
+	depends on RA_HW_NAT_WIFI && (MACH_MT7622 || ECONET_EN7528)
 
 config  RA_HW_NAT_NIC_USB
 	bool "USBNET Acceleration"

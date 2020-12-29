@@ -453,8 +453,9 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 static inline void en75xx_pcie_init_phy(void)
 {
-#ifdef CONFIG_ECONET_EN7512
-	u32 reg_val;
+	u32 __maybe_unused reg_val;
+
+#if defined(CONFIG_ECONET_EN7512)
 
 	/* LCDDS_CLK_PH_INV */
 	reg_val = sysRegRead(RALINK_PCI_PHY0_BASE + 0x04a0);
@@ -485,6 +486,22 @@ static inline void en75xx_pcie_init_phy(void)
 		sysRegWrite(RALINK_PCI_PHY1_BASE + 0x030c, reg_val);
 		mdelay(1);
 	}
+
+#elif defined(CONFIG_ECONET_EN7528)
+
+	/* LCDDS_CLK_PH_INV */
+	reg_val = sysRegRead(RALINK_PCI_PHY0_BASE + 0x04a0);
+	reg_val |= (0x1 << 5);
+	sysRegWrite(RALINK_PCI_PHY0_BASE + 0x04a0, reg_val);
+	mdelay(1);
+
+	/* combo phy Rx R FT mean value too high, tune target R -5 Ohm */
+	reg_val = sysRegRead(RALINK_PCI_PHY1_BASE + 0x0b2c);
+	reg_val &= ~(0x3 << 12);
+	reg_val |=  (0x1 << 12);
+	sysRegWrite(RALINK_PCI_PHY1_BASE + 0x0b2c, reg_val);
+	mdelay(1);
+
 #endif
 }
 

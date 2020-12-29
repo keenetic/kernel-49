@@ -231,6 +231,24 @@ config ECONET_EN7516
 	help
 	  EcoNET evaluation board based on EN7516
 
+config ECONET_EN7527
+	bool "EcoNET EN7527/EN7561G board"
+	select MIPS_TC3262
+	select MIPS_TC3262_1004K
+	select ECONET_EN75XX_MP
+	select SYS_SUPPORTS_BIG_ENDIAN
+	help
+	  EcoNET evaluation board based on EN7527/EN7561G
+
+config ECONET_EN7528
+	bool "EcoNET EN7528DU/EN7561DU board"
+	select MIPS_TC3262
+	select MIPS_TC3262_1004K
+	select ECONET_EN75XX_MP
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	help
+	  EcoNET evaluation board based on EN7528DU/EN7561DU
+
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
 	select ARCH_PHYS_ADDR_T_64BIT

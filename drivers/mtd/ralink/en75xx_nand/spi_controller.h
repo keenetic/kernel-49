@@ -233,6 +233,8 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Chip_Select_Low( void );
  */
 SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Chip_Select_High( void );
 
+SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Clock_Edges_Set(u32 valSet);
+
 #endif /* ifndef __SPI_CONTROLLER_H__ */
 
 /* End of [spi_controller.h] package */

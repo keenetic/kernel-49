@@ -1,7 +1,7 @@
 #ifndef __ASM_MACH_MIPS_TC3262_RT_MMAP_H
 #define __ASM_MACH_MIPS_TC3262_RT_MMAP_H
 
-/* EN7512(3)/EN7516/EN7527 */
+/* EN7512(3)/EN7516/EN7527/EN7528 */
 
 #define PHYS_TO_K1(physaddr)		KSEG1ADDR(physaddr)
 #define sysRegRead(phys)		(*(volatile unsigned int *)PHYS_TO_K1(phys))

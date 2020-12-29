@@ -637,4 +637,17 @@ SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Chip_Select_High(void)
 	return (rtn_status);
 }
 
+SPI_CONTROLLER_RTN_T SPI_CONTROLLER_Clock_Edges_Set(u32 valSet)
+{
+	SPI_CONTROLLER_RTN_T rtn_status = SPI_CONTROLLER_RTN_NO_ERROR;
+	u32 val;
+
+	val = ReadReg(_SPI_CONTROLLER_REGS_SI_CK_SEL);
+	val &= (~0x7);
+	val |= (valSet & 0x7);
+	WriteReg(_SPI_CONTROLLER_REGS_SI_CK_SEL, val);
+
+	return (rtn_status);
+}
+
 /* End of [spi_controller.c] package */

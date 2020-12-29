@@ -160,7 +160,12 @@ static inline void regWrite32(uint32 reg, uint32 val)
 #define isMT7505		(((VPint(0xbfb00064) & 0xffff0000)) == 0x00060000)
 #define isEN7526c		(((VPint(0xbfb00064) & 0xffff0000)) == 0x00080000)
 #define isEN751221		((((VPint(0xbfb00064) & 0xffff0000)) == 0x00070000) || isEN7526c)
+#define isEN7528		(((VPint(0xbfb00064) & 0xffff0000)) == 0x000B0000)
+#ifdef CONFIG_ECONET_EN7528
+#define isEN751627		((((VPint(0xbfb00064) & 0xffff0000)) == 0x00090000) || isEN7528)
+#else
 #define isEN751627		(((VPint(0xbfb00064) & 0xffff0000)) == 0x00090000)
+#endif
 #define isEN7580 		(((VPint(0xbfb00064) & 0xffff0000)) == 0x000A0000)
 
 /* Support old xDSL chips */
@@ -181,29 +186,32 @@ static inline void regWrite32(uint32 reg, uint32 val)
 #define isEN751221FPGA		((VPint(0xBFB0008C) & (1 << 29)) ? 0 : 1) //used for 7512/7521
 #define isGenernalFPGA		((VPint(0xBFB0008C) & (1 << 31)) ? 1 : 0) //used for 63365/751020
 #define isGenernalFPGA_2	(((VPint(CR_AHB_SSTR) & 0x1) == 0) ? 1 : 0) //used for EN7526c and later version
-#if defined(CONFIG_ECONET_EN7516)
+#if defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527) || \
+    defined(CONFIG_ECONET_EN7528)
 #define isFPGA			0 // GET_IS_FPGA
 #define SYNC_TYPE4()		__asm__ volatile ("sync 0x4")
 #else
 #define isFPGA			0 //(isEN7526c ? isGenernalFPGA_2 : (isEN751221 ? isEN751221FPGA : isGenernalFPGA))
 #endif
 
+#define isEN751627QFP		(((VPint(0xbfa20174) & 0x8000) == 0x8000) ? 1 : 0)
+
 #define EFUSE_VERIFY_DATA0	(0xBFBF8214)
-#if defined(CONFIG_ECONET_EN7516)
-#define EFUSE_PKG_MASK		(0xC0000)
-#define EFUSE_REMARK_BIT	(1 << 0)
-#define EFUSE_PKG_REMARK_SHITF	2
-#else
+#define EFUSE_VERIFY_DATA1	(0xBFBF8218)
+#define EFUSE_PKG_MASK_7516	(0xC0000)
+#define EFUSE_REMARK_BIT_7516	(1 << 0)
+#define EFUSE_PKG_REMARK_SHITF_7516	2
 #define EFUSE_PKG_MASK		(0x3F)
 #define EFUSE_REMARK_BIT	(1 << 6)
 #define EFUSE_PKG_REMARK_SHITF	7
-#endif
 
 #define EFUSE_EN7512		(0x4)
 #define EFUSE_EN7513		(0x5)
 #define EFUSE_EN7513G		(0x6)
 #define EFUSE_EN7516G		(0x80000)
-#define EFUSE_EN7527H		(0x40000)
+#define EFUSE_EN7561G		(0xC0000)
+#define EFUSE_EN7527H		(0x0)
 #define EFUSE_EN7527G		(0x0)
 
 #define isEN7512		(isEN751221 && \
@@ -222,19 +230,30 @@ static inline void regWrite32(uint32 reg, uint32 val)
 				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK) == EFUSE_EN7513G)))
 
 #define isEN7516G		(isEN751627 && \
-				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT)? \
-				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF) & EFUSE_PKG_MASK) == EFUSE_EN7516G): \
-				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK) == EFUSE_EN7516G)))
+				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT_7516)? \
+				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF_7516) & EFUSE_PKG_MASK_7516) == EFUSE_EN7516G): \
+				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK_7516) == EFUSE_EN7516G)))
 
-#define isEN7527H		(isEN751627 && \
-				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT)? \
-				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF) &  EFUSE_PKG_MASK)== EFUSE_EN7527H): \
-				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK) == EFUSE_EN7527H)))
+#define isEN7561G		(isEN751627 && !isEN751627QFP && \
+				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT_7516)? \
+				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF_7516) & EFUSE_PKG_MASK_7516) == EFUSE_EN7561G): \
+				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK_7516) == EFUSE_EN7516G)))
 
-#define isEN7527G		(isEN751627 && \
-				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT)? \
-				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF) & EFUSE_PKG_MASK) == EFUSE_EN7527G): \
-				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK) == EFUSE_EN7527G)))
+#define isEN7527H		(isEN751627 && isEN751627QFP && \
+				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT_7516)? \
+				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF_7516) & EFUSE_PKG_MASK_7516) == EFUSE_EN7527H): \
+				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK_7516) == EFUSE_EN7527H)))
+
+#define isEN7527G		(isEN751627 && !isEN751627QFP && \
+				( (VPint(EFUSE_VERIFY_DATA0) & EFUSE_REMARK_BIT_7516)? \
+				(((VPint(EFUSE_VERIFY_DATA0) >> EFUSE_PKG_REMARK_SHITF_7516) & EFUSE_PKG_MASK_7516) == EFUSE_EN7527G): \
+				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_PKG_MASK_7516) == EFUSE_EN7527G)))
+
+#define isEN7528HU		(isEN7528 && (GET_PACKAGE_ID == 0x0))
+#define isEN7528DU		(isEN7528 && (GET_PACKAGE_ID == 0x1))
+#define isEN7561DU		(isEN7528 && (GET_PACKAGE_ID == 0x2))
+#define isEN7526FH_EN7528DU	(isEN7528 && (GET_PACKAGE_ID == 0x3))
+#define isEN7521G_EN7528DU	(isEN7528 && (GET_PACKAGE_ID == 0x7))
 
 #define EFUSE_DDR3_BIT		(1 << 23)
 #define EFUSE_DDR3_REMARK_BIT	(1 << 24)
@@ -243,10 +262,31 @@ static inline void regWrite32(uint32 reg, uint32 val)
 				 ((VPint(EFUSE_VERIFY_DATA0) & EFUSE_DDR3_BIT)))
 
 #define REG_SAVE_INFO		0xBFB00284
-#define GET_DRAM_SIZE		 (VPint(REG_SAVE_INFO) & 0xfff)
-#define GET_SYS_CLK		((VPint(REG_SAVE_INFO) & 0x3ff000) >> 12)
-#define GET_IS_FPGA		((VPint(REG_SAVE_INFO) >> 22) & 0x1)
-#define GET_IS_SPI_ECC		((VPint(REG_SAVE_INFO) >> 23) & 0x1)
+#define GET_REG_SAVE_INFO_POINT	((volatile SYS_GLOBAL_PARM_T *)REG_SAVE_INFO)
+
+typedef union {
+	struct {
+		uint32 packageID		:  4;
+		uint32 isDDR4			:  1;
+		uint32 isSecureHwTrapEn		:  1; /* detect secure HW trap */
+		uint32 isSecureModeEn		:  1; /* RSA key has been written or not */
+		uint32 isFlashBoot 		:  1;
+		uint32 isCtrlEcc		:  1;
+		uint32 isFpga			:  1;
+		uint32 sys_clk			: 10; /* bus clock can support up to 1024MHz */
+		uint32 dram_size		: 12; /* DRAM size can support up to 2048MB */
+	} raw ;
+	uint32 word;
+} SYS_GLOBAL_PARM_T ;
+
+#define GET_IS_DDR4			(GET_REG_SAVE_INFO_POINT->raw.isDDR4)
+#define GET_DRAM_SIZE			(GET_REG_SAVE_INFO_POINT->raw.dram_size)
+#define GET_SYS_CLK			(GET_REG_SAVE_INFO_POINT->raw.sys_clk)
+#define GET_IS_FPGA			(GET_REG_SAVE_INFO_POINT->raw.isFpga)
+#define GET_IS_SPI_ECC			(GET_REG_SAVE_INFO_POINT->raw.isCtrlEcc)
+#define GET_PACKAGE_ID			(GET_REG_SAVE_INFO_POINT->raw.packageID)
+#define GET_IS_SECURE_MODE		(GET_REG_SAVE_INFO_POINT->raw.isSecureModeEn)
+#define GET_IS_SECURE_HWTRAP		(GET_REG_SAVE_INFO_POINT->raw.isSecureHwTrapEn)
 
 #define SYS_HCLK		(GET_SYS_CLK)
 #define SAR_CLK			((SYS_HCLK)/(4.0))		//more accurate if 4.0 not 4
@@ -287,6 +327,12 @@ static inline void regWrite32(uint32 reg, uint32 val)
 #define ROUND_ROBIN_ENABLE	 (1<<30)
 #define ROUND_ROBIN_DISBALE	~(1<<30)
 
+#if defined(CONFIG_ECONET_EN7528)
+#define RBUS_TIMEOUT_STS0	 0xBFA000D0
+#define RBUS_TIMEOUT_CFG0	 0xBFA000D8
+#define RBUS_TIMEOUT_CFG1	 0xBFA000DC
+#define RBUS_TIMEOUT_CFG2	 0xBFA000E0
+#endif
 
 /*****************************
  * DMC Module Registers *
@@ -481,6 +527,11 @@ static inline void regWrite32(uint32 reg, uint32 val)
 /*************************
  * UART2 Module Registers *
  *************************/
+#if defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527) || \
+    defined(CONFIG_ECONET_EN7528)
+#define	CR_UART3_BASE		0xBFBE1000
+#endif
 #define	CR_UART2_BASE		0xBFBF0300
 #define	CR_UART2_RBR		(0x00+CR_UART2_BASE+CR_UART_OFFSET)
 #define	CR_UART2_THR		(0x00+CR_UART2_BASE+CR_UART_OFFSET)
@@ -714,7 +765,13 @@ interrupt_priority
 #define CR_AHB_DMTCR       	(CR_AHB_BASE + 0x84)
 #define CR_AHB_PCIC	       	(CR_AHB_BASE + 0x88)
 
-#if defined(CONFIG_ECONET_EN7516)
+#if defined(CONFIG_ECONET_EN7528)
+#define BOOT_TRAP_CONF		(0xBFB000B8)
+#endif
+
+#if defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527) || \
+    defined(CONFIG_ECONET_EN7528)
 #define CR_AHB_HWCONF		(0xBFA20174)
 #else
 #define CR_AHB_HWCONF       (CR_AHB_BASE + 0x8C)

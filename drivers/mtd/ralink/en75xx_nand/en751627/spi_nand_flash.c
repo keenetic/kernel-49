@@ -125,7 +125,8 @@
 #define PAGE_CNT_PER_BLOCK	(BLOCK_SIZE / PAGE_SIZE)
 
 #if defined(CONFIG_ECONET_EN7516) || \
-    defined(CONFIG_ECONET_EN7527)
+    defined(CONFIG_ECONET_EN7527) || \
+    defined(CONFIG_ECONET_EN7528)
 #define _SPI_FREQUENCY_ADJUST_REG			(0xBFA2011C)
 #define IOMUX_CONTROL1						(0xBFA2015C)
 #else
@@ -2873,6 +2874,10 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_PROBE_ERROR;
 
 	/* 1. set SFC Clock to 50MHZ  */
+#if defined(CONFIG_ECONET_EN7528)
+	if (!isFPGA)
+		SPI_CONTROLLER_Clock_Edges_Set(2);
+#endif
 	spi_nand_set_clock_speed(50);
 
 	/* 2. Enable Manual Mode */

@@ -130,7 +130,9 @@ struct PdmaRxDescInfo4 {
 #define GMAC_ID_GDM2			2
 #define GMAC_ID_WDMA			3
 
-#if defined(CONFIG_ECONET_EN75XX_MP)
+#if defined(CONFIG_ECONET_EN7512) || \
+    defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527)
 
 /* gmac_type */
 #define GMAC_TYPE_ETH			0
@@ -152,6 +154,32 @@ struct gmac_info {
 			uint32_t channel_id:	8;	/* QDMA virtual channel */
 			uint32_t gmac_type:	2;	/* 0: ETH, 1: ATM, 2: PTM */
 			uint32_t gmac_id:	2;	/* 0: external (WiFi), 1: GDM1, 2: GDM2 */
+		} bits;
+		uint32_t word;
+	};
+} __packed;
+
+
+#elif defined(CONFIG_ECONET_EN7528)
+
+/* gmac_info fields */
+struct gmac_info {
+	union {
+		struct {
+			/* assume LE for en7528 */
+			uint32_t gmac_id:	2;	/* 0: external (WiFi), 1: GDM1, 2: GDM2, 3: WDMA */
+			uint32_t channel_id:	8;	/* QDMA virtual channel */
+			uint32_t queue_id:	3;	/* QDMA QoS queue (0..7) */
+			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
+			uint32_t is_wan:	1;	/* assume upstream path */
+#ifdef CONFIG_RA_HW_NAT_WHNAT
+			uint32_t wdmaid:	1;	/* WDMA0/1 */
+			uint32_t wi_bssid:	6;	/* BSSID */
+			uint32_t wi_wcid:	8;	/* WCID */
+			uint32_t wi_rxid:	2;	/* Ring */
+#else
+			uint32_t resv:		17;
+#endif
 		} bits;
 		uint32_t word;
 	};

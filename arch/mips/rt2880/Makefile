@@ -28,8 +28,6 @@ obj-$(CONFIG_MIPS_CMP) += malta-amon.o
 
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MTD_NAND_MT7621) += dev-nand.o
-obj-$(CONFIG_RALINK_TIMER_DFS) += rt_timer_dfs.o
-obj-$(CONFIG_RALINK_TIMER_WDG) += rt_timer_wdg.o
 
 ifdef CONFIG_USB_EHCI_HCD_PLATFORM
 obj-y += dev-ehci_ohci.o uphy.o

@@ -212,7 +212,8 @@ void panic(const char *fmt, ...)
 	 * Run any panic handlers, including those that might need to
 	 * add information to the kmsg dump output.
 	 */
-	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
+	atomic_notifier_call_chain(&panic_notifier_list,
+				   PANIC_ACTION_RESTART, buf);
 
 	/* Call flush even twice. It tries harder with a single online CPU */
 	printk_nmi_flush_on_panic();

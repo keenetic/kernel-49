@@ -1555,6 +1555,27 @@ config PIC32_DMT
 	  To compile this driver as a loadable module, choose M here.
 	  The module will be called pic32-dmt.
 
+config MIPS_WDT
+	tristate "MIPS watchdog"
+	depends on MIPS
+	help
+	  Driver for the MIPS SoC watchdog timer.
+
+config MIPS_WDT_REBOOT_DELAY
+	int "MIPS watchdog reboot delay (in seconds)"
+	default 30
+	depends on MIPS_WDT
+
+config MIPS_WDT_REFRESH_INTERVAL
+	int "MIPS watchdog refresh interval (in seconds)"
+	default 3
+	depends on MIPS_WDT
+
+config MIPS_WDT_CALLTRACE_THRESHOLD
+	int "MIPS watchdog calltrace threshold before a reboot (in seconds)"
+	default 3
+	depends on MIPS_WDT
+
 # PARISC Architecture
 
 # POWERPC Architecture

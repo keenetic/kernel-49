@@ -10,6 +10,8 @@
 #include <asm/tc3162/rt_mmap.h>
 #include <asm/tc3162/surfboardint.h>
 
+#include "irq.h"
+
 #define X GIC_UNUSED
 
 static const struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {

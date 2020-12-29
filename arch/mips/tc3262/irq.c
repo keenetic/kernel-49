@@ -12,6 +12,8 @@
 
 #include <asm/tc3162/tc3162.h>
 
+#include "irq.h"
+
 extern void vsmp_int_init(void);
 extern int plat_set_irq_affinity(struct irq_data *d,
 				 const struct cpumask *affinity, bool force);

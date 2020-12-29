@@ -6,42 +6,39 @@
 #include <asm/cpu-info.h>
 #include <asm/bootinfo.h>
 
-#include <asm/reboot.h>
 #include <asm/time.h>
+#include <asm/reboot.h>
+#include <asm/pbus-timer.h>
 
 #include <asm/tc3162/tc3162.h>
+
+#include "irq.h"
+
 #if defined(CONFIG_TC3162_ADSL) || \
     defined(CONFIG_RALINK_VDSL)
 struct sk_buff;
+
 #include <asm/tc3162/TCIfSetQuery_os.h>
-#endif
 
-extern void tc_disable_irq_all(void);
-
-#if defined(CONFIG_TC3162_ADSL) || \
-    defined(CONFIG_RALINK_VDSL)
 adsldev_ops *adsl_dev_ops = NULL;
 EXPORT_SYMBOL(adsl_dev_ops);
 
-void stop_dsl_dmt(void)
+static inline void stop_dsl_dmt(void)
 {
-	/* stop a DMT module */
 	if (adsl_dev_ops)
 		adsl_dev_ops->set(ADSL_SET_DMT_CLOSE, NULL, NULL);
 }
+#else
+static inline void stop_dsl_dmt(void) {}
 #endif
 
 static inline void hw_uninit(void)
 {
-#if defined(CONFIG_TC3162_ADSL) || \
-    defined(CONFIG_RALINK_VDSL)
-	/* stop adsl */
+	/* stop the DMT module */
 	stop_dsl_dmt();
-#endif
 
 	/* stop each module dma task */
 	tc_disable_irq_all();
-	VPint(CR_TIMER_CTL) = 0x0;
 
 	/* stop atm sar dma */
 	TSARM_GFR &= ~((1 << 1) | (1 << 0));
@@ -57,6 +54,15 @@ static inline void hw_uninit(void)
 	VPint(CR_USB_DEV_CTRL_REG) &= ~(1 << 30);
 	mdelay(5);
 	VPint(CR_USB_SYS_CTRL_REG) &= ~(1U << 31);
+
+	/* stop all APB module timers except an active watchdog */
+	pbus_timer_disable(PBUS_TIMER_0);
+	pbus_timer_disable(PBUS_TIMER_1);
+	pbus_timer_disable(PBUS_TIMER_2);
+
+	/* timer 3 is in a non-watchdog mode */
+	if (!(pbus_timer_r32(PBUS_TIMER_CTRL) & PBUS_TIMER_CTRL_WDG_ENABLE))
+		pbus_timer_disable(PBUS_TIMER_3);
 }
 
 static void hw_reset(bool do_reboot)
@@ -87,10 +93,13 @@ static void tc_machine_power_off(void)
 	hw_reset(false);
 }
 
-static int tc_panic_event(struct notifier_block *this,
-			  unsigned long event, void *ptr)
+static int tc_panic_event(struct notifier_block *nb,
+			  unsigned long action, void *data)
 {
-	tc_machine_restart(NULL);
+	if (action == PANIC_ACTION_RESTART)
+		tc_machine_restart(NULL);
+	else
+		tc_machine_halt();
 
 	return NOTIFY_DONE;
 }

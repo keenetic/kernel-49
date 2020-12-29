@@ -93,7 +93,6 @@
 #include <asm/setup.h>
 
 #include "tc3262_int_source.h"
-#include "timer.h"
 
 #ifndef INT32
 #define INT32
@@ -648,47 +647,6 @@ interrupt_priority
 		IPL25,	IPL26,	IPL27,	IPL28,	IPL29,
 		IPL30,	IPL31
 };
-
-/**************************
- * Timer Module Registers *
- **************************/
-#define CR_TIMER_BASE  		0xBFBF0100
-#define CR_TIMER_CTL    	(CR_TIMER_BASE + 0x00)
-#define CR_TIMER0_LDV   	(CR_TIMER_BASE + 0x04)
-#define CR_TIMER0_VLR    	(CR_TIMER_BASE + 0x08)
-#define CR_TIMER1_LDV       (CR_TIMER_BASE + 0x0C)
-#define CR_TIMER1_VLR       (CR_TIMER_BASE + 0x10)
-#define CR_TIMER2_LDV       (CR_TIMER_BASE + 0x14)
-#define CR_TIMER2_VLR       (CR_TIMER_BASE + 0x18)
-#define CR_TIMER3_LDV       (CR_TIMER_BASE + 0x1C)
-#define CR_TIMER3_VLR       (CR_TIMER_BASE + 0x20)
-#define CR_TIMER4_LDV       (CR_TIMER_BASE + 0x24)
-#define CR_TIMER4_VLR       (CR_TIMER_BASE + 0x28)
-#define CR_TIMER5_LDV       (CR_TIMER_BASE + 0x2C)
-#define CR_TIMER5_VLR       (CR_TIMER_BASE + 0x30)
-/* new watchdog design */
-#define CR_WDOG_THSLD       (CR_TIMER_BASE + 0x34)
-#define CR_WDOG_RLD         (CR_TIMER_BASE + 0x38)
-
-#define TIMER_ENABLE         1
-#define TIMER_DISABLE        0
-#define TIMER_TOGGLEMODE     1
-#define TIMER_INTERVALMODE   0
-#define TIMER_TICKENABLE     1
-#define TIMER_TICKDISABLE    0
-#define TIMER_WDENABLE       1
-#define TIMER_WDDISABLE      0
-#define TIMER_HALTENABLE     1
-#define TIMER_HALTDISABLE    0
-
-#define TIMERTICKS_1MS       1
-#define TIMERTICKS_10MS      10  // set timer ticks as 10 ms
-#define TIMERTICKS_100MS     100
-#define TIMERTICKS_1S        1000
-#define TIMERTICKS_10S       10000
-
-#define timerLdvSet(timer_no,val) *(volatile uint32 *)(CR_TIMER0_LDV+timer_no*0x08) = (val)
-#define timerVlrGet(timer_no,val) (val)=*(volatile uint32 *)(CR_TIMER0_VLR+timer_no*0x08)
 
 /**************************
  * Timer Module Registers *

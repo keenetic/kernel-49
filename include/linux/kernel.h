@@ -263,6 +263,9 @@ void __might_fault(const char *file, int line);
 static inline void might_fault(void) { }
 #endif
 
+#define PANIC_ACTION_RESTART	0
+#define PANIC_ACTION_HALT	1
+
 extern struct atomic_notifier_head panic_notifier_list;
 extern long (*panic_blink)(int state);
 __printf(1, 2)

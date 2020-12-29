@@ -9,7 +9,6 @@ endif
 
 obj-$(CONFIG_TC3262_CPU_TIMER) += hpt.o
 obj-$(CONFIG_PCI) += pci_en75xx.o
-obj-$(CONFIG_RALINK_TIMER_WDG) += rt_timer_wdg.o
 obj-$(CONFIG_MIPS_CMP) += malta-amon.o
 
 ifdef CONFIG_MIPS_MT_SMP

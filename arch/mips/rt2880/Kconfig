@@ -108,31 +108,3 @@ config  RALINK_UART_BRATE
 	int
 	default 57600 if RT2880_UART_57600
 	default 115200 if RT2880_UART_115200
-
-#--------------------------
-
-config  RALINK_TIMER_DFS
-	tristate "Ralink DFS Timer"
-	depends on !MIPS_TC3262
-	default n
-
-config  RALINK_TIMER_WDG
-	tristate "Ralink WatchDog Timer"
-	default n
-
-config  RALINK_TIMER_WDG_RESET_OUTPUT
-	bool "Ralink WatchDog Reset Output GPIO Pin"
-	depends on RALINK_TIMER_WDG
-	depends on !MIPS_TC3262
-	default n
-
-config  RALINK_TIMER_WDG_REBOOT_DELAY
-	int "WatchDog Timer Reboot Delay (Unit:1Sec, Max=30Sec)"
-	default 15
-	depends on RALINK_TIMER_WDG
-
-config  RALINK_TIMER_WDG_REFRESH_INTERVAL
-	int "WatchDog Refresh Interval (Unit:1Sec, Max=30Sec)"
-	default 4
-	depends on RALINK_TIMER_WDG
-

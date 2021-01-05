@@ -11,10 +11,10 @@
 #include <linux/sched_clock.h>
 #include <asm/tc3162/tc3162.h>
 
-#define HPT_MIN_DELTA				0x00000300
-#define HPT_MAX_DELTA				0x7fffffff
-
 #define HPT_BITS				32
+
+#define HPT_MIN_DELTA				0x00000300
+#define HPT_MAX_DELTA				GENMASK(HPT_BITS - 1, 0)
 
 #define HPT_IRQ					SI_TIMER_INT
 

@@ -265,20 +265,6 @@ void tc_disable_irq_all(void)
 	spin_unlock_irqrestore(&tc3262_irq_lock, flags);
 }
 
-/* called to initialize MIPS timers only */
-unsigned int get_c0_compare_int(void)
-{
-	if (smp_processor_id() != 0) {
-		struct irq_data d = {
-			.irq = SI_TIMER_INT
-		};
-
-		unmask_mips_irq(&d);
-	}
-
-	return SI_TIMER_INT;
-}
-
 void __init arch_init_irq(void)
 {
 	unsigned int i;

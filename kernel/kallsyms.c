@@ -434,16 +434,17 @@ static int __sprint_symbol(char *buffer, unsigned long address,
 
 	address += symbol_offset;
 	name = kallsyms_lookup(address, &size, &offset, &modname, buffer);
-	if (!name)
-		return sprintf(buffer, "0x%lx", address - symbol_offset);
+	if (!name) {
+		len += sprintf(buffer, "0x%lx", address - symbol_offset);
+	} else {
+		if (name != buffer)
+			strcpy(buffer, name);
+		len = strlen(buffer);
+		offset -= symbol_offset;
 
-	if (name != buffer)
-		strcpy(buffer, name);
-	len = strlen(buffer);
-	offset -= symbol_offset;
-
-	if (add_offset)
-		len += sprintf(buffer + len, "+%#lx/%#lx", offset, size);
+		if (add_offset)
+			len += sprintf(buffer + len, "+%#lx/%#lx", offset, size);
+	}
 
 	if (modname)
 		len += sprintf(buffer + len, " [%s]", modname);

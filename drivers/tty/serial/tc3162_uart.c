@@ -386,7 +386,7 @@ static void tc3162_uart_console_write(struct console *con, const char *s,
 
 	spin_lock(&tc3162_uart_tx_lock);
 
-	if (!tc3162_uart_tx_thread) {
+	if (!tc3162_uart_tx_thread || oops_in_progress) {
 		tc3162_uart_tx_unbuffered(s, count);
 		spin_unlock(&tc3162_uart_tx_lock);
 		return;

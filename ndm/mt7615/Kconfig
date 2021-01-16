@@ -107,7 +107,7 @@ config MT7615_RF_LOCKDOWN_SUPPORT
 
 config MT7615_WHNAT_SUPPORT
 	tristate "Wifi Warp Hardware NAT support"
-	depends on CHIP_MT7622
+	depends on CHIP_MT7622 || ECONET_EN7528
 	depends on CHIP_MT7615E
 	default m
 

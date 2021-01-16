@@ -112,7 +112,7 @@ config MT7915_SINGLE_SKU
 
 config MT7915_WHNAT_SUPPORT
 	tristate "Wifi Warp Hardware NAT support"
-	depends on CHIP_MT7622
+	depends on CHIP_MT7622 || ECONET_EN7528
 	depends on CHIP_MT7915
 	default m
 

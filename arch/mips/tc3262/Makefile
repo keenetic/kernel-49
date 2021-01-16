@@ -19,3 +19,9 @@ endif
 ifdef CONFIG_USB_XHCI_MTK
 obj-y += dev-xhci.o uphy.o
 endif
+
+ifneq ($(strip \
+	$(CONFIG_MT7615_WHNAT_SUPPORT) \
+	$(CONFIG_MT7915_WHNAT_SUPPORT)),)
+obj-y += dev-woe.o
+endif

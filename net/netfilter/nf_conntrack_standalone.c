@@ -37,6 +37,7 @@
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/fast_nat.h>
+#include <linux/ntc_shaper_hooks.h>
 #endif
 
 MODULE_LICENSE("GPL");
@@ -204,6 +205,33 @@ ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+static void ct_show_ndm_ifaces(struct seq_file *s, const struct nf_conn *ct)
+{
+	int ctr = 0;
+	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
+
+	if (lbl) {
+		if (lbl->iface1 >= 0) {
+			seq_printf(s, "if1=%d ", lbl->iface1);
+			ctr++;
+		}
+		if (lbl->iface2 >= 0) {
+			seq_printf(s, "if2=%d ", lbl->iface2);
+			ctr++;
+		}
+	}
+
+	if (ctr == 0)
+		seq_printf(s, "no_if ");
+}
+#else
+static inline void
+ct_show_ndm_ifaces(struct seq_file *s, const struct nf_conn *ct)
+{
+}
+#endif
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -282,6 +310,8 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	seq_printf(s, "mark=%u ", ct->mark);
 	seq_printf(s, "ndm_mark=%u ", ct->ndm_mark);
 #endif
+
+	ct_show_ndm_ifaces(s, ct);
 
 	ct_show_secctx(s, ct);
 	ct_show_zone(s, ct, NF_CT_DEFAULT_ZONE_DIR);

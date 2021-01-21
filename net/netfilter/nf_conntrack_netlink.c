@@ -54,6 +54,11 @@
 #include <net/netfilter/nf_nat_helper.h>
 #endif
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_nat.h>
+#include <linux/ntc_shaper_hooks.h>
+#endif
+
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
@@ -330,6 +335,35 @@ nla_put_failure:
 #define ctnetlink_dump_ndmmark(a, b) (0)
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+static int ctnetlink_dump_ndm_ifaces(struct sk_buff *skb,
+				     const struct nf_conn *ct)
+{
+	struct nlattr *nest_lbl;
+	int ret = 0;
+	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
+
+	if (lbl == NULL)
+		return ret;
+
+	ret = -1;
+	nest_lbl = nla_nest_start(skb, CTA_NDM_IFACES | NLA_F_NESTED);
+	if (nest_lbl == NULL)
+		goto nla_put_failure;
+
+	if (nla_put_s32(skb, CTA_NDM_IFACE1, lbl->iface1) ||
+	    nla_put_s32(skb, CTA_NDM_IFACE2, lbl->iface2))
+		goto nla_put_failure;
+	nla_nest_end(skb, nest_lbl);
+
+	ret = 0;
+nla_put_failure:
+	return ret;
+}
+#else
+#define ctnetlink_dump_ndm_ifaces(a, b) (0)
+#endif
+
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 static int ctnetlink_dump_secctx(struct sk_buff *skb, const struct nf_conn *ct)
 {
@@ -536,6 +570,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	    ctnetlink_dump_helpinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_mark(skb, ct) < 0 ||
 	    ctnetlink_dump_ndmmark(skb, ct) < 0 ||
+	    ctnetlink_dump_ndm_ifaces(skb, ct) < 0 ||
 	    ctnetlink_dump_secctx(skb, ct) < 0 ||
 	    ctnetlink_dump_labels(skb, ct) < 0 ||
 	    ctnetlink_dump_id(skb, ct) < 0 ||

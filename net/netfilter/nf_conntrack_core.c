@@ -70,6 +70,11 @@
 #include <net/ip.h>
 #include <net/fast_nat.h>
 #include <net/fast_vpn.h>
+#include <linux/ntc_shaper_hooks.h>
+#endif
+
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+#include <../net/bridge/br_private.h>
 #endif
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
@@ -1617,6 +1622,76 @@ static inline u8 ndm_sc_to_dscp(const u8 sc)
 	return SC_TO_DSCP_[sc];
 }
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+static inline void
+nf_conntrack_update_ifaces(struct net *net, struct sk_buff *skb,
+			   struct nf_ct_ext_ntc_label *lbl, uint8_t protonum)
+{
+	if (unlikely(
+		protonum != IPPROTO_TCP &&
+		protonum != IPPROTO_UDP &&
+		protonum != IPPROTO_GRE &&
+		protonum != IPPROTO_ESP &&
+		protonum != IPPROTO_UDPLITE &&
+		protonum != IPPROTO_ICMP &&
+		protonum != IPPROTO_IPIP &&
+		protonum != IPPROTO_IPV6 &&
+		protonum != IPPROTO_SCTP &&
+		protonum != IPPROTO_AH))
+		return;
+
+	if (lbl->iface1 < 0)
+		lbl->iface1 = skb->skb_iif;
+	else
+	if (lbl->iface1 != skb->skb_iif &&
+	    lbl->iface2 < 0)
+		lbl->iface2 = skb->skb_iif;
+	else
+	if (nf_ct_ext_ntc_filled(lbl) &&
+	    lbl->iface1 != skb->skb_iif &&
+	    lbl->iface2 != skb->skb_iif) {
+		struct net_device *iface1 = dev_get_by_index(net, lbl->iface1);
+		struct net_device *iface2 = dev_get_by_index(net, lbl->iface2);
+
+		if (iface1 != NULL) {
+			if (br_port_exists(iface1))
+				lbl->iface1 = -1;
+
+			dev_put(iface1);
+		} else
+			lbl->iface1 = -1;
+
+		if (iface2 != NULL) {
+			if (br_port_exists(iface2))
+				lbl->iface2 = -1;
+
+			dev_put(iface2);
+		} else
+			lbl->iface2 = -1;
+
+		if (lbl->iface1 < 0 &&
+			lbl->iface2 >= 0) {
+			lbl->iface1 = lbl->iface2;
+			lbl->iface2 = -1;
+		}
+
+		if (lbl->iface1 < 0)
+			lbl->iface1 = skb->skb_iif;
+		else
+		if (lbl->iface1 != skb->skb_iif &&
+			lbl->iface2 < 0)
+			lbl->iface2 = skb->skb_iif;
+		else
+		if (nf_ct_ext_ntc_filled(lbl) &&
+		    lbl->iface1 != skb->skb_iif &&
+		    lbl->iface2 != skb->skb_iif)
+			pr_err_ratelimited(
+				"unable to save third interface %d, already has %d and %d (protonum %u)",
+				skb->skb_iif, lbl->iface1, lbl->iface2, (uint16_t)protonum);
+	}
+}
+#endif
+
 unsigned int
 nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		struct sk_buff *skb)
@@ -1762,28 +1837,16 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	    !skb_sec_path(skb) &&
 	     nf_ct_ext_id_ntc != 0 &&
 	     hooknum == NF_INET_PRE_ROUTING)) {
-		struct nf_ct_ext_ntc_label *ntc_ct_label = nf_ct_ext_find_ntc(ct);
+		struct nf_ct_ext_ntc_label *ntc_ct_lbl = nf_ct_ext_find_ntc(ct);
 
-		if (ntc_ct_label == NULL)
-			ntc_ct_label = nf_ct_ext_add_ntc(ct);
+		if (ntc_ct_lbl == NULL)
+			ntc_ct_lbl = nf_ct_ext_add_ntc(ct);
 
-		if (unlikely(ntc_ct_label == NULL))
-			pr_debug("unable to allocate ntc ct label");
-		else {
-			if (ntc_ct_label->iface1 < 0)
-				ntc_ct_label->iface1 = skb->skb_iif;
-			else
-			if (ntc_ct_label->iface1 != skb->skb_iif &&
-			    ntc_ct_label->iface2 < 0)
-				ntc_ct_label->iface2 = skb->skb_iif;
-			else
-			if (nf_ct_ext_ntc_filled(ntc_ct_label) &&
-			    ntc_ct_label->iface1 != skb->skb_iif &&
-			    ntc_ct_label->iface2 != skb->skb_iif)
-				pr_err_ratelimited(
-					"unable to save third interface %d, already has %d and %d",
-					skb->skb_iif, ntc_ct_label->iface1, ntc_ct_label->iface2);
-		}
+		if (unlikely(ntc_ct_lbl == NULL))
+			pr_err_ratelimited("unable to allocate ntc ct label");
+		else
+			nf_conntrack_update_ifaces(net, skb,
+						   ntc_ct_lbl, protonum);
 	}
 #endif
 

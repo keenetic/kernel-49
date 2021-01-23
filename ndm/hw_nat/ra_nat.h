@@ -144,7 +144,7 @@ struct gmac_info {
 	union {
 		struct {
 			/* assume BE for all en75xx */
-			uint32_t resv:		1;
+			uint32_t wi_rxid:	1;	/* QDMA RX ring */
 			uint32_t atm_pppoa:	1;	/* ATM PPPoA incap */
 			uint32_t atm_ipoa:	1;	/* ATM IPoA incap */
 			uint32_t atm_mux_vc:	1;	/* ATM VC mux mode */
@@ -172,14 +172,11 @@ struct gmac_info {
 			uint32_t queue_id:	3;	/* QDMA QoS queue (0..7) */
 			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
 			uint32_t is_wan:	1;	/* assume upstream path */
-#ifdef CONFIG_RA_HW_NAT_WHNAT
+			uint32_t resv:		1;
 			uint32_t wdmaid:	1;	/* WDMA0/1 */
 			uint32_t wi_bssid:	6;	/* BSSID */
 			uint32_t wi_wcid:	8;	/* WCID */
-			uint32_t wi_rxid:	2;	/* Ring */
-#else
-			uint32_t resv:		17;
-#endif
+			uint32_t wi_rxid:	1;	/* WDMA/QDMA RX ring */
 		} bits;
 		uint32_t word;
 	};
@@ -196,15 +193,11 @@ struct gmac_info {
 			uint32_t queue_id:	6;	/* QDMA QoS queue (0..63) */
 			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
 			uint32_t is_wan:	1;	/* assume upstream path */
-#ifdef CONFIG_RA_HW_NAT_WHNAT
 			uint32_t wdmaid:	1;	/* WDMA0/1 */
 			uint32_t wi_bssid:	6;	/* BSSID */
 			uint32_t wi_wcid:	8;	/* WCID */
-			uint32_t wi_rxid:	2;	/* Ring */
+			uint32_t wi_rxid:	2;	/* WDMA RX ring */
 			uint32_t resv:		5;
-#else
-			uint32_t resv:		22;
-#endif
 		} bits;
 		uint32_t word;
 	};

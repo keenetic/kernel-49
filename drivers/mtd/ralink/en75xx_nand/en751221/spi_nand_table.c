@@ -77,6 +77,7 @@
 #define _SPI_NAND_DEVICE_ID_EM73D044VCH		0x1B
 #define _SPI_NAND_DEVICE_ID_EM73E044SNA		0x03
 #define _SPI_NAND_DEVICE_ID_TC58CVG0S3H		0xC2
+#define _SPI_NAND_DEVICE_ID_TC58CVG0S3HRAIJ	0xE2
 #define _SPI_NAND_DEVICE_ID_TC58CVG1S3H		0xCB
 #define _SPI_NAND_DEVICE_ID_TC58CVG2S0H		0xCD
 #define _SPI_NAND_DEVICE_ID_MT29F1G01		0x14
@@ -800,12 +801,26 @@ static const struct SPI_NAND_FLASH_INFO_T spi_nand_flash_tables[] = {
 		oob_free_layout:	&ooblayout_etron_73E044SNA,
 		feature:		SPI_NAND_FLASH_FEATURE_NONE,
 	},
-	/* TOSHIBA */
+	/* TOSHIBA/KIOXIA */
 	{
 		ptr_name:		"TC58CVG0S3H",
 		mfr_id:			_SPI_NAND_MANUFACTURER_ID_TOSHIBA,
 		dev_id:			_SPI_NAND_DEVICE_ID_TC58CVG0S3H,
 		device_size:		_SPI_NAND_CHIP_SIZE_1GBIT,
+		page_size:		_SPI_NAND_PAGE_SIZE_2KBYTE,
+		oob_size:		_SPI_NAND_OOB_SIZE_64BYTE,
+		erase_size:		_SPI_NAND_BLOCK_SIZE_128KBYTE,
+		dummy_mode:		SPI_NAND_FLASH_READ_DUMMY_BYTE_APPEND,
+		read_mode:		SPI_NAND_FLASH_READ_SPEED_MODE_DUAL,
+		write_mode:		SPI_NAND_FLASH_WRITE_SPEED_MODE_SINGLE,
+		oob_free_layout:	&ooblayout_toshiba_128,
+		feature:		SPI_NAND_FLASH_FEATURE_NONE,
+	},
+	{
+		ptr_name:		"TC58CVG0S3HRAIJ",
+		mfr_id:			_SPI_NAND_MANUFACTURER_ID_TOSHIBA,
+		dev_id:			_SPI_NAND_DEVICE_ID_TC58CVG0S3HRAIJ,
+		device_size:	_SPI_NAND_CHIP_SIZE_1GBIT,
 		page_size:		_SPI_NAND_PAGE_SIZE_2KBYTE,
 		oob_size:		_SPI_NAND_OOB_SIZE_64BYTE,
 		erase_size:		_SPI_NAND_BLOCK_SIZE_128KBYTE,

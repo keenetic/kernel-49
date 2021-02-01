@@ -45,12 +45,12 @@ config MT7615_G_BAND_256QAM_SUPPORT
 
 config MT7615_MUMIMO_SUPPORT
 	bool "MU-MIMO support"
-	default n
+	default y
 
 config MT7615_MU_RA_SUPPORT
 	bool "MU-RGA support"
 	depends on MT7615_MUMIMO_SUPPORT
-	default n
+	default y
 
 config MT7615_DOT11W_PMF_SUPPORT
 	bool "802.11w PMF (Protected Management Frames)"
@@ -82,11 +82,11 @@ config MT7615_DFS_SUPPORT
 
 config MT7615_BACKGROUND_SCAN_SUPPORT
 	bool "Background Channels Scan support"
-	default y
+	default n
 
 config MT7615_TXBF_SUPPORT
 	bool "Tx Beam Forming support"
-	default n
+	default y
 
 config MT7615_SMART_CARRIER_SENSE_SUPPORT
 	bool "Smart Carrier Sense support"
@@ -103,6 +103,10 @@ config MT7615_SINGLE_SKU
 config MT7615_RF_LOCKDOWN_SUPPORT
 	bool "Single SKU RF lockdown support"
 	depends on MT7615_SINGLE_SKU
+	default n
+
+config MT7615_PRECAL_SUPPORT
+	bool "Allow PRECAL w/o ATE build"
 	default n
 
 config MT7615_WHNAT_SUPPORT

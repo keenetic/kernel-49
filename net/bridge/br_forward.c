@@ -87,6 +87,11 @@ static void __br_forward(const struct net_bridge_port *to,
 		return;
 #endif
 
+	if (unlikely(to->loop_detect == BR_PORT_LOOP_DETECTED)) {
+		kfree_skb(skb);
+		return;
+	}
+
 	indev = skb->dev;
 	skb->dev = to->dev;
 	if (!local_orig) {
@@ -124,6 +129,9 @@ static int deliver_clone(const struct net_bridge_port *prev,
 			 struct sk_buff *skb, bool local_orig)
 {
 	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
+
+	if (unlikely(prev->loop_detect == BR_PORT_LOOP_DETECTED))
+		return 0;
 
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb) {

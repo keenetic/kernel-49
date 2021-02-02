@@ -200,6 +200,62 @@ static ssize_t show_stp_choke(struct net_bridge_port *p,
 static BRPORT_ATTR(stp_choke, S_IWUSR | S_IRUGO,
 		   show_stp_choke, store_stp_choke);
 
+static int store_port_type(struct net_bridge_port *p, unsigned long v)
+{
+	if (netif_running(p->br->dev)) {
+		p->port_type =
+			(v != 0 ?
+				BR_PORT_TYPE_WIFI_STATION :
+				BR_PORT_TYPE_NORMAL);
+
+		br_info(p->br, "set port %u(%s) type to \"%s\"\n",
+			(unsigned int) p->port_no, p->dev->name,
+			(p->port_type == BR_PORT_TYPE_WIFI_STATION) ?
+				"Wi-Fi station" :
+				"normal");
+	}
+
+	return 0;
+}
+
+static ssize_t show_port_type(struct net_bridge_port *p, char *buf)
+{
+	return sprintf(buf, "%d\n", p->port_type);
+}
+static BRPORT_ATTR(port_type, S_IWUSR | S_IRUGO,
+		   show_port_type, store_port_type);
+
+static int store_loop_detect(struct net_bridge_port *p, unsigned long v)
+{
+	if (netif_running(p->br->dev)) {
+		const bool has_loop = (p->loop_detect == BR_PORT_LOOP_DETECTED);
+		const unsigned int loop_detect =
+			(v != 0 ?
+				BR_PORT_LOOP_LISTEN :
+				BR_PORT_NO_LOOP);
+
+		if (loop_detect != p->loop_detect) {
+			br_info(p->br, "%s loop detector on port %u(%s)\n",
+				(loop_detect == BR_PORT_LOOP_LISTEN) ?
+					(has_loop ?
+						"reset" :
+						"enabled") :
+					"disabled",
+				(unsigned int) p->port_no, p->dev->name);
+			p->loop_detect = loop_detect;
+		}
+	}
+
+	return 0;
+}
+
+static ssize_t show_loop_detect(struct net_bridge_port *p, char *buf)
+{
+	return sprintf(buf, "%d\n", p->loop_detect);
+}
+static BRPORT_ATTR(loop_detect, S_IWUSR | S_IRUGO,
+		   show_loop_detect, store_loop_detect);
+
 BRPORT_ATTR_FLAG(hairpin_mode, BR_HAIRPIN_MODE);
 BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
@@ -245,6 +301,8 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_flush,
 	&brport_attr_stp_reset,
 	&brport_attr_stp_choke,
+	&brport_attr_port_type,
+	&brport_attr_loop_detect,
 	&brport_attr_hairpin_mode,
 	&brport_attr_bpdu_guard,
 	&brport_attr_root_block,

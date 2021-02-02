@@ -296,6 +296,8 @@ static void del_nbp(struct net_bridge_port *p)
 
 	br_netpoll_disable(p);
 
+	br_queue_destroy(&p->queue);
+
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
 
@@ -364,6 +366,8 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->port_no = index;
 	p->flags = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD;
 	p->stp_choke = BR_PORT_STP_PASS;
+	p->loop_detect = BR_PORT_NO_LOOP;
+	p->port_type = BR_PORT_TYPE_NORMAL;
 	br_init_port(p);
 	br_set_state(p, BR_STATE_DISABLED);
 	br_stp_port_timer_init(p);
@@ -372,7 +376,8 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 		dev_put(dev);
 		kfree(p);
 		p = ERR_PTR(err);
-	}
+	} else
+		br_queue_init(&p->queue, br_handle_broadcast_frame_finish);
 
 	return p;
 }

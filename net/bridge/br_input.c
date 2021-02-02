@@ -31,6 +31,44 @@
 #include <net/fast_vpn.h>
 #endif
 
+#if !defined(ETH_P_LLDP)
+#define ETH_P_LLDP					0x88cc
+#endif /* ETH_P_LLDP */
+
+struct br_lldpdu_hdr {
+	u8 tlv_type;
+	u8 tlv_length;
+	u8 sub_type;
+	u8 mac[ETH_ALEN];
+} __attribute__ ((__packed__));
+
+static inline bool
+br_is_own_lldpdu(struct net_bridge *br, struct sk_buff *skb)
+{
+	struct br_lldpdu_hdr *lldpdu, _lldpdu;
+
+	if (skb->protocol != ntohs(ETH_P_LLDP))
+		return false;
+
+	if (skb->len <= sizeof(*lldpdu))
+		return false;
+
+	lldpdu = skb_header_pointer(skb, 0, sizeof(*lldpdu), &_lldpdu);
+
+	if (lldpdu == NULL)
+		return false;
+
+	/* Chassis */
+	if (lldpdu->tlv_type != 2)
+		return false;
+
+	/* Payload is a MAC */
+	if (lldpdu->sub_type != 4)
+		return false;
+
+	return ether_addr_equal(br->dev->dev_addr, lldpdu->mac);
+}
+
 #if IS_ENABLED(CONFIG_BRIDGE_EBT_BROUTE)
 /* Hook for brouter */
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
@@ -285,6 +323,58 @@ static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_bu
 	return 1;
 }
 
+static void br_disable_ports(struct net_bridge *br, struct net_bridge_port *p,
+			     const char *reason)
+{
+	struct net_bridge_port *port;
+
+	if (p->port_type == BR_PORT_TYPE_WIFI_STATION) {
+		p->loop_detect = BR_PORT_LOOP_DETECTED;
+		br_warn(br, "loop by %s detected, disable port %u(%s)\n",
+			reason, (unsigned int) p->port_no, p->dev->name);
+	} else {
+		list_for_each_entry_rcu(port, &br->port_list, list) {
+			if (port == p)
+				continue;
+
+			if (port->loop_detect != BR_PORT_LOOP_LISTEN)
+				continue;
+
+			if (port->port_type == BR_PORT_TYPE_NORMAL)
+				continue;
+
+			port->loop_detect = BR_PORT_LOOP_DETECTED;
+			br_warn(br, "loop by %s detected, disable port %u(%s)\n",
+				reason, (unsigned int) port->port_no,
+				port->dev->name);
+		}
+	}
+}
+
+static bool br_check_ports_macs(struct net_bridge *br,
+				struct net_bridge_port *p,
+				struct sk_buff *skb)
+{
+	struct net_bridge_port *port;
+
+	list_for_each_entry_rcu(port, &br->port_list, list) {
+		if (port == p)
+			continue;
+
+		if (port->port_type != BR_PORT_TYPE_WIFI_STATION)
+			continue;
+
+		if (port->loop_detect == BR_PORT_NO_LOOP)
+			continue;
+
+		if (ether_addr_equal(port->dev->dev_addr,
+				     eth_hdr(skb)->h_source))
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * Return NULL if skb is handled
  * note: already called with rcu_read_lock
@@ -294,6 +384,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 	struct net_bridge_port *p;
 	struct sk_buff *skb = *pskb;
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	struct net_bridge *br;
 #if IS_ENABLED(CONFIG_BRIDGE_EBT_BROUTE)
 	br_should_route_hook_t *rhook;
 #endif
@@ -309,10 +400,10 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		return RX_HANDLER_CONSUMED;
 
 	p = br_port_get_rcu(skb->dev);
+	br = p->br;
 
 #if IS_ENABLED(CONFIG_USB_NET_KPDSL)
 	if (skb->protocol == htons(ETH_P_EBM)) {
-		struct net_bridge *br = p->br;
 		struct net_device *brdev = br->dev;
 		const u8 state = p->state;
 
@@ -338,8 +429,51 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 	}
 #endif
 
+	if (unlikely(br->stp_enabled == BR_NO_STP)) {
+		if (unlikely(p->loop_detect == BR_PORT_LOOP_DETECTED))
+			goto drop;
+
+		if (p->loop_detect == BR_PORT_LOOP_LISTEN) {
+			if (p->port_type == BR_PORT_TYPE_NORMAL &&
+			    br_check_ports_macs(br, p, skb)) {
+				br_disable_ports(br, p, "packet");
+				goto drop;
+			}
+
+			if (((ether_addr_equal(p->dev->dev_addr,
+				eth_hdr(skb)->h_source) ||
+			      ether_addr_equal(br->dev->dev_addr,
+				eth_hdr(skb)->h_source)))) {
+				br_disable_ports(br, p, "packet");
+				goto drop;
+			}
+
+			if (unlikely(br_queue_overloaded(&p->queue))) {
+				br_disable_ports(br, p, "queue");
+				goto drop;
+			}
+
+			if (unlikely(br_is_own_lldpdu(br, skb))) {
+				br_disable_ports(br, p, "lldpdu");
+				goto drop;
+			}
+		}
+
+		if (unlikely(skb->pkt_type == PACKET_BROADCAST)) {
+			switch (br_enqueue(&p->queue, skb)) {
+			case NF_ACCEPT:
+				break;
+			case NF_STOLEN:
+				return RX_HANDLER_CONSUMED;
+			case NF_DROP:
+			default:
+				goto drop;
+			}
+		}
+	}
+
 	if (unlikely(is_link_local_ether_addr(dest))) {
-		u16 fwd_mask = p->br->group_fwd_mask_required;
+		u16 fwd_mask = br->group_fwd_mask_required;
 
 		/*
 		 * See IEEE 802.1D Table 7-10 Reserved addresses
@@ -358,7 +492,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		case 0x00:	/* Bridge Group Address */
 			/* If STP is turned off,
 			   then must forward to keep loop detection */
-			if (p->br->stp_enabled == BR_NO_STP ||
+			if (br->stp_enabled == BR_NO_STP ||
 			    fwd_mask & (1u << dest[5]))
 				goto forward;
 			*pskb = skb;
@@ -369,7 +503,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 			goto drop;
 
 		case 0x0E:	/* 802.1AB LLDP */
-			fwd_mask |= p->br->group_fwd_mask;
+			fwd_mask |= br->group_fwd_mask;
 			if (fwd_mask & (1u << dest[5]))
 				goto forward;
 			*pskb = skb;
@@ -378,7 +512,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 
 		default:
 			/* Allow selective forwarding for most other protocols */
-			fwd_mask |= p->br->group_fwd_mask;
+			fwd_mask |= br->group_fwd_mask;
 			if (fwd_mask & (1u << dest[5]))
 				goto forward;
 		}
@@ -412,7 +546,7 @@ forward:
 #endif
 		/* fall through */
 	case BR_STATE_LEARNING:
-		if (ether_addr_equal(p->br->dev->dev_addr, dest))
+		if (ether_addr_equal(br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
 		BR_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
@@ -424,4 +558,39 @@ drop:
 		kfree_skb(skb);
 	}
 	return RX_HANDLER_CONSUMED;
+}
+
+void br_handle_broadcast_frame_finish(struct sk_buff *skb)
+{
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
+	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	struct net_bridge *br = p->br;
+#if IS_ENABLED(CONFIG_BRIDGE_EBT_BROUTE)
+	br_should_route_hook_t *rhook;
+#endif
+
+	switch (p->state) {
+	case BR_STATE_FORWARDING:
+#if IS_ENABLED(CONFIG_BRIDGE_EBT_BROUTE)
+		rhook = rcu_dereference(br_should_route_hook);
+		if (rhook) {
+			if ((*rhook)(skb)) {
+				*pskb = skb;
+				return RX_HANDLER_PASS;
+			}
+			dest = eth_hdr(skb)->h_dest;
+		}
+#endif
+		/* fall through */
+	case BR_STATE_LEARNING:
+		if (ether_addr_equal(br->dev->dev_addr, dest))
+			skb->pkt_type = PACKET_HOST;
+
+		BR_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
+			dev_net(skb->dev), NULL, skb, skb->dev, NULL,
+			br_handle_frame_finish);
+		break;
+	default:
+		kfree_skb(skb);
+	}
 }

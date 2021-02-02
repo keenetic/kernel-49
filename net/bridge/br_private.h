@@ -21,6 +21,7 @@
 #include <net/ip6_fib.h>
 #include <linux/if_vlan.h>
 #include <linux/rhashtable.h>
+#include <linux/reciprocal_div.h>
 
 #define BR_HASH_BITS 8
 #define BR_HASH_SIZE (1 << BR_HASH_BITS)
@@ -201,6 +202,38 @@ struct net_bridge_mdb_htable
 	u32				ver;
 };
 
+struct br_queue
+{
+	/* Parameters */
+	unsigned int		limit_pkts;	/* packets hard limit	      */
+	unsigned int		min_pkts;	/* RED drop start for packets */
+
+	unsigned int		limit_bytes;	/* bytes hard limit	      */
+	unsigned int		min_bytes;	/* RED drop start for bytes   */
+
+	unsigned long		bpj;		/* bytes per jiffy	      */
+
+	/* Variables */
+	u32			red_cong_drop;	/* RED congestion drop ctr    */
+	u32			red_hard_drop;	/* Hard drop ctr	      */
+	u32			avg_pkts;	/* EMWA of pkts in queue      */
+	u32			avg_bytes;	/* EMWA of bytes in queue     */
+	u16			packets_size;	/* Packets in queue	      */
+
+	unsigned long		send_time;	/* last send time (jiffies)   */
+	unsigned long		burst_bytes;
+
+	struct reciprocal_value prob_pkts;
+	struct reciprocal_value prob_bytes;
+
+	/* Aux */
+	struct sk_buff_head	packets;
+	spinlock_t		lock;
+	struct timer_list	timer;
+	atomic_t		timer_shutdown;	/* timer shutdown flag	      */
+	void			(*on_dequeue)(struct sk_buff *);
+};
+
 struct net_bridge_port
 {
 	struct net_bridge		*br;
@@ -232,6 +265,17 @@ struct net_bridge_port
 		BR_PORT_STP_CHOKE,
 	} stp_choke;
 
+	enum {
+		BR_PORT_TYPE_NORMAL,
+		BR_PORT_TYPE_WIFI_STATION,
+	} port_type;
+
+	enum {
+		BR_PORT_NO_LOOP,
+		BR_PORT_LOOP_LISTEN,
+		BR_PORT_LOOP_DETECTED,
+	} loop_detect;
+
 	unsigned long 			flags;
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
@@ -259,6 +303,7 @@ struct net_bridge_port
 #ifdef CONFIG_NET_SWITCHDEV
 	int				offload_fwd_mark;
 #endif
+	struct br_queue			queue;
 };
 
 #define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)
@@ -403,6 +448,8 @@ struct br_input_skb_cb {
 #ifdef CONFIG_NET_SWITCHDEV
 	int offload_fwd_mark;
 #endif
+
+	unsigned long send_time;
 };
 
 #define BR_INPUT_SKB_CB(__skb)	((struct br_input_skb_cb *)(__skb)->cb)
@@ -558,6 +605,7 @@ void br_manage_promisc(struct net_bridge *br);
 /* br_input.c */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
 rx_handler_result_t br_handle_frame(struct sk_buff **pskb);
+void br_handle_broadcast_frame_finish(struct sk_buff *skb);
 
 static inline bool br_rx_handler_check_rcu(const struct net_device *dev)
 {
@@ -1109,5 +1157,12 @@ static inline bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 	return true;
 }
 #endif /* CONFIG_NET_SWITCHDEV */
+
+/* br_red.c */
+
+void br_queue_init(struct br_queue *q, void (*on_dequeue)(struct sk_buff *));
+void br_queue_destroy(struct br_queue *q);
+unsigned int br_enqueue(struct br_queue *q, struct sk_buff *skb);
+int br_queue_overloaded(struct br_queue *q);
 
 #endif

@@ -715,7 +715,7 @@ export DISABLE_CFI
 endif
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS   += -Os
+KBUILD_CFLAGS   += -O2 -fno-caller-saves $(call cc-option,-fno-inline-functions)
 else
 KBUILD_CFLAGS   += -O2
 endif

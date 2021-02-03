@@ -1513,7 +1513,7 @@ config CC_OPTIMIZE_FOR_PERFORMANCE
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"
 	help
-	  Enabling this option will pass "-Os" instead of "-O2" to
+	  Enabling this option will pass "-O2" with optimization flags to
 	  your compiler resulting in a smaller kernel.
 
 	  If unsure, say N.

@@ -575,8 +575,8 @@ void br_handle_broadcast_frame_finish(struct sk_buff *skb)
 		rhook = rcu_dereference(br_should_route_hook);
 		if (rhook) {
 			if ((*rhook)(skb)) {
-				*pskb = skb;
-				return RX_HANDLER_PASS;
+				kfree_skb(skb);
+				return;
 			}
 			dest = eth_hdr(skb)->h_dest;
 		}

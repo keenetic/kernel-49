@@ -2088,8 +2088,8 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, 0xff, 0x06, 0x13) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, 0xff, 0x06, 0x14) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, 0xff, 0x06, 0x1b) },
-	{ USB_DEVICE(0x03f0, 0x0857),
-	  .driver_info = NCTRL(0) | RSVD(1) },				/* HP lt4220 */
+	{ USB_DEVICE_INTERFACE_CLASS(0x03f0, 0x0857, 0xff),
+	  .driver_info = RSVD(0) | RSVD(1) },				/* HP lt4220 */
 	{ USB_DEVICE(0x0489, 0xe0b4),						/* Foxconn T77W968 */
 	  .driver_info = RSVD(0) | RSVD(1) | RSVD(6) },
 	{ USB_DEVICE(0x0489, 0xe0b5),						/* Foxconn T77W968 ESIM */

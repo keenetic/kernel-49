@@ -60,9 +60,6 @@
 
 #define PFN_ALIGN(x)		(((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
 
-/* References to section boundaries */
-extern char _end;
-
 #ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
 static unsigned int __init prom_get_ramsize(void)
 {

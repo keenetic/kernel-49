@@ -70,10 +70,10 @@
 #include <net/ip.h>
 #include <net/fast_nat.h>
 #include <net/fast_vpn.h>
-#include <linux/ntc_shaper_hooks.h>
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
+#include <linux/ntc_shaper_hooks.h>
 #include <../net/bridge/br_private.h>
 #endif
 

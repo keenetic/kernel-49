@@ -56,6 +56,9 @@
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/fast_nat.h>
+#endif
+
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
 #include <linux/ntc_shaper_hooks.h>
 #endif
 

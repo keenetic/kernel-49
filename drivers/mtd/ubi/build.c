@@ -502,7 +502,13 @@ static int uif_init(struct ubi_device *ubi, int *ref)
 	 * volume character devices start from 1. Thus, we allocate one major
 	 * number and ubi->vtbl_slots + 1 minor numbers.
 	 */
+
+#ifdef CONFIG_MTD_NDM_PARTS
+	dev = MKDEV(UBI_MAJOR, 0); /* Static allocation for NDM */
+	err = register_chrdev_region(dev, ubi->vtbl_slots + 1, ubi->ubi_name);
+#else
 	err = alloc_chrdev_region(&dev, 0, ubi->vtbl_slots + 1, ubi->ubi_name);
+#endif
 	if (err) {
 		ubi_err(ubi, "cannot register UBI character devices");
 		return err;

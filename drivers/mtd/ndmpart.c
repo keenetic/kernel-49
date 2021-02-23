@@ -87,6 +87,8 @@
 #define PART_RF_EEPROM_AX_BOARD
 #endif
 
+#define PART_STORAGE_LEGACY		"Storage_Legacy"
+
 enum part {
 	/* Image 1 */
 #if defined(CONFIG_MACH_MT7622)
@@ -102,6 +104,7 @@ enum part {
 	PART_CONFIG_1,
 	PART_STORAGE,		/* optional */
 	PART_DUMP,		/* optional */
+	PART_STORAGE_1,		/* optional */
 	/* Image 2 */
 	PART_U_STATE,
 	PART_RESERVE,
@@ -111,6 +114,7 @@ enum part {
 	PART_ROOTFS_2,		/* optional */
 	PART_FIRMWARE_2,	/* optional */
 	PART_CONFIG_2,		/* optional */
+	PART_STORAGE_2,		/* optional */
 	/* Pseudo */
 	PART_FULL,
 	PART_MAX
@@ -192,6 +196,10 @@ static struct part_dsc parts[PART_MAX] = {
 		name: "Dump",
 		skip: true
 	},
+	[PART_STORAGE_1] = {
+		name: "Storage_1",
+		skip: true
+	},
 	/* Image 2 */
 	[PART_U_STATE] = {
 		name: "U-State",
@@ -225,6 +233,10 @@ static struct part_dsc parts[PART_MAX] = {
 	},
 	[PART_CONFIG_2] = {
 		name: "Config_2",
+		skip: true
+	},
+	[PART_STORAGE_2] = {
+		name: "Storage_2",
 		skip: true
 	},
 	/* Pseudo */
@@ -638,7 +650,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 		use_storage = true;
 
 	flash_size_lim = CONFIG_MTD_NDM_FLASH_SIZE_LIMIT;
-	if (!flash_size_lim)
+	if (!flash_size_lim || flash_size_lim > m->size)
 		flash_size_lim = m->size;
 
 #if defined(CONFIG_MACH_MT7622)
@@ -722,6 +734,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 		parts[PART_DUMP].size = CONFIG_MTD_NDM_DUMP_SIZE;
 	}
 
+	parts[PART_STORAGE_1].skip = true;
+
 	/* Calculate & fill unknown fields */
 	if (use_dump && !use_storage) {
 		parts[PART_CONFIG_1].offset = parts[PART_DUMP].offset -
@@ -736,6 +750,13 @@ static int create_mtd_partitions(struct mtd_info *m,
 					     parts[PART_STORAGE].size;
 		parts[PART_CONFIG_1].offset = parts[PART_STORAGE].offset -
 					      parts[PART_CONFIG_1].size;
+
+		off = parts[PART_DUMP].offset + parts[PART_DUMP].size;
+		if (m->size >= (off + m->erasesize)) {
+			parts[PART_STORAGE_1].offset = off;
+			parts[PART_STORAGE_1].size = m->size - off;
+			parts[PART_STORAGE_1].skip = false;
+		}
 	} else {
 		parts[PART_CONFIG_1].offset = flash_size_lim -
 					      parts[PART_CONFIG_1].size;
@@ -773,6 +794,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 		}
 	}
 
+	parts[PART_STORAGE_2].skip = true;
+
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 	if (ndmpart_di_is_enabled) {
 		parts[PART_FIRMWARE_1].name = "Firmware_1";
@@ -799,6 +822,25 @@ static int create_mtd_partitions(struct mtd_info *m,
 		parts[PART_CONFIG_2].skip = false;
 		parts[PART_CONFIG_2].offset = off_si + parts[PART_CONFIG_1].offset;
 		parts[PART_CONFIG_2].size = parts[PART_CONFIG_1].size;
+
+		/* check PART_STORAGE_1 fit to half size */
+		if (!parts[PART_STORAGE_1].skip &&
+		    off_si < (parts[PART_STORAGE_1].offset + m->erasesize))
+			parts[PART_STORAGE_1].skip = true;
+
+		if (!parts[PART_STORAGE_1].skip) {
+			parts[PART_STORAGE_1].size =
+				off_si - parts[PART_STORAGE_1].offset;
+			parts[PART_STORAGE_2].offset =
+				parts[PART_CONFIG_2].offset +
+				parts[PART_CONFIG_2].size;
+
+			if (m->size > parts[PART_STORAGE_2].offset) {
+				parts[PART_STORAGE_2].size = m->size -
+					parts[PART_STORAGE_2].offset;
+				parts[PART_STORAGE_2].skip = false;
+			}
+		}
 
 		if (ndmpart_image_cur == DI_IMAGE_SECOND) {
 			uint32_t s_beg, s_size;
@@ -828,6 +870,9 @@ static int create_mtd_partitions(struct mtd_info *m,
 		}
 	}
 #endif
+
+	if (!parts[PART_STORAGE_1].skip)
+		parts[PART_STORAGE].name = PART_STORAGE_LEGACY;
 
 	/* Post actions */
 	ndm_parts_num = parts_num();
@@ -917,6 +962,8 @@ bool is_nobbm_partition(uint64_t offs)
 	int i;
 	const int nobbm_parts[] = {
 		PART_STORAGE,
+		PART_STORAGE_1,
+		PART_STORAGE_2
 	};
 
 	/* disable bad block management for given partitions */

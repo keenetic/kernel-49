@@ -1403,7 +1403,8 @@ static void print_interval(char *prefix, struct timespec *ts)
 	FILE *output = stat_config.output;
 	static int num_print_interval;
 
-	sprintf(prefix, "%6lu.%09lu%s", ts->tv_sec, ts->tv_nsec, csv_sep);
+	sprintf(prefix, "%6lu.%09lu%s", (unsigned long) ts->tv_sec,
+		ts->tv_nsec, csv_sep);
 
 	if (num_print_interval == 0 && !csv_output) {
 		switch (stat_config.aggr_mode) {

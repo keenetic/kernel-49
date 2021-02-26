@@ -536,11 +536,11 @@ static int raspi_write_rg(u8 code, u8 *val)
 /*
  * read SPI flash device ID
  */
-static int raspi_read_devid(u8 *rxbuf, int n_rx)
+static int raspi_read_devid(u8 *rxbuf, const size_t n_rx)
 {
 	int retval;
 
-	retval = bbu_spic_trans(OPCODE_RDID, 0, rxbuf, 1, 4, SPIC_READ_BYTES);
+	retval = bbu_spic_trans(OPCODE_RDID, 0, rxbuf, 1, n_rx, SPIC_READ_BYTES);
 	if (retval)
 		pr_err("%s: read returned %x\n", __func__, retval);
 
@@ -754,10 +754,9 @@ struct chip_info *chip_prob(void)
 
 	raspi_read_devid(buf, 4);
 
-	jedec = (u32)(
-		(u32)(buf[1] << 24) |
-		((u32)buf[2] << 16) |
-		((u32)buf[3] << 8));
+	jedec = (u32)(((u32)buf[1] << 24) |
+		      ((u32)buf[2] << 16) |
+		      ((u32)buf[3] <<  8));
 
 	ra_dbg("device ID: %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3]);
 
@@ -773,6 +772,31 @@ struct chip_info *chip_prob(void)
 
 	/* use last stub item */
 	info = &chips_data[table_size - 1];
+
+	/* update stub item */
+	switch (buf[2]) {
+	case 0x15:
+		info->n_sectors = 32;
+		break;
+	case 0x16:
+		info->n_sectors = 64;
+		break;
+	case 0x17:
+		info->n_sectors = 128;
+		break;
+	case 0x18:
+		info->n_sectors = 256;
+		break;
+	case 0x19:
+		info->n_sectors = 512;
+		break;
+	case 0x1a:
+	case 0x20:
+		info->n_sectors = 1024;
+		break;
+	}
+
+	info->addr4b = (info->n_sectors > 256) ? 1 : 0;
 
 	pr_warn("unrecognized SPI chip ID: %x (%x), "
 		"please update the SPI driver\n", buf[0], jedec);

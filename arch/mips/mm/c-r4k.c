@@ -1576,7 +1576,7 @@ static int probe_scache(void)
 #endif
 
 #if defined(CONFIG_CPU_LOONGSON2)
-static void __init loongson2_sc_init(void)
+static void loongson2_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 

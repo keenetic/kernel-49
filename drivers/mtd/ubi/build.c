@@ -44,6 +44,10 @@
 #include <linux/major.h>
 #include "ubi.h"
 
+#ifdef CONFIG_MTD_NDM_PARTS
+#include "../ndmpart.h"
+#endif
+
 /* Maximum length of the 'mtd=' parameter */
 #define MTD_PARAM_LEN_MAX 64
 
@@ -870,6 +874,15 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 
 	if (!max_beb_per1024)
 		max_beb_per1024 = CONFIG_MTD_UBI_BEB_LIMIT;
+
+#ifdef CONFIG_MTD_NDM_PARTS
+#if !defined(NAND_BB_MODE_SKIP)
+	if (mtd->type != MTD_NORFLASH) {
+		pr_info("ubi: BMT NAND mode detected, BEB reservation disabled");
+		max_beb_per1024 = 1;
+	}
+#endif
+#endif
 
 	/*
 	 * Check if we already have the same MTD device attached.

@@ -39,5 +39,3 @@ obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor/
 obj-$(CONFIG_MTD_UBI)		+= ubi/
 
 obj-$(CONFIG_MTD_RALINK)	+= ralink/
-
-obj-m				+= ndm_storage.o

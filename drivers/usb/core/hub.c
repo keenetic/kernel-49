@@ -5387,14 +5387,32 @@ void usb_hub_cleanup(void)
 	usb_deregister(&hub_driver);
 } /* usb_hub_cleanup() */
 
-#if IS_ENABLED(CONFIG_USB_XHCI_HCD) && !defined(CONFIG_USB_XHCI_NO_USB3)
-int usb_hub_restart(void)
+#if IS_ENABLED(CONFIG_USB_XHCI_HCD)
+static int xhci_usb2_mode;
+
+#if !defined(CONFIG_USB_XHCI_NO_USB3)
+int xhci_hub_restart(int usb2_mode)
 {
+	const int xhci_usb2_mode_new = usb2_mode ? 1 : 0;
+
+	if (xhci_usb2_mode == xhci_usb2_mode_new)
+		return 0;
+
+	xhci_usb2_mode = xhci_usb2_mode_new;
+	wmb();
+
 	usb_hub_cleanup();
 
 	return usb_hub_init();
 }
-EXPORT_SYMBOL_GPL(usb_hub_restart);
+EXPORT_SYMBOL_GPL(xhci_hub_restart);
+#endif
+
+int xhci_hub_usb2_mode(void)
+{
+	return xhci_usb2_mode;
+}
+EXPORT_SYMBOL_GPL(xhci_hub_usb2_mode);
 #endif
 
 static int descriptors_changed(struct usb_device *udev,

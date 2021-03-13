@@ -762,7 +762,7 @@ struct chip_info *chip_prob(void)
 
 	table_size = ARRAY_SIZE(chips_data);
 
-	for (i = 0; i < table_size; i++) {
+	for (i = 0; i < table_size - 1; i++) {
 		info = &chips_data[i];
 		if (info->id == buf[0]) {
 			if ((info->jedec_id & 0xffffff00) == jedec)
@@ -774,6 +774,9 @@ struct chip_info *chip_prob(void)
 	info = &chips_data[table_size - 1];
 
 	/* update stub item */
+	info->id = buf[0];
+	info->jedec_id = ((u32)buf[1] << 24) | ((u32)buf[2] << 16);
+
 	switch (buf[2]) {
 	case 0x15:
 		info->n_sectors = 32;

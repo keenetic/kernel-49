@@ -233,11 +233,12 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	msblk->xattr_id_table = squashfs_read_xattr_id_table(sb,
 		xattr_id_table_start, &msblk->xattr_table, &msblk->xattr_ids);
 	if (IS_ERR(msblk->xattr_id_table)) {
-		ERROR("unable to read xattr id index table\n");
 		err = PTR_ERR(msblk->xattr_id_table);
 		msblk->xattr_id_table = NULL;
-		if (err != -ENOTSUPP)
+		if (err != -ENOTSUPP) {
+			ERROR("unable to read xattr id index table\n");
 			goto failed_mount;
+		}
 	}
 	next_table = msblk->xattr_table;
 

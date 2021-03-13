@@ -36,47 +36,89 @@
  **************************************************************************
  */
 
-#include <asm/reboot.h>
-#include <linux/pm.h>
+#include <linux/init.h>
+#include <linux/string.h>
+#include <linux/ioport.h>
 #include <linux/delay.h>
+
+#include <asm/time.h>
+#include <asm/reboot.h>
+#include <asm/pbus-timer.h>
 
 #include <asm/rt2880/generic.h>
 
-static void mips_machine_restart(char *command);
-static void mips_machine_halt(void);
-static void mips_machine_power_off(void);
+extern void mtk_disable_irq_all(void);
+
+static void hw_uninit(bool do_reboot)
+{
+	mtk_disable_irq_all();
+
+	/* stop all APB module timers except an active watchdog */
+	pbus_timer_disable(PBUS_TIMER_0);
+	pbus_timer_disable(PBUS_TIMER_2);
+
+	/* timer 3 is in a non-watchdog mode */
+	if (!(pbus_timer_r32(RSTSTAT) & RSTSTAT_WDT_EN))
+		pbus_timer_disable(PBUS_TIMER_1);
+
+#if defined(CONFIG_RALINK_MT7628)
+	/* reset PCIe */
+	*(volatile u32 *)(SOFTRES_REG) = RALINK_PCIE0_RST;
+
+	if (do_reboot)
+		mdelay(10);
+#endif
+
+	if (do_reboot) {
+		/* system software reset */
+		*(volatile u32 *)(SOFTRES_REG) = GORESET;
+		*(volatile u32 *)(SOFTRES_REG) = 0;
+	}
+}
 
 static void mips_machine_restart(char *command)
 {
-#if defined(CONFIG_RALINK_MT7628)
-	*(volatile u32*)(SOFTRES_REG) = RALINK_PCIE0_RST;
-	mdelay(10);
-#endif
-	*(volatile u32*)(SOFTRES_REG) = GORESET;
-	*(volatile u32*)(SOFTRES_REG) = 0;
+	printk(KERN_WARNING "Machine restart ... \n");
+
+	hw_uninit(true);
 }
 
 static void mips_machine_halt(void)
 {
-#if defined(CONFIG_RALINK_MT7628)
-	*(volatile u32*)(SOFTRES_REG) = RALINK_PCIE0_RST;
-	mdelay(10);
-#endif
-	*(volatile u32*)(SOFTRES_REG) = GORESET;
-	*(volatile u32*)(SOFTRES_REG) = 0;
+	printk(KERN_WARNING "Machine halted ... \n");
+
+	hw_uninit(false);
 }
 
 static void mips_machine_power_off(void)
 {
+	printk(KERN_WARNING "Machine poweroff ... \n");
+
 	*(volatile u32*)(POWER_DIR_REG) = POWER_DIR_OUTPUT;
 	*(volatile u32*)(POWER_POL_REG) = 0;
 	*(volatile u32*)(POWEROFF_REG) = POWEROFF;
 }
 
+static int mtk_panic_event(struct notifier_block *nb,
+			   unsigned long action, void *data)
+{
+	if (action == PANIC_ACTION_RESTART)
+		mips_machine_restart(NULL);
+	else
+		mips_machine_halt();
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block mtk_panic_block = {
+	.notifier_call = mtk_panic_event,
+};
+
 void mips_reboot_setup(void)
 {
 	_machine_restart = mips_machine_restart;
 	_machine_halt = mips_machine_halt;
-	//_machine_power_off = mips_machine_power_off;
 	pm_power_off = mips_machine_power_off;
+
+	atomic_notifier_chain_register(&panic_notifier_list, &mtk_panic_block);
 }

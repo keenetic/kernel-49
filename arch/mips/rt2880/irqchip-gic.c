@@ -35,6 +35,10 @@ int get_c0_fdc_int(void)
 }
 #endif
 
+void mtk_disable_irq_all(void)
+{
+}
+
 void __init arch_init_irq(void)
 {
 	phys_addr_t gic_base = RALINK_GIC_BASE;

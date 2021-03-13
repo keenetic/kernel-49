@@ -131,6 +131,19 @@ unsigned int get_c0_compare_int(void)
 	return mips_cpu_timer_irq;
 }
 
+void mtk_disable_irq_all(void)
+{
+	unsigned long flags;
+
+	if (!gic_present)
+		return;
+
+	local_irq_save(flags);
+	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_RMASK_OFS + 0x00), 0xffffffff);
+	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_RMASK_OFS + 0x04), 0xffffffff);
+	local_irq_restore(flags);
+}
+
 void __init gic_platform_init(int irqs, struct irq_chip *irq_controller)
 {
 	int i;

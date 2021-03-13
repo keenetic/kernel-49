@@ -148,6 +148,16 @@ static void dispatch_mips_chain_hw0(void)
 	do_IRQ(MIPS_INTC_CHAIN_HW0);
 }
 
+void mtk_disable_irq_all(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	*(volatile u32 *)(RALINK_FIQDIS) = ~0u;
+	*(volatile u32 *)(RALINK_INTDIS) = ~0u;
+	local_irq_restore(flags);
+}
+
 void __init arch_init_irq(void)
 {
 	struct irq_domain *domain;

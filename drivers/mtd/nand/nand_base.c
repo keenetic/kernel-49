@@ -3970,6 +3970,15 @@ static void nand_decode_ext_id(struct mtd_info *mtd, struct nand_chip *chip,
 			mtd->erasesize = (64 * 1024) << tmp;
 		*busw = 0;
 	} else {
+#if defined(CONFIG_MTD_NAND_MT7621)
+		/* do not detect pagesize, oobsize, blocksize (use from driver table) */
+		extid >>= 2;
+		extid >>= 2;
+		extid >>= 2;
+
+		/* Get buswidth information */
+		*busw = (extid & 0x01) ? NAND_BUSWIDTH_16 : 0;
+#else
 		/* Calc pagesize */
 		mtd->writesize = 1024 << (extid & 0x03);
 		extid >>= 2;
@@ -3997,7 +4006,7 @@ static void nand_decode_ext_id(struct mtd_info *mtd, struct nand_chip *chip,
 				!(id_data[4] & 0x80) /* !BENAND */) {
 			mtd->oobsize = 32 * mtd->writesize >> 9;
 		}
-
+#endif
 	}
 }
 

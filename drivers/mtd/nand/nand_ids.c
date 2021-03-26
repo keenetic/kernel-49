@@ -223,6 +223,7 @@ struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_ATO, "ATO"},
 	{NAND_MFR_WINBOND, "Winbond"},
 	{NAND_MFR_ETRON, "Etron"},
+	{NAND_MFR_XTX, "XTX"},
 	{0x0, "Unknown"}
 };
 

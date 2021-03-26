@@ -100,6 +100,7 @@
 #define _SPI_NAND_DEVICE_ID_FM25G02C		0x92
 #define _SPI_NAND_DEVICE_ID_XT26G02B		0xF2
 #define _SPI_NAND_DEVICE_ID_XT26G01A		0xE1
+#define _SPI_NAND_DEVICE_ID_XT26G01C		0x11
 #define _SPI_NAND_DEVICE_ID_XT26G02A		0xE2
 #define _SPI_NAND_DEVICE_ID_PSU1GS20BN		0x21
 #define _SPI_NAND_DEVICE_ID_BWJX08U			0xB1
@@ -1142,6 +1143,20 @@ static const struct SPI_NAND_FLASH_INFO_T spi_nand_flash_tables[] = {
 		read_mode:		SPI_NAND_FLASH_READ_SPEED_MODE_DUAL,
 		write_mode:		SPI_NAND_FLASH_WRITE_SPEED_MODE_SINGLE,
 		oob_free_layout:	&ooblayout_type19,
+		feature:		SPI_NAND_FLASH_FEATURE_NONE,
+	},
+	{
+		ptr_name:		"XT26G01C",
+		mfr_id:			_SPI_NAND_MANUFACTURER_ID_XTX,
+		dev_id:			_SPI_NAND_DEVICE_ID_XT26G01C,
+		device_size:		_SPI_NAND_CHIP_SIZE_1GBIT,
+		page_size:		_SPI_NAND_PAGE_SIZE_2KBYTE,
+		oob_size:		_SPI_NAND_OOB_SIZE_128BYTE,
+		erase_size:		_SPI_NAND_BLOCK_SIZE_128KBYTE,
+		dummy_mode:		SPI_NAND_FLASH_READ_DUMMY_BYTE_APPEND,
+		read_mode:		SPI_NAND_FLASH_READ_SPEED_MODE_DUAL,
+		write_mode:		SPI_NAND_FLASH_WRITE_SPEED_MODE_SINGLE,
+		oob_free_layout:	&ooblayout_fm,
 		feature:		SPI_NAND_FLASH_FEATURE_NONE,
 	},
 	{

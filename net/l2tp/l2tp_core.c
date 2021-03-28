@@ -1268,7 +1268,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	 * UDP and L2TP headers. If not enough, expand it to
 	 * make room. Adjust truesize.
 	 */
-	headroom = NET_SKB_PAD_ORIG + sizeof(struct iphdr) +
+	headroom = L2TP_SKB_PAD + sizeof(struct iphdr) +
 		uhlen + hdr_len;
 	if (skb_cow_head(skb, headroom)) {
 		kfree_skb(skb);

@@ -399,7 +399,7 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		goto abort_put_sess;
 
 	uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
-	headroom = NET_SKB_PAD_ORIG +
+	headroom = L2TP_SKB_PAD +
 		   sizeof(struct iphdr) + /* IP header */
 		   uhlen +		/* UDP header (if L2TP_ENCAPTYPE_UDP) */
 		   session->hdr_len +	/* L2TP header */
@@ -851,6 +851,8 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	 * sequence numbers are enabled for the data channel.
 	 */
 	po->chan.hdrlen = PPPOL2TP_L2TP_HDR_SIZE_NOSEQ;
+	po->chan.hdrlen += L2TP_SKB_PAD + sizeof(struct iphdr) +
+		sizeof(struct udphdr) + 2;
 
 	po->chan.private = sk;
 	po->chan.ops	 = &pppol2tp_chan_ops;
@@ -1391,6 +1393,8 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
 
 			po->chan.hdrlen = val ? PPPOL2TP_L2TP_HDR_SIZE_SEQ :
 				PPPOL2TP_L2TP_HDR_SIZE_NOSEQ;
+			po->chan.hdrlen += L2TP_SKB_PAD + sizeof(struct iphdr) +
+				sizeof(struct udphdr) + 2;
 		}
 		l2tp_session_set_header_len(session, session->tunnel->version);
 		l2tp_info(session, L2TP_MSG_CONTROL,

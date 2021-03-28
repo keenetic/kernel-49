@@ -2346,10 +2346,10 @@ static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
  * NET_IP_ALIGN(2) + ethernet_header(14) + IP_header(20/40) + ports(8)
  */
 #ifndef NET_SKB_PAD
-#ifdef CONFIG_64BIT
-#define NET_SKB_PAD		128
+#if L1_CACHE_BYTES >= 64
+#define NET_SKB_PAD		max(128, L1_CACHE_BYTES)
 #else
-#define NET_SKB_PAD		96
+#define NET_SKB_PAD		max(96, L1_CACHE_BYTES)
 #endif
 #define NET_SKB_PAD_ORIG	max(32, L1_CACHE_BYTES)
 #endif

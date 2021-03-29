@@ -2349,7 +2349,7 @@ static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
 #if L1_CACHE_BYTES >= 64
 #define NET_SKB_PAD		max(128, L1_CACHE_BYTES)
 #else
-#define NET_SKB_PAD		max(96, L1_CACHE_BYTES)
+#define NET_SKB_PAD		96	/* L1_CACHE_BYTES: 16, 32, 48 */
 #endif
 #define NET_SKB_PAD_ORIG	max(32, L1_CACHE_BYTES)
 #endif

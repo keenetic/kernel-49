@@ -2028,6 +2028,12 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		else
 			use_bufpoi = 0;
 
+#if IS_ENABLED(CONFIG_MTD_SNAND_MTK)
+		/* DMA need map buffer+OOB, replace last aligned page */
+		if (use_bufpoi == 0 && readlen == bytes)
+			use_bufpoi = 1;
+#endif
+
 		/* Is the current page in the buffer? */
 		if (realpage != chip->pagebuf || oob) {
 			bufpoi = use_bufpoi ? chip->buffers->databuf : buf;
@@ -2891,6 +2897,12 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 						 chip->buf_align);
 		else
 			use_bufpoi = 0;
+
+#if IS_ENABLED(CONFIG_MTD_SNAND_MTK)
+		/* DMA need map buffer+OOB, replace last aligned page */
+		if (use_bufpoi == 0 && writelen == bytes)
+			use_bufpoi = 1;
+#endif
 
 		/* Partial page write?, or need to use bounce buffer */
 		if (use_bufpoi) {

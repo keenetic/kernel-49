@@ -2723,7 +2723,7 @@ unmap_and_cleanup:
 bool mtk_nand_exec_read_page(struct mtd_info *mtd, u32 u4RowAddr,
 			     u32 u4PageSize, u8 *pPageBuf, u8 *pFDMBuf)
 {
-	u8 *buf;
+	u8 *buf = pPageBuf;
 	u8 *p_buf_local;
 	bool bRet = 1;
 	u8 retry;
@@ -2732,11 +2732,6 @@ bool mtk_nand_exec_read_page(struct mtd_info *mtd, u32 u4RowAddr,
 	struct mtk_snfc *snfc = nand_get_controller_data(nand);
 
 	PFM_BEGIN(pfm_time_read);
-
-	buf = pPageBuf;
-
-	if (!virt_addr_valid(pPageBuf) || !IS_ALIGNED((unsigned long)pPageBuf, 64))
-		buf = g_snand_k_temp;
 
 	if (mtk_snand_rs_if_require_split())
 		u4SecNum--;
@@ -2780,9 +2775,6 @@ mtk_nand_exec_read_page_retry:
 		if (res != -ENOMEM)
 			dma_unmap_single(snfc->dev, g_dma_addr, u4SecNum * (NAND_SECTOR_SIZE
 				 + g_snand_k_spare_per_sec), DMA_FROM_DEVICE);
-
-		if (buf != pPageBuf)
-			memcpy(pPageBuf, buf, u4PageSize);
 	}   /* use device ECC */
 
 	/* no need retry for SLC nand */
@@ -2842,19 +2834,12 @@ int mtk_nand_exec_write_page(struct mtd_info *mtd, u32 u4RowAddr,
 	struct mtk_snfc *snfc = nand_get_controller_data(nand);
 	struct timeval stimer, etimer;
 	u32 u4SecNum = u4PageSize >> 9;
-	u8 *buf;
+	u8 *buf = pPageBuf;
 	u8 status = 0;
 	u8 wait_status = 0;
 	u8 mtk_ecc;
 
 	PFM_BEGIN(pfm_time_write);
-
-	buf = pPageBuf;
-
-	if (!virt_addr_valid(pPageBuf) || !IS_ALIGNED((unsigned long)pPageBuf, 64)) {
-		buf = g_snand_k_temp;
-		memcpy(buf, pPageBuf, u4PageSize);
-	}
 
 	/*For jffs2, close HW ECC when only write oob*/
 	mtk_ecc = !oobraw;
@@ -3196,18 +3181,18 @@ static uint8_t mtk_snand_read_byte(struct mtd_info *mtd)
 
 static void mtk_snand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	struct nand_chip *nand = (struct nand_chip *)mtd->priv;
+	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct NAND_CMD *pkCMD = &g_kCMD;
 	u32 u4ColAddr = pkCMD->u4ColAddr;
 	u32 u4PageSize = mtd->writesize;
 	u32 u4Size, u4Offset;
 
 	if (u4ColAddr < u4PageSize) {
-		if ((u4ColAddr == 0) && (len >= u4PageSize)) {
+		if ((u4ColAddr == 0) && (len >= (int)u4PageSize)) {
 			mtk_nand_exec_read_page(mtd, pkCMD->u4RowAddr,
 						u4PageSize, buf,
 						pkCMD->au1OOB);
-			if (len > u4PageSize) {
+			if (len > (int)u4PageSize) {
 				u4Size = min((size_t)(len - u4PageSize),
 					     sizeof(pkCMD->au1OOB));
 
@@ -3215,9 +3200,11 @@ static void mtk_snand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 				       u4Size);
 			}
 		} else {
+			uint8_t *bounce = nand->buffers->databuf;
+
 			mtk_nand_exec_read_page(mtd, pkCMD->u4RowAddr, u4PageSize,
-						nand->buffers->databuf, pkCMD->au1OOB);
-			memcpy(buf, nand->buffers->databuf + u4ColAddr, len);
+						bounce, pkCMD->au1OOB);
+			memmove(buf, bounce + u4ColAddr, len);
 		}
 		pkCMD->u4OOBRowAddr = pkCMD->u4RowAddr;
 	} else {
@@ -3289,8 +3276,8 @@ static int mtk_snand_read_page_hwecc(struct mtd_info *mtd,
 
 	memset(local_oob_buf, 0xFF, mtd->oobsize);
 	if (u4ColAddr == 0) {
-		mtk_nand_exec_read_page(mtd, page_in_block + page_per_block * mapped_block, u4PageSize, buf,
-					local_oob_buf);
+		mtk_nand_exec_read_page(mtd, page_in_block + page_per_block * mapped_block,
+					u4PageSize, buf, local_oob_buf);
 
 		/*
 		 * Initialise oob buf to all 0xFF, because of driver skip first byte
@@ -4001,6 +3988,10 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	mtd->name = "MTK-SNAND";
 
 	nand_chip->options = NAND_SKIP_BBTSCAN;
+
+	/* DMA mode, buffer must be 16b aligned */
+	nand_chip->options |= NAND_USE_BOUNCE_BUFFER;
+	nand_chip->buf_align = 16;
 
 	platform_set_drvdata(pdev, snfc);
 

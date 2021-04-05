@@ -82,9 +82,9 @@ struct PdmaRxDescInfo4 {
 #ifndef HIT_BIND_KEEPALIVE_DUP_OLD_HDR
 #define HIT_BIND_KEEPALIVE_DUP_OLD_HDR 0x15
 #endif
-#ifndef NO_FLOW_IS_ASSIGNED
-#define NO_FLOW_IS_ASSIGNED 0x07
-#endif
+
+/* PPE internal CRSN values 0x01..0x1E */
+#define CRSN_PPE_INVALID 0x1F
 
 #define IS_MAGIC_TAG_VALID(skb) \
 	((FOE_MAGIC_TAG(skb) == FOE_MAGIC_GE))
@@ -101,6 +101,9 @@ struct PdmaRxDescInfo4 {
 
 #define FOE_SKB_IS_KEEPALIVE(skb) \
 	(FOE_AI(skb) == HIT_BIND_KEEPALIVE_DUP_OLD_HDR)
+
+#define FOE_SKB_IS_PPE_REJECTED(skb) \
+	(FOE_AI(skb) == CRSN_PPE_INVALID)
 
 /* reset AI for local output flow */
 #define FOE_AI_UNHIT(skb) \

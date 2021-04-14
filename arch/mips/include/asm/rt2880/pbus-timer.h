@@ -104,7 +104,7 @@ pbus_timer_enable(const unsigned int n,
 
 		val &= ~RSTSTAT_RST_STATE_MASK;
 		val |=  RSTSTAT_WDT_EN;
-		pbus_timer_w32(RSTSTAT, RSTSTAT_WDT_EN);
+		pbus_timer_w32(RSTSTAT, val);
 	} else {
 		/* use a watchdog timer as an interval or periodic timer
 		 */

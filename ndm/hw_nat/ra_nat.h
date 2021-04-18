@@ -148,7 +148,11 @@ struct gmac_info {
 			uint32_t atm_pppoa:	1;	/* ATM PPPoA incap */
 			uint32_t atm_ipoa:	1;	/* ATM IPoA incap */
 			uint32_t atm_mux_vc:	1;	/* ATM VC mux mode */
-			uint32_t stag:		12;	/* ATM CLP/UU/XOA to PPE stag */
+			uint32_t atm_uu:	8;	/* ATM User-to-User */
+			uint32_t atm_clp:	1;	/* ATM Cell Loss Priority */
+			uint32_t xoa:		1;	/* X over ATM */
+			uint32_t resv:		1;
+			uint32_t is_wan:	1;	/* assume upstream path */
 			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
 			uint32_t queue_id:	3;	/* QDMA QoS queue (0..7) */
 			uint32_t channel_id:	8;	/* QDMA virtual channel */
@@ -158,7 +162,6 @@ struct gmac_info {
 		uint32_t word;
 	};
 } __packed;
-
 
 #elif defined(CONFIG_ECONET_EN7528)
 

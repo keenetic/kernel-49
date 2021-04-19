@@ -10,13 +10,17 @@
 
 #define ADDR_SIFSLV_BASE		RALINK_XHCI_UPHY_BASE
 #define ADDR_SIFSLV_FMREG_BASE		(ADDR_SIFSLV_BASE + 0x0100)
-#define ADDR_SIFSLV_IPPC_BASE		(ADDR_SIFSLV_BASE + 0x0700)
 #define ADDR_SIFSLV_PHYD_BASE		(ADDR_SIFSLV_BASE + 0x0900)
 #define ADDR_SIFSLV_PHYD_B2_BASE	(ADDR_SIFSLV_BASE + 0x0a00)
 #define ADDR_SIFSLV_PHYA_BASE		(ADDR_SIFSLV_BASE + 0x0b00)
 #define ADDR_SIFSLV_PHYA_DA_BASE	(ADDR_SIFSLV_BASE + 0x0c00)
+#if defined(CONFIG_ECONET_EN7528)
+#define ADDR_U2_PHY_P0_BASE		(ADDR_SIFSLV_BASE + 0x0300)
+#define ADDR_U2_PHY_P1_BASE		(ADDR_SIFSLV_BASE + 0x1300)
+#else
 #define ADDR_U2_PHY_P0_BASE		(ADDR_SIFSLV_BASE + 0x0800)
 #define ADDR_U2_PHY_P1_BASE		(ADDR_SIFSLV_BASE + 0x1000)
+#endif
 
 #define U2_SR_COEFF			28
 #define REF_CK				20
@@ -62,48 +66,6 @@
 #define RG_USB20_FS_CR			(0x7 << 8)
 #define RG_USB20_LS_SR			(0x7 << 4)
 #define RG_USB20_FS_SR			(0x7 << 0)
-
-/* SSUSB_IP_PW_CTRL0 */
-#define REG_SSUSB_IP_PW_CTRL0		(ADDR_SIFSLV_IPPC_BASE + 0x0)
-#define SSUSB_IP_SW_RST			(1 << 0)
-
-/* SSUSB_IP_PW_CTRL1 */
-#define REG_SSUSB_IP_PW_CTRL1		(ADDR_SIFSLV_IPPC_BASE + 0x4)
-#define SSUSB_IP_PDN			(1 << 0)
-
-/* SSUSB_IP_PW_STS1 */
-#define REG_SSUSB_IP_PW_STS1		(ADDR_SIFSLV_IPPC_BASE + 0x10)
-#define SSUSB_STS1_SYSPLL_STABLE	(1 << 0)
-#define SSUSB_STS1_REF_RST		(1 << 8)
-#define SSUSB_STS1_SYS125_RST		(1 << 10)
-#define SSUSB_STS1_XHCI_RST		(1 << 11)
-#define SSUSB_STS1_U3_MAC_RST		(1 << 16)
-
-/* SSUSB_U3_CTRL */
-#define REG_SSUSB_U3_CTRL(p)		(ADDR_SIFSLV_IPPC_BASE + 0x30 + (p * 0x08))
-#define SSUSB_U3_PORT_DIS		(1 << 0)
-#define SSUSB_U3_PORT_PDN		(1 << 1)
-#define SSUSB_U3_PORT_HOST_SEL		(1 << 2)
-#define SSUSB_U3_PORT_CKBG_EN		(1 << 3)
-#define SSUSB_U3_PORT_MAC_RST		(1 << 4)
-#define SSUSB_U3_PORT_PHYD_RST		(1 << 5)
-
-/* SSUSB_U2_CTRL */
-#define REG_SSUSB_U2_CTRL(p)		(ADDR_SIFSLV_IPPC_BASE + 0x50 + (p * 0x08))
-#define SSUSB_U2_PORT_DIS		(1 << 0)
-#define SSUSB_U2_PORT_PDN		(1 << 1)
-#define SSUSB_U2_PORT_HOST_SEL		(1 << 2)
-#define SSUSB_U2_PORT_CKBG_EN		(1 << 3)
-#define SSUSB_U2_PORT_MAC_RST		(1 << 4)
-#define SSUSB_U2_PORT_PHYD_RST		(1 << 5)
-
-/* SSUSB_IP_CAP */
-#define REG_SSUSB_IP_CAP		(ADDR_SIFSLV_IPPC_BASE + 0x024)
-#define SSUSB_U3_PORT_NUM(p)		(p & 0xff)
-#define SSUSB_U2_PORT_NUM(p)		((p >> 8) & 0xff)
-
-/* SSUSB_IP_SPAR0 */
-#define REG_SSUSB_IP_SPAR0		(ADDR_SIFSLV_IPPC_BASE + 0x0c8)
 
 static atomic_t uphy_init_instance = ATOMIC_INIT(0);
 
@@ -210,7 +172,7 @@ u2_slew_rate_calibration(int port_id, u32 u2_phy_reg_base)
 	uphy_write32(u2_phy_reg_base + OFS_U2_PHY_ACR0, reg_val);
 }
 
-static void
+static inline void
 u2_phy_init(u32 u2_phy_reg_base)
 {
 	u32 reg_val;
@@ -290,8 +252,7 @@ void uphy_init(void)
 	}
 
 #elif defined(CONFIG_ECONET_EN7516) || \
-      defined(CONFIG_ECONET_EN7527) || \
-      defined(CONFIG_ECONET_EN7528)
+      defined(CONFIG_ECONET_EN7527)
 
 	/* configure for XTAL 25MHz */
 	reg_val = VPint(CR_AHB_HWCONF);
@@ -301,16 +262,28 @@ void uphy_init(void)
 	uphy_write32(ADDR_U2_PHY_P0_BASE + 0x1c, 0xC0240008); /* enable port 0 */
 	uphy_write32(ADDR_U2_PHY_P1_BASE + 0x1c, 0xC0240000); /* enable port 1 */
 
-	printk(KERN_INFO "%s USB PHY config\n", "EN7516/EN7561");
+	printk(KERN_INFO "%s USB PHY config\n", "EN7516/EN7527");
+
+#elif defined(CONFIG_ECONET_EN7528)
+
+	uphy_write32(ADDR_U2_PHY_P0_BASE + 0x1c, 0xC0240000); /* enable port 0 */
+	uphy_write32(ADDR_U2_PHY_P1_BASE + 0x1c, 0xC0240000); /* enable port 1 */
+
+	/* combo phy Rx R FT mean value too high, tune target R -5 Ohm */
+	reg_val = uphy_read32(ADDR_SIFSLV_PHYA_BASE + 0x2c);
+	reg_val &= ~(0x3 << 12);
+	reg_val |=  (0x1 << 12);
+	uphy_write32(ADDR_SIFSLV_PHYA_BASE + 0x2c, reg_val);
+
+	printk(KERN_INFO "%s USB PHY config\n", "EN7528");
 
 #endif
 
-	/* doorbell handling */
-	uphy_write32(REG_SSUSB_IP_SPAR0, 0x1);
-
+#if !defined(CONFIG_ECONET_EN7528)
 	/* init UPHY */
 	u2_phy_init(ADDR_U2_PHY_P0_BASE);
 	u2_phy_init(ADDR_U2_PHY_P1_BASE);
+#endif
 
 	/* calibrate UPHY */
 	u2_slew_rate_calibration(0, ADDR_U2_PHY_P0_BASE);

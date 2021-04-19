@@ -1550,7 +1550,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	if ((xhci->hci_version > 0x100) && HCC2_LEC(xhci->hcc_params2))
 		mult = 0;
 
-#ifdef XHCI_MTK_HOST_MIPS
+#ifdef XHCI_MTK_HOST_0096
 	if (udev->speed == USB_SPEED_HIGH ||
 	    udev->speed == USB_SPEED_FULL ||
 	    udev->speed == USB_SPEED_LOW) {

@@ -557,7 +557,7 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (xhci->hci_version < 0x100 && HCC_MAX_PSA(xhci->hcc_params) == 4)
 		xhci->quirks |= XHCI_BROKEN_STREAMS;
 
-#ifdef XHCI_MTK_HOST_MIPS
+#ifdef XHCI_MTK_HOST_0096
 	hcd->self.no_stop_on_short = 0;
 #endif
 }
@@ -588,7 +588,7 @@ static void xhci_mtk_init_regs(struct usb_hcd *hcd, struct xhci_hcd_mtk *mtk)
 	writel(value, hcd->regs + XHCI_MTK_HSCH_CFG1);
 #endif
 
-#ifdef XHCI_MTK_HOST_MIPS
+#ifdef XHCI_MTK_HOST_0096
 	/* set DMA burst size to 128B */
 	value = 0x10e0e0c;
 	writel(value, hcd->regs + XHCI_MTK_HDMA_CFG);
@@ -606,6 +606,14 @@ static void xhci_mtk_init_regs(struct usb_hcd *hcd, struct xhci_hcd_mtk *mtk)
 	/* doorbell handling */
 	value = 0x1;
 	writel(value, &ippc->ip_spare0);
+#endif
+
+#ifdef XHCI_MTK_HOST_0110
+#ifndef CONFIG_USB_XHCI_NO_USB3
+	/* TD 6.5 fail issue, restore register after xhci_reset() */
+	value = 0x203e8;
+	writel(value, hcd->regs + XHCI_MTK_LTSSM_TIMING_PARAMETER5);
+#endif
 #endif
 }
 

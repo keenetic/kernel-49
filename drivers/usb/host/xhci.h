@@ -35,8 +35,16 @@
 #include "pci-quirks.h"
 
 #if defined(CONFIG_RALINK_MT7621) || \
-    defined(CONFIG_ECONET_EN75XX_MP)
+    defined(CONFIG_ECONET_EN7512) || \
+    defined(CONFIG_ECONET_EN7516) || \
+    defined(CONFIG_ECONET_EN7527) || \
+    defined(CONFIG_ECONET_EN7528)
 #define XHCI_MTK_HOST_MIPS
+#if defined(CONFIG_ECONET_EN7528)
+#define XHCI_MTK_HOST_0110	/* v1.10 */
+#else
+#define XHCI_MTK_HOST_0096	/* v0.96 */
+#endif
 #endif
 
 /* xHCI PCI Configuration Registers */
@@ -1698,7 +1706,7 @@ struct xhci_hcd {
 	/* Compliance Mode Recovery Data */
 	struct timer_list	comp_mode_recovery_timer;
 	u32			port_status_u0;
-#ifdef XHCI_MTK_HOST_MIPS
+#ifdef XHCI_MTK_HOST_0096
 /* Compliance Mode Timer Triggered every 5 seconds */
 #define COMP_MODE_RCVRY_MSECS 5000
 #else

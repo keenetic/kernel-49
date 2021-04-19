@@ -3779,7 +3779,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				td->last_trb = ep_ring->enqueue;
 				field |= TRB_IOC;
 				/* set BEI, except for the last TD */
-#ifndef XHCI_MTK_HOST_MIPS
+#ifndef XHCI_MTK_HOST_0096
 				if (xhci->hci_version >= 0x100 &&
 #else
 				if (1 &&

@@ -232,7 +232,7 @@ struct mtk_pinctrl {
 	const struct mtk_pin_soc        *soc;
 	struct mtk_eint			*eint;
 	/* lock pin's register resource to avoid multiple threads issue */
-	struct mutex lock;
+	spinlock_t			lock;
 };
 
 void mtk_rmw(struct mtk_pinctrl *pctl, u8 i, u32 reg, u32 mask, u32 set);

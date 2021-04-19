@@ -126,7 +126,10 @@ struct mu3c_ippc_regs {
 	__le64 u2_ctrl_p[MU3C_U2_PORT_MAX];
 	__le32 reserved2;
 	__le32 u2_phy_pll;
-	__le32 reserved3[33]; /* 0x80 ~ 0xff */
+	__le32 reserved3[18]; /* 0x80 ~ 0xc4 */
+	__le32 ip_spare0;
+	__le32 ip_spare1;
+	__le32 reserved4[12]; /* 0xd0 ~ 0xff */
 };
 
 struct xhci_hcd_mtk {

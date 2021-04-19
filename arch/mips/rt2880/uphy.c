@@ -11,44 +11,9 @@
 
 #define ADDR_SIFSLV_BASE		RALINK_XHCI_UPHY_BASE
 #define ADDR_SIFSLV_FMREG_BASE		(ADDR_SIFSLV_BASE+0x0100)
-#define ADDR_SIFSLV_IPPC_BASE		(ADDR_SIFSLV_BASE+0x0700)
 #define ADDR_U2_PHY_P0_BASE		(ADDR_SIFSLV_BASE+0x0800)
 #define ADDR_U2_PHY_P1_BASE		(ADDR_SIFSLV_BASE+0x1000)
 #define U2_SR_COEFF			28
-
-/* SSUSB_IP_PW_CTRL0 */
-#define REG_SSUSB_IP_PW_CTRL0		(ADDR_SIFSLV_IPPC_BASE+0x0)
-#define SSUSB_IP_SW_RST			(1 << 0)
-
-/* SSUSB_IP_PW_CTRL1 */
-#define REG_SSUSB_IP_PW_CTRL1		(ADDR_SIFSLV_IPPC_BASE+0x4)
-#define SSUSB_IP_PDN			(1 << 0)
-
-/* SSUSB_U3_CTRL */
-#define REG_SSUSB_U3_CTRL(p)		(ADDR_SIFSLV_IPPC_BASE+0x30+(p*0x08))
-#define SSUSB_U3_PORT_DIS		(1 << 0)
-#define SSUSB_U3_PORT_PDN		(1 << 1)
-#define SSUSB_U3_PORT_HOST_SEL		(1 << 2)
-#define SSUSB_U3_PORT_CKBG_EN		(1 << 3)
-#define SSUSB_U3_PORT_MAC_RST		(1 << 4)
-#define SSUSB_U3_PORT_PHYD_RST		(1 << 5)
-
-/* SSUSB_U2_CTRL */
-#define REG_SSUSB_U2_CTRL(p)		(ADDR_SIFSLV_IPPC_BASE+0x50+(p*0x08))
-#define SSUSB_U2_PORT_DIS		(1 << 0)
-#define SSUSB_U2_PORT_PDN		(1 << 1)
-#define SSUSB_U2_PORT_HOST_SEL		(1 << 2)
-#define SSUSB_U2_PORT_CKBG_EN		(1 << 3)
-#define SSUSB_U2_PORT_MAC_RST		(1 << 4)
-#define SSUSB_U2_PORT_PHYD_RST		(1 << 5)
-
-/* SSUSB_IP_CAP */
-#define REG_SSUSB_IP_CAP		(ADDR_SIFSLV_IPPC_BASE+0x024)
-#define SSUSB_U3_PORT_NUM(p)		(p & 0xff)
-#define SSUSB_U2_PORT_NUM(p)		((p >> 8) & 0xff)
-
-/* SSUSB_IP_SPAR0 */
-#define REG_SSUSB_IP_SPAR0		(ADDR_SIFSLV_IPPC_BASE+0x0c8)
 
 #elif defined(CONFIG_RALINK_MT7628)
 
@@ -202,9 +167,6 @@ uphy_init(void)
 {
 	if (atomic_inc_return(&uphy_init_instance) != 1)
 		return;
-
-	/* doorbell handling */
-	sysRegWrite(REG_SSUSB_IP_SPAR0, 0x1);
 
 	u2_phy_init(ADDR_U2_PHY_P0_BASE);
 	u2_phy_init(ADDR_U2_PHY_P1_BASE);

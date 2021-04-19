@@ -562,9 +562,23 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 #endif
 }
 
-static void xhci_mtk_init_regs(struct usb_hcd *hcd)
+static void xhci_mtk_init_regs(struct usb_hcd *hcd, struct xhci_hcd_mtk *mtk)
 {
+	struct mu3c_ippc_regs __iomem *ippc = mtk->ippc_regs;
 	u32 value;
+
+#ifndef CONFIG_USB_XHCI_NO_USB3
+	if (mtk->has_ippc && mtk->num_u3_ports) {
+		u32 check_val = STS1_U3_MAC_RST;
+		int ret;
+
+		/* wait U3 MAC clock ready after xhci_reset() */
+		ret = readl_poll_timeout(&ippc->ip_pw_sts1, value,
+				(check_val == (value & check_val)), 1000, 100000);
+		if (ret)
+			dev_err(mtk->dev, "U3 clock is not stable (0x%x)\n", value);
+	}
+#endif
 
 #ifdef CONFIG_ARCH_MEDIATEK
 	/* disable nump and enable retry behavior */
@@ -580,7 +594,7 @@ static void xhci_mtk_init_regs(struct usb_hcd *hcd)
 	writel(value, hcd->regs + XHCI_MTK_HDMA_CFG);
 
 #ifndef CONFIG_USB_XHCI_NO_USB3
-	/* extend U3 LTSSM Polling.LFPS timeout value */
+	/* extend U3 LTSSM Polling.LFPS timeout value to 1s */
 	value = 0x3e8012c;
 	writel(value, hcd->regs + XHCI_MTK_LTSSM_TIMING_PARAMETER3);
 #endif
@@ -588,6 +602,10 @@ static void xhci_mtk_init_regs(struct usb_hcd *hcd)
 	/* EOF */
 	value = 0x201f3;
 	writel(value, hcd->regs + XHCI_MTK_SYNC_HS_EOF);
+
+	/* doorbell handling */
+	value = 0x1;
+	writel(value, &ippc->ip_spare0);
 #endif
 }
 
@@ -608,7 +626,7 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 		return ret;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		xhci_mtk_init_regs(hcd);
+		xhci_mtk_init_regs(hcd, mtk);
 		ret = xhci_mtk_sch_init(mtk);
 		if (ret)
 			return ret;

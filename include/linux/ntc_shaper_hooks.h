@@ -80,11 +80,6 @@ ntc_shaper_hooks_set(ntc_shaper_hook_fn *ingress_hook,
 	write_unlock_bh(&ntc_shaper_lock);
 }
 
-#ifdef CONFIG_NTCE_MODULE
-extern unsigned int (*ntce_pass_pkt_func)(struct sk_buff *skb);
-extern void (*ntce_enq_pkt_hook_func)(struct sk_buff *skb);
-#endif
-
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
 
 #include <net/netfilter/nf_conntrack.h>

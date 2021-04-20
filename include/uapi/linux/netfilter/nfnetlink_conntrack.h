@@ -55,6 +55,7 @@ enum ctattr_type {
 	CTA_LABELS_MASK,
 	CTA_NDMMARK,
 	CTA_NDM_IFACES,
+	CTA_NTCE,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)
@@ -65,6 +66,16 @@ enum ctattr_ndm_ifaces {
 	__CTA_NDM_IFACES_MAX
 };
 #define CTA_NDM_IFACES_MAX (__CTA_NDM_IFACES_MAX - 1)
+
+enum ctattr_ntce {
+	CTA_NTCE_APP,
+	CTA_NTCE_GROUP,
+	CTA_NTCE_ATTRIBUTES,
+	CTA_NTCE_OS,
+	CTA_NTCE_FLAGS,
+	__CTA_NTCE_MAX
+};
+#define CTA_NTCE_MAX (__CTA_NTCE_MAX - 1)
 
 enum ctattr_tuple {
 	CTA_TUPLE_UNSPEC,

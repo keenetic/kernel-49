@@ -77,6 +77,8 @@
 #include <../net/bridge/br_private.h>
 #endif
 
+#include <net/netfilter/nf_ntce.h>
+
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
 int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
@@ -1767,6 +1769,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 	NF_CT_ASSERT(skb->nfct);
 
+	nf_ntce_rst_bypass(skb);
+
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	if (!ct->fast_bind_reached) {
 		struct nf_conn_acct *acct = nf_conn_acct_find(ct);
@@ -1785,6 +1789,9 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 				 (pkt_o > FAST_NAT_BIND_PKT_DIR_HALF ||
 				  pkt_r > FAST_NAT_BIND_PKT_DIR_HALF))
 				ct->fast_bind_reached = 1;
+
+			if (pkt_r + pkt_o > NF_NTCE_HARD_PACKET_LIMIT)
+				nf_ntce_set_bypass(skb);
 		}
 	}
 #endif
@@ -1849,6 +1856,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			nf_conntrack_update_ifaces(net, skb,
 						   ntc_ct_lbl, protonum);
 	}
+
+	nf_ct_ntce_append(hooknum, ct);
 #endif
 
 	/* check fastpath condition */
@@ -1864,11 +1873,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	    nf_fastnat_control &&
 	    is_nf_connection_ready_nat(ct) &&
 	    is_nf_connection_has_nat(ct)) {
-#ifdef CONFIG_NTCE_MODULE
-		typeof(ntce_pass_pkt_func) ntce_pass_pkt;
-		typeof(ntce_enq_pkt_hook_func) ntce_enq_pkt_hook;
 		unsigned int ntce_skip_swnat = 1;
-#endif
 		u8 _l4hdr[4];
 		__be32 orig_src, new_src;
 		__be16 orig_port = 0;
@@ -1922,26 +1927,14 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 						(__force __u8)(ctdscp << XT_DSCP_SHIFT));
 		}
 
-#ifdef CONFIG_NTCE_MODULE
-		/* rcu_read_lock()ed by nf_hook_thresh */
-		if ((ntce_pass_pkt = rcu_dereference(ntce_pass_pkt_func)) &&
-		    (ntce_enq_pkt_hook = rcu_dereference(ntce_enq_pkt_hook_func))) {
-			ntce_skip_swnat = ntce_pass_pkt(skb);
-			if (ntce_skip_swnat)
-				ntce_enq_pkt_hook(skb);
-		} else
-			ntce_skip_swnat = 0;
-#endif
+		ntce_skip_swnat = nf_ntce_enqueue_in(hooknum, ct, skb);
+
 		ret = fast_nat_do_bind(ct, skb, l3proto, l4proto, ctinfo);
 
 		new_src = ip_hdr(skb)->saddr;
 
 		/* Get rid of junky binds, do swnat only when src IP changed */
-		if (orig_src != new_src
-#ifdef CONFIG_NTCE_MODULE
-			&& !ntce_skip_swnat
-#endif
-		    ) {
+		if (orig_src != new_src && !ntce_skip_swnat) {
 			typeof(prebind_from_fastnat) swnat_prebind;
 
 			/* Set mark for further binds */
@@ -1996,7 +1989,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			}
 		}
 
-		goto fast_nat_exit;
+		goto fast_nat_exit_no_ntce;
 	}
 #endif /* CONFIG_PPTP */
 
@@ -2010,13 +2003,12 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (rv == NF_ACCEPT) {
 			/* for non NAT-T UDP we must pass next */
 			if (protonum == IPPROTO_ESP)
-				goto fast_nat_exit;
+				goto fast_nat_exit_no_ntce;
 		} else {
 			ret = rv;
 			if (rv == NF_STOLEN)
 				nf_ct_acct_add_packet_len(ct, ctinfo, len);
-
-			goto fast_nat_exit;
+			goto fast_nat_exit_no_ntce;
 		}
 	}
 #endif /* CONFIG_XFRM */
@@ -2032,8 +2024,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (l2tp_in && l2tp_in(skb, dataoff)) {
 			nf_ct_acct_add_packet_len(ct, ctinfo, len);
 			ret = NF_STOLEN;
-
-			goto fast_nat_exit;
+			goto fast_nat_exit_no_ntce;
 		}
 	}
 #endif /* CONFIG_PPPOL2TP */
@@ -2059,6 +2050,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 				skb->ndm_mark = ct->ndm_mark;
 #endif
 #endif
+			nf_ntce_enqueue_in(hooknum, ct, skb);
+
 			/* Change skb owner to output device */
 			skb->dev = skb_dst(skb)->dev;
 
@@ -2070,6 +2063,11 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #endif /* CONFIG_FAST_NAT_V2 */
 
 fast_nat_exit:
+
+	nf_ntce_enqueue_in(hooknum, ct, skb);
+
+fast_nat_exit_no_ntce:
+
 #endif
 
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
@@ -2686,7 +2684,7 @@ int nf_conntrack_init_start(void)
 	queue_delayed_work(system_power_efficient_wq, &conntrack_gc_work.dwork, HZ);
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
-	/* "NTC" in hex */
+	/* "NTC\0" in hex */
 	ret = nf_ct_extend_custom_register(&ntc_extend, 0x4e544300);
 
 	if(ret < 0)

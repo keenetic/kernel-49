@@ -16,6 +16,7 @@ config FAST_NAT_V2
 
 config NTCE_MODULE
 	tristate "NTCE module support"
+	depends on NF_CONNTRACK_CUSTOM > 0
 	default y
 
 config NAT_CONE

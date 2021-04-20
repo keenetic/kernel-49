@@ -90,6 +90,8 @@
 #include <net/netfilter/nf_fp_smb.h>
 #endif
 
+#include <net/netfilter/nf_ntce.h>
+
 static int
 ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	    unsigned int mtu,
@@ -323,6 +325,9 @@ int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		return dst_output(net, sk, skb);
 	}
 #endif
+
+	nf_ntce_enqueue_out(skb);
+
 	mtu = ip_skb_dst_mtu(sk, skb);
 	if (skb_is_gso(skb))
 		return ip_finish_output_gso(net, sk, skb, mtu);

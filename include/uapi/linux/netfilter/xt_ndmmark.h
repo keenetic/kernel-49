@@ -33,4 +33,16 @@ struct xt_ndmmark_mtinfo {
 	__u8 invert;
 };
 
+#ifdef CONFIG_NETFILTER_XT_NDMMARK
+static inline bool xt_ndmmark_is_fwd(struct sk_buff *skb)
+{
+	return (skb->ndm_mark & XT_NDMMARK_FWD) == XT_NDMMARK_FWD;
+}
+#else
+static inline bool xt_ndmmark_is_fwd(struct sk_buff *skb)
+{
+	return false;
+}
+#endif
+
 #endif /* _XT_NDMMARK_H */

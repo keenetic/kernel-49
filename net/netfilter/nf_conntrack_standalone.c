@@ -43,6 +43,8 @@
 #include <linux/ntc_shaper_hooks.h>
 #endif
 
+#include <net/netfilter/nf_ntce.h>
+
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
@@ -244,7 +246,6 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	const struct nf_conntrack_l4proto *l4proto;
 	struct net *net = seq_file_net(s);
 	int ret = 0;
-	uint16_t nf_mark;
 
 	NF_CT_ASSERT(ct);
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
@@ -311,17 +312,15 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	seq_printf(s, "mark=%u ", ct->mark);
-	seq_printf(s, "ndm_mark=%u ", ct->ndm_mark);
+	seq_printf(s, "nmark=%u ", ct->ndm_mark);
 #endif
 
 	ct_show_ndm_ifaces(s, ct);
+	nf_ntce_ct_show_labels(s, ct);
 
 	ct_show_secctx(s, ct);
 	ct_show_zone(s, ct, NF_CT_DEFAULT_ZONE_DIR);
 	ct_show_delta_time(s, ct);
-
-	nf_mark = nf_ct_mark(ct);
-	seq_printf(s, "nfm_marker = %d ", nf_mark);
 
 	seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use));
 
@@ -523,6 +522,12 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 			  &ct_cpu_seq_fops);
 	if (!pde)
 		goto out_stat_nf_conntrack;
+
+	if (nf_ntce_init_proc(net)) {
+		remove_proc_entry("nf_conntrack", net->proc_net_stat);
+		goto out_stat_nf_conntrack;
+	}
+
 	return 0;
 
 out_stat_nf_conntrack:
@@ -533,6 +538,7 @@ out_nf_conntrack:
 
 static void nf_conntrack_standalone_fini_proc(struct net *net)
 {
+	nf_ntce_fini_proc(net);
 	remove_proc_entry("nf_conntrack", net->proc_net_stat);
 	remove_proc_entry("nf_conntrack", net->proc_net);
 }

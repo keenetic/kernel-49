@@ -62,6 +62,8 @@
 #include <linux/ntc_shaper_hooks.h>
 #endif
 
+#include <net/netfilter/nf_ntce.h>
+
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
@@ -574,6 +576,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	    ctnetlink_dump_mark(skb, ct) < 0 ||
 	    ctnetlink_dump_ndmmark(skb, ct) < 0 ||
 	    ctnetlink_dump_ndm_ifaces(skb, ct) < 0 ||
+	    nf_ntce_ctnetlink_dump(skb, ct) < 0 ||
 	    ctnetlink_dump_secctx(skb, ct) < 0 ||
 	    ctnetlink_dump_labels(skb, ct) < 0 ||
 	    ctnetlink_dump_id(skb, ct) < 0 ||
@@ -645,6 +648,15 @@ static inline size_t ctnetlink_timestamp_size(const struct nf_conn *ct)
 #endif
 }
 
+static inline size_t ctnetlink_ndm_ifaces_size(const struct nf_conn *ct)
+{
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+	return nla_total_size(0) + 2 * nla_total_size(sizeof(uint32_t));
+#else
+	return 0;
+#endif
+}
+
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 static size_t ctnetlink_nlmsg_size(const struct nf_conn *ct)
 {
@@ -656,6 +668,8 @@ static size_t ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_ID */
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_STATUS */
 	       + ctnetlink_acct_size(ct)
+	       + ctnetlink_ndm_ifaces_size(ct)
+	       + nf_ntce_ctnetlink_size(ct)
 	       + ctnetlink_timestamp_size(ct)
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_TIMEOUT */
 	       + nla_total_size(0) /* CTA_PROTOINFO */
@@ -803,6 +817,11 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	    && ctnetlink_dump_ndmmark(skb, ct) < 0)
 		goto nla_put_failure;
 #endif
+
+	if ((events & (1 << IPCT_DESTROY))
+	    && nf_ntce_ctnetlink_dump(skb, ct) < 0)
+		goto nla_put_failure;
+
 	rcu_read_unlock();
 
 	nlmsg_end(skb, nlh);

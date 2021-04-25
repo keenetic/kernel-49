@@ -51,10 +51,10 @@ $(obj)/aes-glue-%.o: $(src)/aes-glue.c FORCE
 quiet_cmd_perlasm = PERLASM $@
       cmd_perlasm = $(PERL) $(<) void $(@)
 
-$(src)/sha256-core.S_shipped: $(src)/sha512-armv8.pl
+$(obj)/sha256-core.S: $(src)/sha512-armv8.pl
 	$(call cmd,perlasm)
 
-$(src)/sha512-core.S_shipped: $(src)/sha512-armv8.pl
+$(obj)/sha512-core.S: $(src)/sha512-armv8.pl
 	$(call cmd,perlasm)
 
 .PRECIOUS: $(obj)/sha256-core.S $(obj)/sha512-core.S

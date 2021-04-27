@@ -1790,8 +1790,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 				  pkt_r > FAST_NAT_BIND_PKT_DIR_HALF))
 				ct->fast_bind_reached = 1;
 
-			if (pkt_r + pkt_o > NF_NTCE_HARD_PACKET_LIMIT)
-				nf_ntce_set_bypass(skb);
+			nf_ntce_check_limit(skb, pkt_r + pkt_o);
 		}
 	}
 #endif

@@ -44,6 +44,13 @@ static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
 	return !!(IPCB(skb)->flags & NF_NTCE_IPCB_BYPASS);
 }
 
+static inline void nf_ntce_check_limit(struct sk_buff *skb,
+				       const unsigned long long packets)
+{
+	if (packets > NF_NTCE_HARD_PACKET_LIMIT)
+		nf_ntce_set_bypass(skb);
+}
+
 static inline bool nf_ntce_has_helper(struct nf_conn *ct)
 {
 	struct nf_conn_help *help = nfct_help(ct);
@@ -200,6 +207,11 @@ static inline void nf_ntce_set_bypass(struct sk_buff *skb)
 static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
 {
 	return true;
+}
+
+static inline void nf_ntce_check_limit(struct sk_buff *skb,
+				       const unsigned long long packets)
+{
 }
 
 static inline bool nf_ntce_if_pass(const int idx)

@@ -3998,6 +3998,9 @@ static int mtk_snand_probe(struct platform_device *pdev)
 
 	nand_chip->options = NAND_SKIP_BBTSCAN;
 
+	/* Chip does not allow subpage writes. */
+	nand_chip->options |= NAND_NO_SUBPAGE_WRITE;
+
 	/* DMA mode, buffer must be 16b aligned */
 	nand_chip->options |= NAND_USE_BOUNCE_BUFFER;
 	nand_chip->buf_align = 16;

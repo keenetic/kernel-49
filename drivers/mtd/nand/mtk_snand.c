@@ -3989,6 +3989,9 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	nand_chip->erase = mtk_nand_erase;
 	nand_chip->block_bad = mtk_snand_block_bad;
 
+	/* Chip does not allow subpage writes. */
+	nand_chip->options |= NAND_NO_SUBPAGE_WRITE;
+
 	host->mtd = nand_to_mtd(nand_chip);
 	mtd = host->mtd;
 	mtd->priv = nand_chip;

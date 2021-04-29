@@ -349,9 +349,7 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 		return;
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
-	if (!(dev->driver_info->flags & FLAG_MULTI_PACKET) &&
-		!(dev->driver_info->flags & FLAG_POINTTOPOINT) &&
-		!(dev->driver_info->flags & FLAG_NOARP)) {
+	{
 		typeof(go_swnat) swnat;
 
 		rcu_read_lock();
@@ -1397,11 +1395,7 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 		if (unlikely(SWNAT_KA_CHECK_MARK(skb)))
 			goto not_drop;
 
-		if (!(info->flags & FLAG_MULTI_PACKET) &&
-			!(info->flags & FLAG_POINTTOPOINT) &&
-			!(info->flags & FLAG_NOARP) &&
-		     (SWNAT_PPP_CHECK_MARK(skb) ||
-		      SWNAT_FNAT_CHECK_MARK(skb))) {
+		if (SWNAT_PPP_CHECK_MARK(skb) || SWNAT_FNAT_CHECK_MARK(skb)) {
 			typeof(prebind_from_usb_mac) swnat_prebind;
 
 			rcu_read_lock();

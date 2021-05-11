@@ -41,6 +41,7 @@
 
 /* MACRO DECLARATIONS ---------------------------------------------------------------- */
 #define SPI_NAND_FLASH_OOB_FREE_ENTRY_MAX				(32)
+#define SPI_NAND_UNKNOWN_PAGE							~(0)
 
 #define CACHE_ADDR_INFO_START_ADDR						(0x9FA40000)
 
@@ -180,6 +181,9 @@ typedef enum{
 	SPI_NAND_FLASH_RTN_PROGRAM_FAIL,
 	SPI_NAND_FLASH_RTN_NFI_FAIL,
 	SPI_NAND_FLASH_RTN_ECC_DECODE_FAIL,
+	SPI_NAND_FLASH_RTN_ENABLE_ECC_FAIL,
+	SPI_NAND_FLASH_RTN_DISABLE_ECC_FAIL,
+	SPI_NAND_FLASH_RTN_TIMEOUT,
 
 	SPI_NAND_FLASH_RTN_DEF_NO
 } SPI_NAND_FLASH_RTN_T;
@@ -252,8 +256,8 @@ struct SPI_NAND_ECC_EN_INFO_T {
 };
 
 struct SPI_NAND_FLASH_INFO_T {
-	const u8					mfr_id;
-	const u8					dev_id;
+	u8						mfr_id;
+	u8						dev_id;
 	char						*ptr_name;
 	u32						device_size;	/* Flash total Size */
 	u32						page_size;	/* Page Size 		*/

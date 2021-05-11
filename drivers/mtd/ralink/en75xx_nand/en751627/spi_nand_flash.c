@@ -65,6 +65,8 @@
 #endif
 
 //#define ERASE_WRITE_CNT_LOG
+#define _SPI_NAND_WRITE_FAIL_TEST_FLAG 0
+#define _SPI_NAND_ERASE_FAIL_TEST_FLAG 0
 
 /* NAMING CONSTANT DECLARATIONS ------------------------------------------------------ */
 
@@ -112,18 +114,6 @@
 #define _SPI_NFI_CHECK_ECC_DONE_MAX_TIMES	(1000000)
 #define CACHE_LINE_SIZE						(32)
 
-#ifdef BLOCK_SIZE
-#undef BLOCK_SIZE
-#endif
-
-#ifdef PAGE_SIZE
-#undef PAGE_SIZE
-#endif
-
-#define BLOCK_SIZE		(_current_flash_info_t.erase_size)
-#define PAGE_SIZE		(_current_flash_info_t.page_size)
-#define PAGE_CNT_PER_BLOCK	(BLOCK_SIZE / PAGE_SIZE)
-
 #if defined(CONFIG_ECONET_EN7516) || \
     defined(CONFIG_ECONET_EN7527) || \
     defined(CONFIG_ECONET_EN7528)
@@ -150,9 +140,6 @@ struct _SPI_NAND_FLASH_RW_TEST_T {
 	u32 times;
 	u32 block_idx;
 };
-
-static int _SPI_NAND_WRITE_FAIL_TEST_FLAG = 0;
-static int _SPI_NAND_ERASE_FAIL_TEST_FLAG = 0;
 
 #define MAX_BLOCK (2048)
 
@@ -184,7 +171,7 @@ typedef enum{
 
 /* FUNCTION DECLARATIONS ------------------------------------------------------ */
 
-SPI_NAND_FLASH_RTN_T spi_nand_erase_block(u32 block_index);
+static SPI_NAND_FLASH_RTN_T spi_nand_erase_block(u32 block_index);
 static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 						u32 data_offset,
 						u8  *ptr_data,
@@ -244,13 +231,12 @@ static init_bbt_struct *g_bbt;
 
 #endif
 
-static u32 _current_page_num = 0xFFFFFFFF;
+static struct SPI_NAND_FLASH_INFO_T _current_flash_info_t;	/* Store the current flash information */
+static u32 _current_page_num = SPI_NAND_UNKNOWN_PAGE;
 static unsigned char _ondie_ecc_flag = 1;    /* Ondie ECC : [ToDo :  Init this flag base on diffrent chip ?] */
 static unsigned char _spi_dma_mode;
 static unsigned char _plane_select_bit;
 static unsigned char _die_id;
-
-struct SPI_NAND_FLASH_INFO_T _current_flash_info_t;			/* Store the current flash information */
 
 /* LOCAL SUBPROGRAM BODIES------------------------------------------------------------ */
 
@@ -427,13 +413,14 @@ static SPI_NAND_FLASH_RTN_T spi_nand_protocol_read_id ( struct SPI_NAND_FLASH_IN
 	_SPI_NAND_WRITE_ONE_BYTE( _SPI_NAND_ADDR_MANUFACTURE_ID );
 
 	/* 4. Read data (Manufacture ID and Device ID) */
-	_SPI_NAND_READ_NBYTE( (u8 *)&(ptr_rtn_flash_id->mfr_id), _SPI_NAND_LEN_ONE_BYTE, SPI_CONTROLLER_SPEED_SINGLE);
-	_SPI_NAND_READ_NBYTE( (u8 *)&(ptr_rtn_flash_id->dev_id), _SPI_NAND_LEN_ONE_BYTE, SPI_CONTROLLER_SPEED_SINGLE);
+	_SPI_NAND_READ_NBYTE( &(ptr_rtn_flash_id->mfr_id), _SPI_NAND_LEN_ONE_BYTE, SPI_CONTROLLER_SPEED_SINGLE);
+	_SPI_NAND_READ_NBYTE( &(ptr_rtn_flash_id->dev_id), _SPI_NAND_LEN_ONE_BYTE, SPI_CONTROLLER_SPEED_SINGLE);
 
 	/* 5. Chip Select High */
 	_SPI_NAND_READ_CHIP_SELECT_HIGH();
 
-	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_protocol_read_id : mfr_id=0x%x, dev_id=0x%x\n", ptr_rtn_flash_id->mfr_id, ptr_rtn_flash_id->dev_id);
+	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_protocol_read_id : mfr_id=0x%x, dev_id=0x%x\n",
+		ptr_rtn_flash_id->mfr_id, ptr_rtn_flash_id->dev_id);
 
 	return (rtn_status);
 }
@@ -467,13 +454,14 @@ static SPI_NAND_FLASH_RTN_T spi_nand_protocol_read_id_2 ( struct SPI_NAND_FLASH_
 	_SPI_NAND_WRITE_ONE_BYTE( _SPI_NAND_OP_READ_ID );
 
 	/* 3. Read data (Manufacture ID and Device ID) */
-	_SPI_NAND_READ_NBYTE( (u8 *)&(ptr_rtn_flash_id->mfr_id), _SPI_NAND_LEN_ONE_BYTE, SPI_CONTROLLER_SPEED_SINGLE);
-	_SPI_NAND_READ_NBYTE( (u8 *)&(ptr_rtn_flash_id->dev_id), _SPI_NAND_LEN_ONE_BYTE, SPI_CONTROLLER_SPEED_SINGLE);
+	_SPI_NAND_READ_NBYTE( &(ptr_rtn_flash_id->mfr_id), _SPI_NAND_LEN_ONE_BYTE, SPI_CONTROLLER_SPEED_SINGLE);
+	_SPI_NAND_READ_NBYTE( &(ptr_rtn_flash_id->dev_id), _SPI_NAND_LEN_ONE_BYTE, SPI_CONTROLLER_SPEED_SINGLE);
 
 	/* 4. Chip Select High */
 	_SPI_NAND_READ_CHIP_SELECT_HIGH();
 
-	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_protocol_read_id_2 : mfr_id=0x%x, dev_id=0x%x\n", ptr_rtn_flash_id->mfr_id, ptr_rtn_flash_id->dev_id);
+	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_protocol_read_id_2 : mfr_id=0x%x, dev_id=0x%x\n",
+		ptr_rtn_flash_id->mfr_id, ptr_rtn_flash_id->dev_id);
 
 	return (rtn_status);
 }
@@ -689,7 +677,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_block_aligned_check( u32 addr,
  */
 static inline void SPI_NAND_Flash_Clear_Read_Cache_Data( void )
 {
-	_current_page_num = 0xFFFFFFFF;
+	_current_page_num = SPI_NAND_UNKNOWN_PAGE;
 }
 
 static inline void SPI_NAND_Flash_Set_DmaMode( u32 input )
@@ -728,6 +716,8 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Enable_OnDie_ECC( void )
 
 				/* Value check*/
 				spi_nand_protocol_get_feature(ptr_dev_info_t->ecc_en.ecc_en_addr, &feature);
+				if (!(feature & ptr_dev_info_t->ecc_en.ecc_en_mask))
+					return (SPI_NAND_FLASH_RTN_ENABLE_ECC_FAIL);
 			}
 			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "after setting : SPI_NAND_Flash_Enable_OnDie_ECC, status reg=0x%x\n", feature);
 		}
@@ -743,6 +733,8 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Enable_OnDie_ECC( void )
 
 			/* Value check*/
 			spi_nand_protocol_get_feature(ptr_dev_info_t->ecc_en.ecc_en_addr, &feature);
+			if (!(feature & ptr_dev_info_t->ecc_en.ecc_en_mask))
+				return (SPI_NAND_FLASH_RTN_ENABLE_ECC_FAIL);
 		}
 		_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "after setting : SPI_NAND_Flash_Enable_OnDie_ECC, status reg=0x%x\n", feature);
 	}
@@ -777,6 +769,8 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Disable_OnDie_ECC( void )
 
 				/* Value check*/
 				spi_nand_protocol_get_feature(ptr_dev_info_t->ecc_en.ecc_en_addr, &feature);
+				if (feature & ptr_dev_info_t->ecc_en.ecc_en_mask)
+					return (SPI_NAND_FLASH_RTN_DISABLE_ECC_FAIL);
 			}
 			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "after setting : SPI_NAND_Flash_Disable_OnDie_ECC, status reg=0x%x\n", feature);
 		}
@@ -793,6 +787,8 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Disable_OnDie_ECC( void )
 
 			/* Value check*/
 			spi_nand_protocol_get_feature(ptr_dev_info_t->ecc_en.ecc_en_addr, &feature);
+			if (feature & ptr_dev_info_t->ecc_en.ecc_en_mask)
+				return (SPI_NAND_FLASH_RTN_DISABLE_ECC_FAIL);
 		}
 		_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "after setting : SPI_NAND_Flash_Disable_OnDie_ECC, status reg=0x%x\n", feature);
 	}
@@ -824,34 +820,25 @@ static void enable_quad(void)
 	unsigned char feature;
 	unsigned char die;
 
-	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1,"SPI NAND Chip Init : Unlock all block and Enable Quad Mode\n");
+	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1,"SPI NAND Chip Init : Enable Quad Mode\n");
 
 	for(die = 0; die < ptr_dev_info_t->die_num; die++) {
 		spi_nand_direct_select_die(die);
 
-		if(((ptr_dev_info_t->mfr_id == _SPI_NAND_MANUFACTURER_ID_WINBOND) && (ptr_dev_info_t->dev_id == _SPI_NAND_DEVICE_ID_W25N01GV)) ||
-		   ((ptr_dev_info_t->mfr_id == _SPI_NAND_MANUFACTURER_ID_WINBOND) && (ptr_dev_info_t->dev_id == _SPI_NAND_DEVICE_ID_W25M02GV)))
-		{
-			/* Enable to modify the status regsiter 1 */
-			spi_nand_protocol_get_feature(_SPI_NAND_ADDR_FEATURE, &feature);
-			feature |= 0x8;
-			spi_nand_protocol_set_feature(_SPI_NAND_ADDR_FEATURE, feature);
-		}
-
-		/* Enable Qual mode */
+		/* Enable Quad mode */
 		if(ptr_dev_info_t->quad_en.quad_en_mask != 0x00) {
 			spi_nand_protocol_get_feature(_SPI_NAND_ADDR_FEATURE, &feature);
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Before enable qual mode setup, the status register2 =0x%x\n", feature);
+			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Before enable quad mode setup, the status register2 =0x%x\n", feature);
 
 			feature = (feature & ~(ptr_dev_info_t->quad_en.quad_en_mask));
 			feature |= ptr_dev_info_t->quad_en.quad_en_value;
 			spi_nand_protocol_set_feature(_SPI_NAND_ADDR_FEATURE, feature);
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "enable qual mode setup, the feature = 0x%x\n", feature);
+			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "enable quad mode setup, the feature = 0x%x\n", feature);
 
 			spi_nand_protocol_get_feature(_SPI_NAND_ADDR_FEATURE, &feature);
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "After enable qual mode setup, the status register2 =0x%x\n", feature);
+			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "After enable quad mode setup, the status register2 =0x%x\n", feature);
 		} else {
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "No need enable qual mode setup.\n");
+			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "No need enable quad mode setup.\n");
 		}
 	}
 
@@ -1820,10 +1807,8 @@ SPI_NAND_FLASH_RTN_T restore_block(u32 block, u8 *block_buf, u32 page_number)
 			ptr_oob_entry_idx = (struct spi_nand_flash_oobfree*) &( ptr_dev_info_t->oob_free_layout->oobfree );
 
 			idx = 0;
-			for(k = 0; (k < SPI_NAND_FLASH_OOB_FREE_ENTRY_MAX) && (ptr_oob_entry_idx[k].len) && (idx < ptr_dev_info_t->oob_free_layout->oobsize); k++)
-			{
-				for(j = 0; (j < ptr_oob_entry_idx[k].len) && idx < (ptr_dev_info_t->oob_free_layout->oobsize); j++)
-				{
+			for(k = 0; (k < SPI_NAND_FLASH_OOB_FREE_ENTRY_MAX) && (ptr_oob_entry_idx[k].len) && (idx < ptr_dev_info_t->oob_free_layout->oobsize); k++) {
+				for(j = 0; (j < ptr_oob_entry_idx[k].len) && (idx < ptr_dev_info_t->oob_free_layout->oobsize); j++) {
 					if(page_buf[ptr_dev_info_t->page_size + (ptr_oob_entry_idx[k].offset) + j] != 0xFF) {
 						isBlankOOB = 0;
 						k = SPI_NAND_FLASH_OOB_FREE_ENTRY_MAX;
@@ -1842,10 +1827,8 @@ SPI_NAND_FLASH_RTN_T restore_block(u32 block, u8 *block_buf, u32 page_number)
 			idx = 0;
 
 			memset(oob_mapping, 0xFF, _SPI_NAND_OOB_SIZE);
-			for(k = 0; (k < SPI_NAND_FLASH_OOB_FREE_ENTRY_MAX) && (ptr_oob_entry_idx[k].len) && (idx < ptr_dev_info_t->oob_free_layout->oobsize); k++)
-			{
-				for(j = 0; (j < ptr_oob_entry_idx[k].len) && (idx < ptr_dev_info_t->oob_free_layout->oobsize); j++)
-				{
+			for(k = 0; (k < SPI_NAND_FLASH_OOB_FREE_ENTRY_MAX) && (ptr_oob_entry_idx[k].len) && (idx < ptr_dev_info_t->oob_free_layout->oobsize); k++) {
+				for(j = 0; (j < ptr_oob_entry_idx[k].len) && (idx < ptr_dev_info_t->oob_free_layout->oobsize); j++) {
 					oob_mapping[idx] = page_buf[ptr_dev_info_t->page_size + (ptr_oob_entry_idx[k].offset) + j];
 					idx++;
 				}
@@ -1954,7 +1937,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 	_SPI_NAND_ENABLE_MANUAL_MODE();
 
 #ifdef ERASE_WRITE_CNT_LOG
-	block_idx = page_number / PAGE_CNT_PER_BLOCK;
+	block_idx = page_number / (ptr_dev_info_t->erase_size / ptr_dev_info_t->page_size);
 	if(erase_write_flag == SPI_NAND_FLASH_ERASE_WRITE_LOG_ENABLE) {
 		b_write_cnt_per_erase[block_idx]++;
 		b_write_total_cnt[block_idx]++;
@@ -2002,9 +1985,9 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 		}
 
 		if(_spi_dma_mode == 0) {
-			memcpy(&_current_cache_page[data_offset], &_current_cache_page_data[0], PAGE_SIZE);
+			memcpy(&_current_cache_page[data_offset], &_current_cache_page_data[0], ptr_dev_info_t->page_size);
 		} else {
-			memcpy((u8 *)K0_TO_K1(&dma_write_page[data_offset]), &_current_cache_page_data[0], PAGE_SIZE);
+			memcpy((u8 *)K0_TO_K1(&dma_write_page[data_offset]), &_current_cache_page_data[0], ptr_dev_info_t->page_size);
 		}
 
 		if(oob_len > 0) {
@@ -2193,7 +2176,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_protocol_block_erase( u32 block_idx )
 	return (rtn_status);
 }
 
-SPI_NAND_FLASH_RTN_T spi_nand_erase_block(u32 block_index)
+static SPI_NAND_FLASH_RTN_T spi_nand_erase_block(u32 block_index)
 {
 	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
@@ -2255,6 +2238,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_erase_internal( u32 addr, u32 len )
 {
 	u32 block_index = 0;
 	u32 erase_len = 0;
+	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
 #if defined(TCSUPPORT_NAND_BMT)
 	unsigned short phy_block_bbt;
@@ -2273,7 +2257,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_erase_internal( u32 addr, u32 len )
 		/* 2. Erase block one by one */
 		while( erase_len < len ) {
 			/* 2.1 Caculate Block index */
-			block_index = (addr/(_current_flash_info_t.erase_size));
+			block_index = (addr / ptr_dev_info_t->erase_size);
 #if defined(TCSUPPORT_NAND_BMT)
 			logical_block = block_index;
 			physical_block = get_mapping_block_index(logical_block, &phy_block_bbt);
@@ -2282,7 +2266,8 @@ static SPI_NAND_FLASH_RTN_T spi_nand_erase_internal( u32 addr, u32 len )
 			}
 			block_index = physical_block;
 #endif
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_erase_internal: addr=0x%x, len=0x%x, block_idx=0x%x\n", addr, len, block_index );
+			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_erase_internal: addr=0x%x, len=0x%x, block_idx=0x%x\n",
+				addr, len, block_index );
 
 			if(_SPI_NAND_ERASE_FAIL_TEST_FLAG == 0) {
 				rtn_status = spi_nand_erase_block(block_index);
@@ -2293,24 +2278,25 @@ static SPI_NAND_FLASH_RTN_T spi_nand_erase_internal( u32 addr, u32 len )
 			/* 2.6 Check Erase Fail Bit */
 			if(rtn_status != SPI_NAND_FLASH_RTN_NO_ERROR) {
 #if defined(TCSUPPORT_NAND_BMT)
-				if (update_bmt((block_index * BLOCK_SIZE), UPDATE_ERASE_FAIL, NULL, NULL)) {
-					_SPI_NAND_PRINTF("Erase fail at block: %d, update BMT success\n", addr/(_current_flash_info_t.erase_size));
+				if (update_bmt((block_index * ptr_dev_info_t->erase_size), UPDATE_ERASE_FAIL, NULL, NULL)) {
+					_SPI_NAND_PRINTF("Erase fail at block: %d, update BMT success\n", addr / ptr_dev_info_t->erase_size);
 					rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
 				} else {
-					_SPI_NAND_PRINTF("Erase fail at block: %d, update BMT fail\n", addr/(_current_flash_info_t.erase_size));
+					_SPI_NAND_PRINTF("Erase fail at block: %d, update BMT fail\n", addr / ptr_dev_info_t->erase_size);
 					rtn_status = SPI_NAND_FLASH_RTN_ERASE_FAIL;
 					break;
 				}
 #else
-				_SPI_NAND_PRINTF("spi_nand_erase_internal : Erase Fail at addr=0x%x, len=0x%x, block_idx=0x%x\n", addr, len, block_index);
+				_SPI_NAND_PRINTF("spi_nand_erase_internal : Erase Fail at addr=0x%x, len=0x%x, block_idx=0x%x\n",
+					addr, len, block_index);
 				rtn_status = SPI_NAND_FLASH_RTN_ERASE_FAIL;
 				break;
 #endif
 			}
 
 			/* 2.7 Erase next block if needed */
-			addr		+= _current_flash_info_t.erase_size;
-			erase_len	+= _current_flash_info_t.erase_size;
+			addr		+= ptr_dev_info_t->erase_size;
+			erase_len	+= ptr_dev_info_t->erase_size;
 		}
 	} else {
 		rtn_status = SPI_NAND_FLASH_RTN_ALIGNED_CHECK_FAIL;
@@ -2343,7 +2329,7 @@ int en7512_nand_check_block_bad(u32 offset, u32 bmt_block)
 {
 	u32 page_number;
 	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
-	u8 bad_block_indicator[28];
+	u8 bad_block_indicator[8];
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
 
 	if((0xbc000000 <= offset) && (offset <= 0xbfffffff)) {		/* Reserver address area for system */
@@ -2357,7 +2343,8 @@ int en7512_nand_check_block_bad(u32 offset, u32 bmt_block)
 	/* Caculate page number */
 	page_number = (offset / (ptr_dev_info_t->page_size));
 
-	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "en7512_nand_check_block_bad: read_addr=0x%x, page_number=0x%x\n", offset, page_number);
+	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "en7512_nand_check_block_bad: read_addr=0x%x, page_number=0x%x\n",
+		offset, page_number);
 
 	SPI_NAND_Flash_Clear_Read_Cache_Data();
 
@@ -2366,65 +2353,26 @@ int en7512_nand_check_block_bad(u32 offset, u32 bmt_block)
 #if 0 /* No matter what status of spi_nand_read_page, we must check badblock by oob. */
       /* Otherwise, the bmt pool size will be changed */
 	if (rtn_status != SPI_NAND_FLASH_RTN_NO_ERROR) {
-		_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "en7512_nand_check_block_bad return error, block:%d\n", offset/ptr_dev_info_t->erase_size);
+		_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "en7512_nand_check_block_bad return error, block:%d\n",
+			offset/ptr_dev_info_t->erase_size);
 		return 1;
 	}
 #endif
 	if(bmt_block) {
 		if(bad_block_indicator[BMT_BAD_BLOCK_INDEX_OFFSET] != 0xff) {
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Bad block detected at page_addr 0x%x, oob_buf[%d] is 0x%x\n", page_number, BMT_BAD_BLOCK_INDEX_OFFSET,_current_cache_page_oob_mapping[BMT_BAD_BLOCK_INDEX_OFFSET]);
+			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Bad block detected at page_addr 0x%x, oob_buf[%d] is 0x%x\n",
+				page_number, BMT_BAD_BLOCK_INDEX_OFFSET, bad_block_indicator[BMT_BAD_BLOCK_INDEX_OFFSET]);
 			return 1;
 		}
 	}
 	else {
 		if(bad_block_indicator[0] != 0xff) {
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Bad block detected at page_addr 0x%x, oob_buf[0] is 0x%x\n", page_number, _current_cache_page_oob_mapping[0]);
+			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Bad block detected at page_addr 0x%x, oob_buf[%d] is 0x%x\n",
+				page_number, 0, bad_block_indicator[0]);
 			return 1;
 		}
 	}
 
-#if 0
-u8 def_bad_block_ECC[28];
-#ifdef TCSUPPORT_SPI_CONTROLLER_ECC
-	if(isSpiControllerECC) {
-		/* This is for check default bad block.
-		 * When DMA read with all ECC parity equal to 0xFF,
-		 * this will not generate read ECC error. So, it must
-		 * close DMA to check first OOB byte.
-		 */
-		SPI_NAND_Flash_Set_DmaMode(0);
-		SPI_NAND_Flash_Clear_Read_Cache_Data();
-		rtn_status = spi_nand_read_page(page_number, ptr_dev_info_t->read_mode);
-		SPI_NAND_Flash_Set_DmaMode(1);
-		SPI_NAND_Flash_Clear_Read_Cache_Data();
-
-		if (rtn_status != SPI_NAND_FLASH_RTN_NO_ERROR) {
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "en7512_nand_check_block_bad return error, block:%d\n", offset/ptr_dev_info_t->erase_size);
-			SPI_NAND_Flash_Set_DmaMode(1);
-			return 1;
-		}
-		SPI_NAND_Flash_Set_DmaMode(1);
-		SPI_NAND_Flash_Clear_Read_Cache_Data();
-
-		memset(def_bad_block_ECC, 0xFF, sizeof(def_bad_block_ECC));
-		SPI_NFI_Get_Configure(&spi_nfi_conf_t);
-
-		if(memcmp(def_bad_block_ECC, &(bad_block_indicator[spi_nfi_conf_t.fdm_num]), (spi_nfi_conf_t.spare_size_t - spi_nfi_conf_t.fdm_num)) == 0) {
-			if(bmt_block) {
-				if(bad_block_indicator[BMT_BAD_BLOCK_INDEX_OFFSET] != 0xff) {
-					_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "DMA closed, Bad block detected at page_addr 0x%x, oob_buf[%d] is 0x%x\n", page_number, BMT_BAD_BLOCK_INDEX_OFFSET,_current_cache_page_oob_mapping[BMT_BAD_BLOCK_INDEX_OFFSET]);
-					return 1;
-				}
-			} else {
-				if(bad_block_indicator[0] != 0xff) {
-					_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "DMA closed, Bad block detected at page_addr 0x%x, oob_buf[0] is 0x%x\n", page_number, _current_cache_page_oob_mapping[0]);
-					return 1;
-				}
-			}
-		}
-	}
-#endif
-#endif
 	return 0;  /* Good Block*/
 }
 
@@ -2438,16 +2386,11 @@ int en7512_nand_erase(u32 offset)
 	SPI_NAND_Flash_Clear_Read_Cache_Data();
 
 	rtn_status = spi_nand_erase_block((offset / ptr_dev_info_t->erase_size));
-
 	if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR)
-	{
 		return 0;
-	}
-	else
-	{
-		_SPI_NAND_PRINTF("en7512_nand_erase : Fail \n");
-		return -1;
-	}
+
+	_SPI_NAND_PRINTF("en7512_nand_erase : Fail \n");
+	return -1;
 }
 
 int en7512_nand_mark_badblock(u32 offset, u32 bmt_block)
@@ -2458,17 +2401,13 @@ int en7512_nand_mark_badblock(u32 offset, u32 bmt_block)
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
 
 	/* Caculate page number */
-	page_number = (((offset / BLOCK_SIZE) * BLOCK_SIZE) / PAGE_SIZE);
+	page_number = (((offset / ptr_dev_info_t->erase_size) * ptr_dev_info_t->erase_size) / ptr_dev_info_t->page_size);
 
 	memset(buf, 0xFF, 8);
 	if(bmt_block)
-	{
 		buf[BMT_BAD_BLOCK_INDEX_OFFSET] = 0;
-	}
 	else
-	{
 		buf[0] = 0;
-	}
 
 	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_2, "en7512_nand_mark_badblock: buf info:\n");
 	_SPI_NAND_DEBUG_PRINTF_ARRAY(SPI_NAND_FLASH_DEBUG_LEVEL_2, &buf[0], 8);
@@ -2478,13 +2417,9 @@ int en7512_nand_mark_badblock(u32 offset, u32 bmt_block)
 	spi_nand_erase_block((offset / (ptr_dev_info_t->erase_size)));
 	rtn_status = spi_nand_write_page(page_number, 0, NULL, 0, 0, &buf[0], 8, ptr_dev_info_t->write_mode);
 	if( rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR)
-	{
 		return 0;
-	}
-	else
-	{
-		return -1;
-	}
+
+	return -1;
 }
 
 int en7512_nand_exec_write_page(u32 page, u8 *dat, u8 *oob)
@@ -2495,22 +2430,17 @@ int en7512_nand_exec_write_page(u32 page, u8 *dat, u8 *oob)
 	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "en7512_nand_exec_write_page: page=0x%x\n", page);
 
 	rtn_status = spi_nand_write_page(page, 0, dat, ptr_dev_info_t->page_size, 0, oob, ptr_dev_info_t->oob_size, ptr_dev_info_t->write_mode);
-
 	if( rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR)
-	{
 		return 0;
-	}
-	else
-	{
-		return -1;
-	}
+
+	return -1;
 }
 
 static int calc_bmt_pool_size(struct mtd_info *mtd, u32 *bmt_block_count_max)
 {
 	struct nand_chip *nand = (struct nand_chip *)mtd->priv;
-	int chip_size = nand->chipsize;
-	int block_size = 1u << nand->phys_erase_shift;
+	unsigned int chip_size = nand->chipsize;
+	unsigned int block_size = 1u << nand->phys_erase_shift;
 	int total_block = chip_size / block_size;
 	int last_block = total_block - 1;
 	u16 valid_block_num = 0;
@@ -2565,14 +2495,6 @@ static void spi_nand_manufacute_init(struct SPI_NAND_FLASH_INFO_T *ptr_device_t)
 	for(die = 0; die < ptr_device_t->die_num; die++) {
 		spi_nand_direct_select_die(die);
 
-		if(((ptr_device_t->mfr_id == _SPI_NAND_MANUFACTURER_ID_WINBOND) && (ptr_device_t->dev_id == _SPI_NAND_DEVICE_ID_W25N01GV)) ||
-		   ((ptr_device_t->mfr_id == _SPI_NAND_MANUFACTURER_ID_WINBOND) && (ptr_device_t->dev_id == _SPI_NAND_DEVICE_ID_W25M02GV)))
-		{
-			/* Enable to modify the status regsiter 1 */
-			feature = 0x58;
-			spi_nand_protocol_set_feature(_SPI_NAND_ADDR_FEATURE, feature);
-		}
-
 		/* 1. Unlock All block */
 		if(ptr_device_t->unlock_block_info.unlock_block_mask != 0x00) {
 			spi_nand_protocol_get_feature(_SPI_NAND_ADDR_PROTECTION, &feature);
@@ -2587,31 +2509,6 @@ static void spi_nand_manufacute_init(struct SPI_NAND_FLASH_INFO_T *ptr_device_t)
 			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "After Unlock all block setup, the status register1 = 0x%x\n", feature);
 		} else {
 			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "No need Unlock all block setup.\n");
-		}
-
-		/* 2. Enable Qual mode */
-		if((ptr_device_t->quad_en.quad_en_mask != 0x00) &&
-		   ((ptr_device_t->read_mode == SPI_NAND_FLASH_READ_SPEED_MODE_QUAD) || (ptr_device_t->write_mode == SPI_NAND_FLASH_WRITE_SPEED_MODE_QUAD))) {
-			spi_nand_protocol_get_feature(_SPI_NAND_ADDR_FEATURE, &feature);
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Before enable qual mode setup, the status register2 =0x%x\n", feature);
-
-			feature = (feature & ~(ptr_device_t->quad_en.quad_en_mask));
-			feature |= (ptr_device_t->quad_en.quad_en_value & ptr_device_t->quad_en.quad_en_mask);
-			spi_nand_protocol_set_feature(_SPI_NAND_ADDR_FEATURE, feature);
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "enable qual mode setup, the feature = 0x%x\n", feature);
-
-			spi_nand_protocol_get_feature(_SPI_NAND_ADDR_FEATURE, &feature);
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "After enable qual mode setup, the status register2 =0x%x\n", feature);
-		} else {
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "No need enable qual mode setup.\n");
-		}
-
-		if(((ptr_device_t->mfr_id == _SPI_NAND_MANUFACTURER_ID_WINBOND) && (ptr_device_t->dev_id == _SPI_NAND_DEVICE_ID_W25N01GV)) ||
-		   ((ptr_device_t->mfr_id == _SPI_NAND_MANUFACTURER_ID_WINBOND) && (ptr_device_t->dev_id == _SPI_NAND_DEVICE_ID_W25M02GV)))
-		{
-			/* Disable to modify the status regsiter 1 */
-			feature = 0x18;
-			spi_nand_protocol_set_feature(_SPI_NAND_ADDR_FEATURE, feature);
 		}
 	}
 }
@@ -2644,19 +2541,17 @@ static SPI_NAND_FLASH_RTN_T spi_nand_probe( struct SPI_NAND_FLASH_INFO_T *ptr_rt
 	spi_nand_protocol_read_id(ptr_rtn_device_t );
 
 	rtn_status = scan_spi_nand_table(ptr_rtn_device_t);
-
-	if ( rtn_status != SPI_NAND_FLASH_RTN_NO_ERROR )
-	{
+	if (rtn_status != SPI_NAND_FLASH_RTN_NO_ERROR) {
 		/* Another protocol for read id  (For example, the GigaDevice SPI NADN chip for Type C */
 		spi_nand_protocol_read_id_2( (struct SPI_NAND_FLASH_INFO_T *)ptr_rtn_device_t );
 
 		rtn_status = scan_spi_nand_table(ptr_rtn_device_t);
 	}
 
-	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_probe: mfr_id = 0x%x, dev_id = 0x%x\n", ptr_rtn_device_t->mfr_id, ptr_rtn_device_t->dev_id);
+	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_probe: mfr_id = 0x%x, dev_id = 0x%x\n",
+		ptr_rtn_device_t->mfr_id, ptr_rtn_device_t->dev_id);
 
-	if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR)
-	{
+	if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR) {
 		_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_probe: device size:0x%x \n", ptr_rtn_device_t->device_size);
 		_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_probe: erase size :0x%x \n", ptr_rtn_device_t->erase_size);
 		_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "spi_nand_probe: page size  :0x%x \n", ptr_rtn_device_t->page_size);
@@ -2730,86 +2625,8 @@ static void enable_dma(SPI_NFI_CONF_T *spi_nfi_conf_t,
 	}
 }
 
-#if 0
-int spinand_ctrlEcc_calibration(SPI_NFI_CONF_T *spi_nfi_conf_t,
-				SPI_ECC_ENCODE_CONF_T *encode_conf_t,
-				SPI_ECC_DECODE_CONF_T *decode_conf_t)
-{
-	unsigned long auto_sizing_magic;
-	int auto_ecc_detect_idx;
-	int auto_spare_size_idx;
-	SPI_NAND_FLASH_DEBUG_LEVEL_T dbg_lv = SPI_NAND_FLASH_DEBUG_LEVEL_1;
-	SPI_NAND_FLASH_RTN_T status;
-	u32 ecc_ability_array[] = {SPI_ECC_DECODE_ABILITY_4BITS, SPI_ECC_DECODE_ABILITY_6BITS, SPI_ECC_DECODE_ABILITY_8BITS, SPI_ECC_DECODE_ABILITY_10BITS,
-				   SPI_ECC_DECODE_ABILITY_12BITS, SPI_ECC_DECODE_ABILITY_14BITS, SPI_ECC_DECODE_ABILITY_16BITS};
-	u32 spare_size_array[] = {SPI_NFI_CONF_SPARE_SIZE_16BYTE, SPI_NFI_CONF_SPARE_SIZE_26BYTE, SPI_NFI_CONF_SPARE_SIZE_27BYTE, SPI_NFI_CONF_SPARE_SIZE_28BYTE};
-
-	/* auto-detecting ECC ability */
-	for(auto_ecc_detect_idx = 0; auto_ecc_detect_idx < (sizeof(ecc_ability_array) / sizeof(ecc_ability_array[0])); auto_ecc_detect_idx++) {
-		for(auto_spare_size_idx = 0; auto_spare_size_idx < (sizeof(spare_size_array) / sizeof(spare_size_array[0])); auto_spare_size_idx++) {
-			/* Check spare area is enough to store parity */
-			if(((spare_size_array[auto_spare_size_idx] - spi_nfi_conf_t->fdm_num) * 8) < (13 * ecc_ability_array[auto_ecc_detect_idx])) {
-				_SPI_NAND_DEBUG_PRINTF(dbg_lv, "skip\n");
-				_SPI_NAND_DEBUG_PRINTF(dbg_lv, "  ecc  :%02d\n", ecc_ability_array[auto_ecc_detect_idx]);
-				_SPI_NAND_DEBUG_PRINTF(dbg_lv, "  spare:%02d\n", spare_size_array[auto_spare_size_idx]);
-				continue;
-			}
-
-			/* Enable Manual Mode */
-			_SPI_NAND_ENABLE_MANUAL_MODE();
-
-			/* set NFI */
-			spi_nfi_conf_t->spare_size_t 		= spare_size_array[auto_spare_size_idx];
-
-			/* Setup Encode */
-			encode_conf_t->encode_ecc_abiliry	= SPI_ECC_ENCODE_ABILITY_4BITS;
-
-			/* Setup Decode */
-			decode_conf_t->decode_ecc_abiliry	= ecc_ability_array[auto_ecc_detect_idx];
-			decode_conf_t->decode_block_size	= (((spi_nfi_conf_t->fdm_ecc_num) + 512) * 8) + ((decode_conf_t->decode_ecc_abiliry) * 13);
-
-			_SPI_NAND_DEBUG_PRINTF(dbg_lv, "testing...\n");
-			_SPI_NAND_DEBUG_PRINTF(dbg_lv, "  ecc  :%02d\n", decode_conf_t->decode_ecc_abiliry);
-			_SPI_NAND_DEBUG_PRINTF(dbg_lv, "  spare:%02d\n", spi_nfi_conf_t->spare_size_t);
-
-			/* enable DMA */
-			enable_dma(spi_nfi_conf_t, encode_conf_t, decode_conf_t);
-
-			SPI_NAND_Flash_Clear_Read_Cache_Data();
-			auto_sizing_magic = SPI_NAND_Flash_Read_DWord(PAGE_SIZE_MAGIC_FLASH_ADDR, &status);
-
-			if(status == SPI_NAND_FLASH_RTN_NO_ERROR ) {
-				_SPI_NAND_DEBUG_PRINTF(dbg_lv, "magic:0x%x\n", auto_sizing_magic);
-
-				if(auto_sizing_magic == PAGE_SIZE_MAGIC) {
-					_SPI_NAND_DEBUG_PRINTF(dbg_lv, "detected:\n");
-					_SPI_NAND_DEBUG_PRINTF(dbg_lv, "  ecc  :%02d\n", decode_conf_t->decode_ecc_abiliry);
-					_SPI_NAND_DEBUG_PRINTF(dbg_lv, "  spare:%02d\n", spi_nfi_conf_t->spare_size_t);
-					return 0;
-				}
-			}
-		} //for auto_spare_size_idx
-	} //for auto_ecc_detect_idx
-
-	/* can not find magic number, use default value */
-	/* set ECC ability = 4bits */
-	/* set spare size = 16B */
-
-	/* set NFI */
-	spi_nfi_conf_t->spare_size_t		= SPI_NFI_CONF_SPARE_SIZE_16BYTE;
-
-	/* Setup Encode */
-	encode_conf_t->encode_ecc_abiliry	= SPI_ECC_ENCODE_ABILITY_4BITS;
-
-	/* Setup Decode */
-	decode_conf_t->decode_ecc_abiliry	= SPI_ECC_DECODE_ABILITY_4BITS;
-
-	return -1;
-}
-#endif
-
 #if defined(TCSUPPORT_NAND_BMT)
-int init_bmt_bbt(struct mtd_info *mtd)
+static int init_bmt_bbt(struct mtd_info *mtd)
 {
 	int bmt_pool_size;
 	u32 bmt_block_count_max = 0;
@@ -2939,9 +2756,9 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 				decode_ecc_abiliry	= SPI_ECC_DECODE_ABILITY_4BITS;
 			}
 
-			_SPI_NAND_PRINTF("Using SPI controller ECC.\n");
-			_SPI_NAND_PRINTF("  ECC ability:%d\n", encode_ecc_abiliry);
-			_SPI_NAND_PRINTF("  NFI spare area size:%d\n", spare_size_t);
+			_SPI_NAND_PRINTF("Using SPI controller ECC\n");
+			_SPI_NAND_PRINTF("  ECC ability: %d\n", encode_ecc_abiliry);
+			_SPI_NAND_PRINTF("  NFI spare area size: %d\n", spare_size_t);
 
 			/* Setup NFI */
 			spi_nfi_conf_t.auto_fdm_t		= SPI_NFI_CON_AUTO_FDM_Enable;
@@ -2968,7 +2785,7 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 			/* enable DMA */
 			enable_dma(&spi_nfi_conf_t, &encode_conf_t, &decode_conf_t);
 		} else {
-			_SPI_NAND_PRINTF("Using Flash ECC.\n");
+			_SPI_NAND_PRINTF("Using Flash ECC\n");
 			SPI_NAND_Flash_Enable_OnDie_ECC();
 
 #ifdef TCSUPPORT_SPI_NAND_FLASH_ECC_DMA
@@ -2995,7 +2812,8 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 #endif
 		}
 
-		_SPI_NAND_PRINTF("Detected SPI NAND Flash: %s, Flash Size: %d MB\n", _current_flash_info_t.ptr_name,  _current_flash_info_t.device_size >> 20);
+		_SPI_NAND_PRINTF("Detected SPI NAND Flash: %s, Flash Size: %d MB\n",
+			_current_flash_info_t.ptr_name,  _current_flash_info_t.device_size >> 20);
 
 		rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
 	}
@@ -3117,7 +2935,6 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page_internal(u32 page_number,
 							u32 oob_len,
 							SPI_NAND_FLASH_WRITE_SPEED_MODE_T speed_mode )
 {
-	u32 addr_offset = 0;
 	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
 #if defined(TCSUPPORT_NAND_BMT)
@@ -3151,7 +2968,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page_internal(u32 page_number,
 			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_2, "spi_nand_write_page_internal: data_offset=0x%x, date_len=0x%x, oob_offset=0x%x, oob_len=0x%x\n", data_offset, data_len, oob_offset, oob_len);
 			_SPI_NAND_DEBUG_PRINTF_ARRAY(SPI_NAND_FLASH_DEBUG_LEVEL_2, &ptr_oob[0], oob_len);
 
-			rtn_status = spi_nand_write_page(page_number, addr_offset, ptr_data, data_len, 0, ptr_oob, MAX_USE_OOB_SIZE , speed_mode);
+			rtn_status = spi_nand_write_page(page_number, data_offset, ptr_data, data_len, 0, ptr_oob, MAX_USE_OOB_SIZE, speed_mode);
 		} else {
 			rtn_status = SPI_NAND_FLASH_RTN_PROGRAM_FAIL;
 		}
@@ -3167,7 +2984,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page_internal(u32 page_number,
 			}
 		}
 #else
-	rtn_status = spi_nand_write_page(page_number, addr_offset, ptr_data, data_len, 0, ptr_oob, MAX_USE_OOB_SIZE, speed_mode);
+	rtn_status = spi_nand_write_page(page_number, data_offset, ptr_data, data_len, 0, ptr_oob, MAX_USE_OOB_SIZE, speed_mode);
 #endif
 
 	SPI_NAND_Flash_Clear_Read_Cache_Data();
@@ -3217,8 +3034,8 @@ static SPI_NAND_FLASH_RTN_T spi_nand_read_page_internal(u32 page_number,
 static int spinand_program_page(struct mtd_info *mtd,
 				u32 page_id, u32 offset, u32 len, u8 *buf)
 {
-	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 	struct spinand_state *state = mtd_to_state(mtd);
+	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
 
 	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "[spinand_program_page]: enter, page=0x%x\n", page_id);
@@ -3226,13 +3043,11 @@ static int spinand_program_page(struct mtd_info *mtd,
 	_SPI_NAND_DEBUG_PRINTF_ARRAY(SPI_NAND_FLASH_DEBUG_LEVEL_2, &(state->oob_buf[0]), (state->oob_buf_len));
 
 	rtn_status = spi_nand_write_page_internal(page_id, (state->buf_idx), &state->buf[(state->buf_idx)], (state->buf_len),  0, (&state->oob_buf[0]), (state->oob_buf_len), ptr_dev_info_t->write_mode);
-
-	if( rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR) {
+	if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR)
 		return 0;
-	} else {
-		_SPI_NAND_PRINTF("spinand_program_page, error\n");
-		return -1;
-	}
+
+	_SPI_NAND_PRINTF("spinand_program_page, error\n");
+	return -1;
 }
 
 /**
@@ -3254,28 +3069,28 @@ static int spinand_erase_block(u32 block_id)
 	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1,"[spinand_erase_block]: enter, block id=0x%x \n", block_id);
 
 	rtn_status = spi_nand_erase_internal(block_id * ptr_dev_info_t->erase_size, ptr_dev_info_t->erase_size);
-
-	if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR) {
+	if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR)
 		return 0;
-	} else {
-		_SPI_NAND_PRINTF("spinand_erase_block, error\n");
-		return -1;
-	}
+
+	_SPI_NAND_PRINTF("spinand_erase_block, error\n");
+	return -1;
 }
 
 static void spinand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
-	int min_oob_size;
 	struct spinand_state *state = mtd_to_state(mtd);
+	int min_oob_size;
 
 	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "[spinand_write_buf]: enter \n");
 
-	if(state->col >= mtd->writesize) {	/* Write OOB area */
+	if(state->col >= mtd->writesize) {
+		/* Write OOB area */
 		min_oob_size = MIN(len, (MAX_LINUX_USE_OOB_SIZE - ((state->col) - (mtd->writesize))));
 		memcpy( &(state->oob_buf)[((state->col)-(mtd->writesize))+LINUX_USE_OOB_START_OFFSET], buf, min_oob_size);
 		state->col += min_oob_size;
 		state->oob_buf_len = min_oob_size;
-	} else {							/* Write Data area */
+	} else {
+		/* Write Data area */
 		memcpy( &(state->buf)[state->buf_idx], buf, len);
 		state->col += len;
 		state->buf_len += len;
@@ -3293,9 +3108,11 @@ static void spinand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	    (state->command == NAND_CMD_STATUS) ) {
 		memcpy(buf, &state->buf, len);
 	} else {
-		if( (state->buf_idx) < ( ptr_dev_info_t->page_size )) {		/* Read data area */
+		if( (state->buf_idx) < ( ptr_dev_info_t->page_size )) {
+			/* Read data area */
 			memcpy(buf, &_current_cache_page_data[state->buf_idx], len);
-		} else {							/* Read oob area */
+		} else {
+			/* Read oob area */
 			/* dump_stack(); */
 			memcpy(buf, &_current_cache_page_oob_mapping[ ((state->buf_idx)-(ptr_dev_info_t->page_size))+ LINUX_USE_OOB_START_OFFSET], len);
 		}
@@ -3317,16 +3134,22 @@ static void spinand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
  */
 static int spinand_enable_ecc(void)
 {
-	u8 otp = 0;
+	SPI_NAND_FLASH_RTN_T flash_rtn;
 
-	SPI_NAND_Flash_Enable_OnDie_ECC();
+	flash_rtn = SPI_NAND_Flash_Enable_OnDie_ECC();
+	if (flash_rtn != SPI_NAND_FLASH_RTN_NO_ERROR)
+		return -1;
 
-	return spinand_get_otp(&otp);
+	return 0;
 }
 
 static int spinand_disable_ecc(void)
 {
-	SPI_NAND_Flash_Disable_OnDie_ECC();
+	SPI_NAND_FLASH_RTN_T flash_rtn;
+
+	flash_rtn = SPI_NAND_Flash_Disable_OnDie_ECC();
+	if (flash_rtn != SPI_NAND_FLASH_RTN_NO_ERROR)
+		return -1;
 
 	return 0;
 }
@@ -3376,7 +3199,7 @@ static int spinand_write_oob(struct mtd_info *mtd, struct nand_chip *chip, int p
 {
 	struct spinand_state *state = mtd_to_state(mtd);
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
-	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t= _SPI_NAND_GET_DEVICE_INFO_PTR;
+	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 
 	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "[spinand_write_oob]: enter, page=0x%x \n", page);
 
@@ -3384,12 +3207,10 @@ static int spinand_write_oob(struct mtd_info *mtd, struct nand_chip *chip, int p
 	memcpy(&(state->oob_buf)[LINUX_USE_OOB_START_OFFSET], chip->oob_poi, MAX_LINUX_USE_OOB_SIZE);
 
 	rtn_status = spi_nand_write_page_internal(page, 0, NULL, 0,  0, (&state->oob_buf[0]), MAX_LINUX_USE_OOB_SIZE, ptr_dev_info_t->write_mode);
-
-	if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR) {
+	if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR)
 		return 0;
-	} else {
-		return -EIO;
-	}
+
+	return -EIO;
 }
 
 static int spinand_block_markbad(struct mtd_info *mtd, loff_t offset)
@@ -3657,7 +3478,7 @@ static int en75xx_spinand_probe(void)
 
 	/* disable OnDie ECC */
 	if (spinand_disable_ecc() < 0)
-		pr_warn("%s: disable ecc failed!\n", __func__);
+		pr_warn("%s: disable ECC failed!\n", __func__);
 #endif
 
 	/* for BMT, we need to revise driver architecture */

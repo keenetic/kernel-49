@@ -55,10 +55,12 @@ struct spi_nand_flash_ooblayout ooblayout_type7 = {
 	.oobfree = {{0,4}, {4,4}, {20,4}, {36,4}, {52,4}}
 };
 
+#if 0
 struct spi_nand_flash_ooblayout ooblayout_type8 = {
 	.oobsize = 20,
 	.oobfree = {{0,4}, {4,4}, {20,4}, {36,4}, {52,4}}
 };
+#endif
 
 struct spi_nand_flash_ooblayout ooblayout_type9 = {
 	.oobsize = 64,
@@ -383,7 +385,7 @@ static const struct SPI_NAND_FLASH_INFO_T spi_nand_flash_tables[] = {
 		dummy_mode:					SPI_NAND_FLASH_READ_DUMMY_BYTE_APPEND,
 		read_mode:					SPI_NAND_FLASH_READ_SPEED_MODE_DUAL,
 		write_mode:					SPI_NAND_FLASH_WRITE_SPEED_MODE_SINGLE,
-		oob_free_layout: 			&ooblayout_type8,
+		oob_free_layout: 			&ooblayout_type7,
 		feature:					SPI_NAND_FLASH_FEATURE_NONE,
 		die_num:					1,
 		ecc_fail_check_info:		{0x30, 0x20},
@@ -403,7 +405,7 @@ static const struct SPI_NAND_FLASH_INFO_T spi_nand_flash_tables[] = {
 		dummy_mode: 				SPI_NAND_FLASH_READ_DUMMY_BYTE_APPEND,
 		read_mode:					SPI_NAND_FLASH_READ_SPEED_MODE_DUAL,
 		write_mode:					SPI_NAND_FLASH_WRITE_SPEED_MODE_SINGLE,
-		oob_free_layout: 			&ooblayout_type8,
+		oob_free_layout: 			&ooblayout_type7,
 		feature:					SPI_NAND_FLASH_DIE_SELECT_1_HAVE,
 		die_num:					2,
 		ecc_fail_check_info:		{0x30, 0x20},

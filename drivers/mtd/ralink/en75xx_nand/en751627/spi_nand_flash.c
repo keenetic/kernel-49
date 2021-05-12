@@ -205,8 +205,10 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 
 static u8 *dma_read_page = NULL;
 static u8 *dma_write_page = NULL;
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 static u8 tmp_dma_read_page[_SPI_NAND_CACHE_SIZE + CACHE_LINE_SIZE];
 static u8 tmp_dma_write_page[_SPI_NAND_CACHE_SIZE + CACHE_LINE_SIZE];
+#endif
 static u8 _current_cache_page[_SPI_NAND_CACHE_SIZE];
 static u8 _current_cache_page_data[_SPI_NAND_PAGE_SIZE];
 static u8 _current_cache_page_oob[_SPI_NAND_OOB_SIZE];
@@ -234,7 +236,11 @@ static init_bbt_struct *g_bbt;
 static struct SPI_NAND_FLASH_INFO_T _current_flash_info_t;	/* Store the current flash information */
 static u32 _current_page_num = SPI_NAND_UNKNOWN_PAGE;
 static unsigned char _ondie_ecc_flag = 1;    /* Ondie ECC : [ToDo :  Init this flag base on diffrent chip ?] */
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 static unsigned char _spi_dma_mode;
+#else
+#define _spi_dma_mode 0
+#endif
 static unsigned char _plane_select_bit;
 static unsigned char _die_id;
 
@@ -680,6 +686,7 @@ static inline void SPI_NAND_Flash_Clear_Read_Cache_Data( void )
 	_current_page_num = SPI_NAND_UNKNOWN_PAGE;
 }
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 static inline void SPI_NAND_Flash_Set_DmaMode( u32 input )
 {
 	_spi_dma_mode = input;
@@ -691,6 +698,7 @@ static inline void SPI_NAND_Flash_Get_DmaMode( u32 *val )
 	*val = _spi_dma_mode;
 	_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "SPI_NAND_Flash_Get_DmaMode : dma_mode =%d\n", _spi_dma_mode);
 }
+#endif
 
 static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Enable_OnDie_ECC( void )
 {
@@ -1118,16 +1126,9 @@ static SPI_NAND_FLASH_RTN_T spi_nand_read_page (u32 page_number, SPI_NAND_FLASH_
 	u32 i, j;
 	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_NO_ERROR;
-	SPI_NFI_RTN_T nfi_status;
 	struct spi_nand_flash_oobfree *ptr_oob_entry_idx;
-	SPI_NFI_MISC_SPEDD_CONTROL_T dma_speed_mode;
 	SPI_NFI_CONF_T spi_nfi_conf_t;
-	SPI_ECC_DECODE_CONF_T spi_ecc_decode_conf_t;
-	u32 check_cnt;
-	SPI_ECC_DECODE_STATUS_T decode_status_t;
-	SPI_CONTROLLER_CONF_T spi_conf_t;
 	u32 offset1, offset2, offset3, dma_sec_size;
-	u32 read_cmd;
 	u16 read_addr;
 
 	if(_current_page_num != page_number) {
@@ -1162,6 +1163,14 @@ static SPI_NAND_FLASH_RTN_T spi_nand_read_page (u32 page_number, SPI_NAND_FLASH_
 		}
 
 		if(_spi_dma_mode ==1 ) {
+			SPI_NFI_MISC_SPEDD_CONTROL_T dma_speed_mode;
+			SPI_CONTROLLER_CONF_T spi_conf_t;
+			SPI_ECC_DECODE_CONF_T spi_ecc_decode_conf_t;
+			u32 check_cnt;
+			u32 read_cmd;
+			SPI_ECC_DECODE_STATUS_T decode_status_t;
+			SPI_NFI_RTN_T nfi_status;
+
 			SPI_CONTROLLER_Get_Configure(&spi_conf_t);
 
 			spi_conf_t.dummy_byte_num = 0;
@@ -1577,6 +1586,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_protocol_program_execute ( u32 addr )
 	return (rtn_status);
 }
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 static SPI_NAND_FLASH_RTN_T spi_nand_dma_program_load(u32 addr, u32 oob_len, SPI_NAND_FLASH_WRITE_SPEED_MODE_T speed_mode)
 {
 	SPI_CONTROLLER_CONF_T spi_conf_t;
@@ -1656,6 +1666,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_dma_program_load(u32 addr, u32 oob_len, SPI
 
 	return rtn_status;
 }
+#endif
 
 #ifdef UBIFS_BLANK_PAGE_FIXUP
 UBIFS_BLANK_PAGE_ECC_T check_blank_page(u32 page_number)
@@ -1663,10 +1674,8 @@ UBIFS_BLANK_PAGE_ECC_T check_blank_page(u32 page_number)
 	struct SPI_NAND_FLASH_INFO_T *ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 	u32 block, page_per_block;
 	u8 ecc_parity_0[8] = {0};
-	u8 ctlerECC_blank_ecc_4[] = {0x26, 0x20, 0x98, 0x1b, 0x87, 0x6e, 0xfc, 0xff};
-	SPI_NFI_CONF_T spi_nfi_conf_t;
 	int cmpVal;
-	u8 i = 0, sec_idx;
+	u8 i;
 #if defined(SPI_NAND_FLASH_DEBUG)
 	SPI_NAND_FLASH_DEBUG_LEVEL_T ubiDbgLv = SPI_NAND_FLASH_DEBUG_LEVEL_2;
 #endif
@@ -1698,7 +1707,13 @@ UBIFS_BLANK_PAGE_ECC_T check_blank_page(u32 page_number)
 
 		return SPI_NAND_FLASH_UBIFS_BLANK_PAGE_ECC_MATCH; /* Good Page*/
 
-	} else if(isEN7526c && isSpiControllerECC) {
+	}
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
+	else if(isEN7526c && isSpiControllerECC) {
+		u8 ctlerECC_blank_ecc_4[] = {0x26, 0x20, 0x98, 0x1b, 0x87, 0x6e, 0xfc, 0xff};
+		SPI_NFI_CONF_T spi_nfi_conf_t;
+		u8 sec_idx;
+
 		SPI_NFI_Get_Configure(&spi_nfi_conf_t);
 
 		for (sec_idx = 0; sec_idx < spi_nfi_conf_t.sec_num; sec_idx++) {
@@ -1713,6 +1728,7 @@ UBIFS_BLANK_PAGE_ECC_T check_blank_page(u32 page_number)
 			}
 		}
 	}
+#endif
 
 	return SPI_NAND_FLASH_UBIFS_BLANK_PAGE_ECC_MATCH; /* Good Page*/
 }
@@ -1737,6 +1753,7 @@ SPI_NAND_FLASH_RTN_T store_block(u32 block, u8 *block_buf)
 		if(rtn_status == SPI_NAND_FLASH_RTN_NO_ERROR) {
 			_SPI_NAND_DEBUG_PRINTF(ubiDbgLv, "store_block: block:0x%x page offset:0x%x\n", block, i);
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 			if(isEN7526c && isSpiControllerECC) {
 				memcpy(block_buf + i * (ptr_dev_info_t->page_size + ptr_dev_info_t->oob_size),
 					   _current_cache_page_data,
@@ -1746,7 +1763,9 @@ SPI_NAND_FLASH_RTN_T store_block(u32 block, u8 *block_buf)
 					   ptr_dev_info_t->oob_size);
 				_SPI_NAND_DEBUG_PRINTF_ARRAY(SPI_NAND_FLASH_DEBUG_LEVEL_2, &_current_cache_page_data[0], (ptr_dev_info_t->page_size));
 				_SPI_NAND_DEBUG_PRINTF_ARRAY(SPI_NAND_FLASH_DEBUG_LEVEL_2, &_current_cache_page_oob[0], (ptr_dev_info_t->oob_size));
-			} else {
+			} else
+#endif
+			{
 				if(_spi_dma_mode == 1) {
 					memcpy(block_buf + i * (ptr_dev_info_t->page_size + ptr_dev_info_t->oob_size),
 						   dma_read_page,
@@ -1931,7 +1950,9 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 	/* write to write_addr index in the page */
 	write_addr = 0;
 
-	SPI_NFI_Get_Configure(&spi_nfi_conf_t);
+	if(_spi_dma_mode == 1) {
+		SPI_NFI_Get_Configure(&spi_nfi_conf_t);
+	}
 
 	/* Switch to manual mode*/
 	_SPI_NAND_ENABLE_MANUAL_MODE();
@@ -1947,17 +1968,21 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 #ifdef UBIFS_BLANK_PAGE_FIXUP
 	if(isUbifsBlankPageFix == 0) {
 		/* Read Current page data to software cache buffer */
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 		if(isEN7526c && isSpiControllerECC) {
 			spi_nfi_conf_t.auto_fdm_t = SPI_NFI_CON_AUTO_FDM_Disable;
 			SPI_NFI_Set_Configure(&spi_nfi_conf_t);
 		}
+#endif
 
 		spi_nand_read_page(page_number, speed_mode);
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 		if(isEN7526c && isSpiControllerECC) {
 			spi_nfi_conf_t.auto_fdm_t = SPI_NFI_CON_AUTO_FDM_Enable;
 			SPI_NFI_Set_Configure(&spi_nfi_conf_t);
 		}
+#endif
 
 		if(check_blank_page(page_number) == SPI_NAND_FLASH_UBIFS_BLANK_PAGE_ECC_MISMATCH) {
 			isUbifsBlankPageFix = 1;
@@ -1974,7 +1999,9 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 	spi_nand_read_page(page_number, speed_mode);
 #endif
 
-	dma_cache_inv((unsigned long)dma_write_page, _SPI_NAND_CACHE_SIZE);
+	if(_spi_dma_mode == 1) {
+		dma_cache_inv((unsigned long)dma_write_page, _SPI_NAND_CACHE_SIZE);
+	}
 
 	/* Write data & OOB */
 	if((_spi_dma_mode == 0) ||
@@ -2075,6 +2102,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 
 	/* Different Manafacture have different prgoram flow and setting */
 	if(ptr_dev_info_t->write_en_type == SPI_NAND_FLASH_WRITE_LOAD_FIRST) {
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 		if(_spi_dma_mode == 1) {
 			rtn_status = spi_nand_dma_program_load(write_addr, oob_len, speed_mode);
 			if(rtn_status != SPI_NAND_FLASH_RTN_NO_ERROR) {
@@ -2083,7 +2111,9 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 				_SPI_NAND_ENABLE_MANUAL_MODE();
 				return (rtn_status);
 			}
-		} else {
+		} else
+#endif
+		{
 			spi_nand_protocol_program_load(write_addr, &_current_cache_page[0], ((ptr_dev_info_t->page_size) + (ptr_dev_info_t->oob_size)), speed_mode);
 		}
 
@@ -2093,6 +2123,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 		/* Enable write_to flash */
 		spi_nand_protocol_write_enable();
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 		if(_spi_dma_mode == 1) {
 			rtn_status = spi_nand_dma_program_load(write_addr, oob_len, speed_mode);
 			if(rtn_status != SPI_NAND_FLASH_RTN_NO_ERROR) {
@@ -2101,7 +2132,9 @@ static SPI_NAND_FLASH_RTN_T spi_nand_write_page(u32 page_number,
 				_SPI_NAND_ENABLE_MANUAL_MODE();
 				return (rtn_status);
 			}
-		} else {
+		} else
+#endif
+		{
 			/* Proram data into buffer of SPI NAND chip */
 			spi_nand_protocol_program_load(write_addr, &_current_cache_page[0], ((ptr_dev_info_t->page_size) + (ptr_dev_info_t->oob_size)), speed_mode);
 		}
@@ -2582,6 +2615,7 @@ static SPI_NAND_FLASH_RTN_T spi_nand_probe( struct SPI_NAND_FLASH_INFO_T *ptr_rt
 	return (rtn_status);
 }
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 static void enable_dma(SPI_NFI_CONF_T *spi_nfi_conf_t,
 				SPI_ECC_ENCODE_CONF_T *encode_conf_t,
 				SPI_ECC_DECODE_CONF_T *decode_conf_t)
@@ -2624,6 +2658,7 @@ static void enable_dma(SPI_NFI_CONF_T *spi_nfi_conf_t,
 		SPI_ECC_Decode_Set_Configure(decode_conf_t);
 	}
 }
+#endif
 
 #if defined(TCSUPPORT_NAND_BMT)
 static int init_bmt_bbt(struct mtd_info *mtd)
@@ -2680,14 +2715,12 @@ static int init_bmt_bbt(struct mtd_info *mtd)
 
 static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 {
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 	SPI_NFI_CONF_T spi_nfi_conf_t;
 	SPI_ECC_ENCODE_CONF_T encode_conf_t;
 	SPI_ECC_DECODE_CONF_T decode_conf_t;
 	int sec_num;
-	unsigned long spi_nand_info;
-	SPI_ECC_ENCODE_ABILITY_T encode_ecc_abiliry;
-	SPI_ECC_DECODE_ABILITY_T decode_ecc_abiliry;
-	SPI_NFI_CONF_SPARE_SIZE_T spare_size_t;
+#endif
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_PROBE_ERROR;
 
 	/* 1. set SFC Clock to 50MHZ  */
@@ -2717,6 +2750,7 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 		nand_logic_size = _current_flash_info_t.device_size - _current_flash_info_t.erase_size;
 #endif
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 		/* for 32bytes alignment */
 		if(dma_read_page == NULL) {
 			dma_read_page = tmp_dma_read_page + (CACHE_LINE_SIZE - (((u32)tmp_dma_read_page) % CACHE_LINE_SIZE));
@@ -2740,6 +2774,11 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 		}
 
 		if(isSpiControllerECC) {
+			unsigned long spi_nand_info;
+			SPI_ECC_ENCODE_ABILITY_T encode_ecc_abiliry;
+			SPI_ECC_DECODE_ABILITY_T decode_ecc_abiliry;
+			SPI_NFI_CONF_SPARE_SIZE_T spare_size_t;
+
 			/* Disable OnDie ECC */
 			SPI_NAND_Flash_Disable_OnDie_ECC();
 
@@ -2784,11 +2823,13 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 
 			/* enable DMA */
 			enable_dma(&spi_nfi_conf_t, &encode_conf_t, &decode_conf_t);
-		} else {
+		} else
+#endif
+		{
 			_SPI_NAND_PRINTF("Using Flash ECC\n");
 			SPI_NAND_Flash_Enable_OnDie_ECC();
 
-#ifdef TCSUPPORT_SPI_NAND_FLASH_ECC_DMA
+#if defined(TCSUPPORT_SPI_NAND_FLASH_ECC_DMA)
 			if(isEN7526c || isEN751627) {
 				/* Setup NFI */
 				spi_nfi_conf_t.auto_fdm_t		= SPI_NFI_CON_AUTO_FDM_Disable;

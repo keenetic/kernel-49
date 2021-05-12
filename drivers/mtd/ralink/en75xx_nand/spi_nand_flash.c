@@ -50,9 +50,9 @@
 
 #include "spi_ecc.h"
 #include "spi_nfi.h"
-#include "../spi_controller.h"
+#include "spi_controller.h"
 #if defined(TCSUPPORT_NAND_BMT)
-#include "../bmt.h"
+#include "bmt.h"
 #endif
 
 #include "spi_nand_flash.h"
@@ -3541,7 +3541,7 @@ static int en75xx_spinand_probe(void)
 	host->mtd = nand_to_mtd(chip);
 	mtd = host->mtd;
 	mtd->priv			= chip;
-	mtd->name			= "EN7516-SPI_NAND";
+	mtd->name			= "EN75XX-SPI_NAND";
 	mtd->owner			= THIS_MODULE;
 	mtd->oobsize			= MAX_LINUX_USE_OOB_SIZE;
 

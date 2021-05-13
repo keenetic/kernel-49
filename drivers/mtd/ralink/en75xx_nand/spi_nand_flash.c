@@ -2393,14 +2393,14 @@ int en7512_nand_check_block_bad(u32 offset, u32 bmt_block)
 #endif
 	if(bmt_block) {
 		if(bad_block_indicator[BMT_BAD_BLOCK_INDEX_OFFSET] != 0xff) {
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Bad block detected at page_addr 0x%x, oob_buf[%d] is 0x%x\n",
+			_SPI_NAND_PRINTF("Bad block detected at page_addr 0x%x, oob_buf[%d] is 0x%x\n",
 				page_number, BMT_BAD_BLOCK_INDEX_OFFSET, bad_block_indicator[BMT_BAD_BLOCK_INDEX_OFFSET]);
 			return 1;
 		}
 	}
 	else {
 		if(bad_block_indicator[0] != 0xff) {
-			_SPI_NAND_DEBUG_PRINTF(SPI_NAND_FLASH_DEBUG_LEVEL_1, "Bad block detected at page_addr 0x%x, oob_buf[%d] is 0x%x\n",
+			_SPI_NAND_PRINTF("Bad block detected at page_addr 0x%x, oob_buf[%d] is 0x%x\n",
 				page_number, 0, bad_block_indicator[0]);
 			return 1;
 		}

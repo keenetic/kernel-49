@@ -118,8 +118,10 @@ struct spi_nand_flash_ooblayout ooblayout_type19 = {
 };
 
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 /* ===== SPI NAND Controller ECC ooblayout ===== */
 struct spi_nand_flash_ooblayout ooblayout_spi_controller_ecc;
+#endif
 
 /*****************************[ Notice]******************************/
 /* If new spi nand chip have page size more than 4KB,  or oob size more than 256 bytes,  than*/
@@ -1441,6 +1443,7 @@ static const struct SPI_NAND_FLASH_INFO_T spi_nand_flash_tables[] = {
 		ecc_en:						{_SPI_NAND_ADDR_ECC, 0x10, 0x10},
 	},
 
+#if defined(TCSUPPORT_SPI_CONTROLLER_ECC)
 	/* ===== SPI controller ECC ===== */
 
 	/* ===== MXIC ===== */
@@ -1484,6 +1487,7 @@ static const struct SPI_NAND_FLASH_INFO_T spi_nand_flash_tables[] = {
 		quad_en:					{0x01, 0x01},
 		ecc_en:						{_SPI_NAND_ADDR_FEATURE, 0x00, 0x00},
 	},
+#endif
 #endif
 };
 

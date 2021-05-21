@@ -278,7 +278,7 @@ stp_print_mstp_bpdu(const struct stp_bpdu *bpdu, size_t length,
 		bittok2str(stp_bpdu_flag_values, "none", bpdu->flags,
 			   buf, buflen));
 
-	pr_cont(", CIST bridge-id %s.%04x, length %u\n",
+	pr_cont(", CIST bridge-id %s.%04x, length %zu\n",
 		stp_print_id(ptr + MST_BPDU_CIST_BRIDGE_ID_OFFSET, buf, buflen),
 		get_unaligned_be16(&bpdu->port_id), length);
 

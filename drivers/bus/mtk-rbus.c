@@ -68,7 +68,7 @@ int rbus_init_wakeup(struct device *dev, bool enable)
 }
 EXPORT_SYMBOL(rbus_init_wakeup);
 
-int rbus_set_dma_coherent(struct device *dev, bool coherent)
+void rbus_set_dma_coherent(struct device *dev, bool coherent)
 {
 	arch_setup_dma_ops(dev, 0, 0, NULL, coherent);
 }

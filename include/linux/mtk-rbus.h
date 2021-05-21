@@ -19,6 +19,6 @@ int rbus_init_wakeup(struct device *dev, bool enable);
 int rbus_clk_enable(struct clk *clk, bool enable);
 void rbus_pm_runtime_enable(struct device *dev, bool enable);
 
-int rbus_set_dma_coherent(struct device *dev, bool coherent);
+void rbus_set_dma_coherent(struct device *dev, bool coherent);
 
 #endif /* _MTK_RBUS_H_ */

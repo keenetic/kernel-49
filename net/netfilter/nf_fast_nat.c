@@ -253,7 +253,7 @@ int nf_fastpath_esp4_in(struct net *net, struct sk_buff *skb,
 			int hlen = sizeof(struct udphdr);
 			const struct udphdr *uh;
 
-			hlen += min(esp_len, 3 * sizeof(__be32));
+			hlen += min_t(int, esp_len, 3 * sizeof(__be32));
 			uh = skb_header_pointer(skb, dataoff, hlen, _l4hdr);
 
 			/* perform input bypass only on NAT-T UDP/4500 */

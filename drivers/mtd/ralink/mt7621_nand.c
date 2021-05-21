@@ -1105,7 +1105,6 @@ EXPORT_SYMBOL(check_block_remap);
 static int check_ecc_0(struct mtd_info *mtd, int page)
 {
 	int i;
-	struct nand_chip *chip = mtd->priv;
 	u8 local_oob[NAND_MAX_OOBSIZE];
 
 	// for 4 bits ecc protection, the all 0xff is 26 20 98 1b 87 6e fc

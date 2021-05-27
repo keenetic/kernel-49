@@ -467,7 +467,7 @@ static struct uart_port tc3162_uart_ports[TC3162_UART_NR_PORTS] = {
 		.fifosize	= 1,
 		.ops		= &tc3162_uart_ops,
 		.line		= 0,
-		.flags		= ASYNC_BOOT_AUTOCONF
+		.flags		= UPF_BOOT_AUTOCONF
 	}
 };
 

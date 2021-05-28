@@ -4201,7 +4201,8 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	chip->chipsize = (uint64_t)type->chipsize << 20;
 
-#if IS_ENABLED(CONFIG_MTD_SNAND_MTK)
+#if IS_ENABLED(CONFIG_MTD_SNAND_MTK) || \
+    IS_ENABLED(CONFIG_MTD_SPINAND_ECONET)
 	/*
 	 * Check if write size or oob size is initialized, do not get
 	 * parameters from decode their IDs

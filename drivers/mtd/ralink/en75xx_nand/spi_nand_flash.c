@@ -3482,7 +3482,10 @@ static int en75xx_spinand_probe(void)
 	memset(_current_cache_page_oob, 0xff, sizeof(_current_cache_page_oob));
 	memset(_current_cache_page_oob_mapping, 0xff, sizeof(_current_cache_page_oob_mapping));
 
-	SPI_NAND_Flash_Init();
+	if (SPI_NAND_Flash_Init() != SPI_NAND_FLASH_RTN_NO_ERROR) {
+		err = -ENXIO;
+		goto out_err_free;
+	}
 
 	ptr_dev_info_t = _SPI_NAND_GET_DEVICE_INFO_PTR;
 
@@ -3543,7 +3546,9 @@ static int en75xx_spinand_probe(void)
 	mtd->priv			= chip;
 	mtd->name			= "EN75XX-SPI_NAND";
 	mtd->owner			= THIS_MODULE;
-	mtd->oobsize			= MAX_LINUX_USE_OOB_SIZE;
+	mtd->writesize			= ptr_dev_info_t->page_size;
+	mtd->oobsize			= ptr_dev_info_t->oob_size;
+	mtd->erasesize			= ptr_dev_info_t->erase_size;
 
 #ifdef SPINAND_ONDIEECC
 	mtd_set_ooblayout(mtd, &spinand_ooblayout_ops);
@@ -3553,6 +3558,7 @@ static int en75xx_spinand_probe(void)
 	spi_nand_flash_ids[0].name	= ptr_dev_info_t->ptr_name;
 	spi_nand_flash_ids[0].dev_id	= ptr_dev_info_t->dev_id;
 	spi_nand_flash_ids[0].pagesize	= ptr_dev_info_t->page_size;
+	spi_nand_flash_ids[0].oobsize	= ptr_dev_info_t->oob_size;
 	spi_nand_flash_ids[0].chipsize	= (ptr_dev_info_t->device_size) >> 20;
 	spi_nand_flash_ids[0].erasesize	= ptr_dev_info_t->erase_size;
 

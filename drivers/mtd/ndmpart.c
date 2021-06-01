@@ -738,18 +738,6 @@ static int create_mtd_partitions(struct mtd_info *m,
 	if (use_dump && !use_storage) {
 		parts[PART_CONFIG_1].offset = parts[PART_DUMP].offset -
 					      parts[PART_CONFIG_1].size;
-
-#if defined(CONFIG_MACH_MT7622) && defined(CONFIG_MTD_SNAND_MTK)
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-		off = parts[PART_DUMP].offset + parts[PART_DUMP].size;
-
-		if (m->size >= (off + m->erasesize)) {
-			parts[PART_STORAGE_A].offset = off;
-			parts[PART_STORAGE_A].size = m->size - off;
-			parts[PART_STORAGE_A].skip = false;
-		}
-#endif
-#endif
 	} else if (!use_dump && use_storage) {
 		parts[PART_STORAGE].offset = flash_size_lim -
 					     parts[PART_STORAGE].size;
@@ -760,18 +748,18 @@ static int create_mtd_partitions(struct mtd_info *m,
 					     parts[PART_STORAGE].size;
 		parts[PART_CONFIG_1].offset = parts[PART_STORAGE].offset -
 					      parts[PART_CONFIG_1].size;
-
-		off = parts[PART_DUMP].offset + parts[PART_DUMP].size;
-
-		if (m->size >= (off + m->erasesize)) {
-			parts[PART_STORAGE_A].offset = off;
-			parts[PART_STORAGE_A].size = m->size - off;
-			parts[PART_STORAGE_A].skip = false;
-		}
 	} else {
 		parts[PART_CONFIG_1].offset = flash_size_lim -
 					      parts[PART_CONFIG_1].size;
 	}
+
+#ifdef CONFIG_MTD_NDM_EXTENDED_STORAGE
+	if (m->size > flash_size_lim) {
+		parts[PART_STORAGE_A].offset = flash_size_lim;
+		parts[PART_STORAGE_A].size = m->size - flash_size_lim;
+		parts[PART_STORAGE_A].skip = false;
+	}
+#endif
 
 	parts[PART_FIRMWARE_1].size = parts[PART_CONFIG_1].offset -
 				      parts[PART_FIRMWARE_1].offset;

@@ -202,6 +202,11 @@ config MTD_NDM_FLASH_SIZE_LIMIT
 	default 0x0
 	depends on MTD_NDM_PARTS
 
+config MTD_NDM_EXTENDED_STORAGE
+	bool "Create an extended storage partition"
+	default n
+	depends on MTD_NDM_PARTS
+
 comment "User Modules And Translation Layers"
 
 #

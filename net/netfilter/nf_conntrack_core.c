@@ -58,9 +58,7 @@
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netns/hash.h>
 
-#include <net/dsfield.h>
-#include <linux/netfilter/xt_DSCP.h>
-#include <linux/netfilter/xt_connndmmark.h>
+#include <net/netfilter/nf_nsc.h>
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 #include <../ndm/hw_nat/ra_nat.h>
@@ -1606,25 +1604,6 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	return ct;
 }
 
-static inline u8 ndm_sc_to_dscp(const u8 sc)
-{
-	/* Must be in-sync with kernel and ndm
-	 */
-
-	static const u8 SC_TO_DSCP_[] =
-	{
-		0x00, /* 0 -> DF */
-		0x2e, /* 1 -> EF */
-		0x22, /* 2 -> AF41 */
-		0x1a, /* 3 -> AF31 */
-		0x12, /* 4 -> AF21 */
-		0x0e, /* 5 -> AF13 */
-		0x08, /* 6 -> CS1 */
-	};
-
-	return SC_TO_DSCP_[sc];
-}
-
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
 static inline void
 nf_conntrack_update_ifaces(struct net *net, struct sk_buff *skb,
@@ -1876,11 +1855,6 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		u8 _l4hdr[4];
 		__be32 orig_src, new_src;
 		__be16 orig_port = 0;
-		const u8 skbdscp =
-			(ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT);
-		const u8 ctdscp = ndm_sc_to_dscp(
-			(ct->ndm_mark & XT_CONNNDMMARK_CS_MASK) >>
-			XT_CONNNDMMARK_CS_SHIFT);
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		u32 oldmark = skb->mark;
 #endif
@@ -1905,25 +1879,11 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		if (ct->mark != 0)
 			skb->mark = ct->mark;
-#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
-		if (ct->ndm_mark != 0)
-			skb->ndm_mark = ct->ndm_mark & ~XT_CONNNDMMARK_CS_MASK;
-#endif
 #endif
 
-		if (ctdscp > 0 && skbdscp != ctdscp) {
-			if (!skb_make_writable(skb, sizeof(struct iphdr))) {
-				ret = NF_DROP;
-				goto out;
-			}
-
-#if IS_ENABLED(CONFIG_RA_HW_NAT)
-			FOE_ALG_MARK(skb);
-#endif
-
-			ipv4_change_dsfield(ip_hdr(skb),
-						(__force __u8)(~XT_DSCP_MASK),
-						(__force __u8)(ctdscp << XT_DSCP_SHIFT));
+		if (unlikely(nf_nsc_update_dscp(ct, skb))) {
+			ret = NF_DROP;
+			goto out;
 		}
 
 		ntce_skip_swnat = nf_ntce_enqueue_in(hooknum, ct, skb);

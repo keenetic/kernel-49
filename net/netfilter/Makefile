@@ -11,6 +11,7 @@ obj-$(CONFIG_NETFILTER) = netfilter.o
 obj-$(CONFIG_NETFILTER_FP_SMB) += nf_fp_smb.o
 
 obj-$(CONFIG_NTCE_MODULE) += nf_ntce.o
+obj-y += nf_nsc.o
 
 obj-$(CONFIG_NETFILTER_NETLINK) += nfnetlink.o
 obj-$(CONFIG_NETFILTER_NETLINK_ACCT) += nfnetlink_acct.o

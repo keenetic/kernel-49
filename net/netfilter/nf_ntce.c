@@ -1,6 +1,9 @@
 #ifdef CONFIG_NTCE_MODULE
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/sort.h>
+#include <linux/bsearch.h>
+#include <linux/vmalloc.h>
 
 #include <net/netfilter/nf_conntrack_acct.h>
 #include <linux/netfilter/nfnetlink.h>
@@ -10,6 +13,7 @@
 #include <../ndm/hw_nat/ra_nat.h>
 #endif
 
+#include <net/netfilter/nf_nsc.h>
 #include <net/netfilter/nf_ntce.h>
 
 enum nf_ct_ext_id nf_ct_ext_id_ntce __read_mostly;
@@ -18,8 +22,15 @@ EXPORT_SYMBOL(nf_ct_ext_id_ntce);
 #define NF_NTCE_IFACES_HASH_NUM		1024	/* must be 2^X */
 #define NF_NTCE_IFACES_COUNT		64	/* max 255 */
 
+#define NF_NTCE_QOS_MAP_SIZE		50
+
 struct nf_ntce_if_ent {
 	int iface;
+};
+
+struct nf_ntce_qos_map_ent {
+	u32 group;
+	u8 sc;
 };
 
 static struct net_device *nf_ntce_dev __read_mostly;
@@ -27,6 +38,9 @@ static struct net_device *nf_ntce_dev __read_mostly;
 static uint8_t nf_ntce_if_hash[NF_NTCE_IFACES_HASH_NUM] __read_mostly;
 static struct nf_ntce_if_ent nf_ntce_ifaces[NF_NTCE_IFACES_COUNT] __read_mostly;
 static DEFINE_SEQLOCK(nf_ntce_if_seqlock);
+static struct nf_ntce_qos_map_ent nf_ntce_qos_map[NF_NTCE_QOS_MAP_SIZE] __read_mostly;
+static size_t nf_ntce_qos_map_size __read_mostly;
+static DEFINE_RWLOCK(nf_ntce_qos_map_lock);
 
 static inline void nf_ntce_set_if_hash(int ifindex, int id)
 {
@@ -256,6 +270,151 @@ static const struct file_operations nf_ntce_if_queue_fops = {
 	.release	= seq_release,
 };
 
+static int nf_ntce_group_cmp(const void *lhs, const void *rhs)
+{
+	const struct nf_ntce_qos_map_ent *l = lhs;
+	const struct nf_ntce_qos_map_ent *r = rhs;
+
+	return
+		(l->group < r->group) ? -1 :
+		(l->group > r->group) ?  1 : 0;
+}
+
+static int nf_ntce_qos_map_seq_show(struct seq_file *s, void *v)
+{
+	size_t i;
+
+	read_lock(&nf_ntce_qos_map_lock);
+
+	for (i = 0; i < nf_ntce_qos_map_size; ++i) {
+		seq_printf(s, "%s%u,%u", i > 0 ? "," : "",
+			   (unsigned int)nf_ntce_qos_map[i].group,
+			   (unsigned int)nf_ntce_qos_map[i].sc);
+	}
+
+	read_unlock(&nf_ntce_qos_map_lock);
+
+	return 0;
+}
+
+static ssize_t nf_ntce_qos_map_seq_write(struct file *file,
+					 const char __user *buffer,
+					 size_t count, loff_t *ppos)
+{
+	char *buf = NULL;
+	int *opts = NULL;
+	int ret = count;
+	int i;
+	size_t num;
+	char *end;
+
+	if (count > (PAGE_SIZE - 1))
+		return -E2BIG;
+
+	buf = vmalloc(PAGE_SIZE);
+
+	if (buf == NULL)
+		return -ENOMEM;
+
+	opts = vmalloc((2 * NF_NTCE_QOS_MAP_SIZE + 1) * sizeof(int));
+
+	if (opts == NULL) {
+		vfree(buf);
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(buf, buffer, count)) {
+		ret = -EFAULT;
+		goto out_free;
+	}
+
+	buf[count] = '\0';
+
+	end = get_options(buf, 2 * NF_NTCE_QOS_MAP_SIZE, opts);
+
+	if (*end != '\0' && *end != '\r' && *end != '\n') {
+		pr_err("invalid options string: '%s'\n", buf);
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	if (opts[0] % 2 != 0) {
+		pr_err("invalid options count: %d\n", opts[0]);
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	num = opts[0] / 2;
+
+	if (num > NF_NTCE_QOS_MAP_SIZE) {
+		ret = -E2BIG;
+		goto out_free;
+	}
+
+	write_lock_bh(&nf_ntce_qos_map_lock);
+
+	for (i = 1; i < opts[0] + 1; i += 2) {
+		const int idx = i / 2;
+		const int sc = opts[i + 1];
+
+		if (!nf_nsc_valid_sc(sc)) {
+			pr_err("invalid service class value: %d\n", sc);
+			ret = -ERANGE;
+			goto out_free_locked;
+		}
+
+		nf_ntce_qos_map[idx].group = opts[i];
+		nf_ntce_qos_map[idx].sc = sc;
+	}
+
+	sort(nf_ntce_qos_map, num, sizeof(struct nf_ntce_qos_map_ent),
+	     &nf_ntce_group_cmp, NULL);
+	nf_ntce_qos_map_size = num;
+
+out_free_locked:
+	write_unlock_bh(&nf_ntce_qos_map_lock);
+out_free:
+	vfree(opts);
+	vfree(buf);
+
+	return ret;
+}
+
+static void *nf_ntce_qos_map_seq_start(struct seq_file *p, loff_t *pos)
+{
+	return NULL + (*pos == 0);
+}
+
+static void *nf_ntce_qos_map_seq_next(struct seq_file *p, void *v, loff_t *pos)
+{
+	++*pos;
+	return NULL;
+}
+
+static void nf_ntce_qos_map_seq_stop(struct seq_file *p, void *v)
+{
+}
+
+static const struct seq_operations nf_ntce_qos_map_seq_ops = {
+	.start	= nf_ntce_qos_map_seq_start,
+	.next	= nf_ntce_qos_map_seq_next,
+	.stop	= nf_ntce_qos_map_seq_stop,
+	.show	= nf_ntce_qos_map_seq_show,
+};
+
+static int nf_ntce_qos_map_seq_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &nf_ntce_qos_map_seq_ops);
+}
+
+static const struct file_operations nf_ntce_qos_map_fops = {
+	.open		= nf_ntce_qos_map_seq_open,
+	.write		= nf_ntce_qos_map_seq_write,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 static int nf_ntce_event(struct notifier_block *this,
 			 unsigned long event, void *ptr)
 {
@@ -291,7 +450,7 @@ int nf_ntce_init_proc(struct net *net)
 {
 	/* "ENTC" in hex */
 	if (nf_ct_extend_custom_register(&ntce_extend, 0x454e5443) < 0) {
-		pr_err("unable to register ntce extend\n");
+		pr_err("unable to register NTCE extend\n");
 		goto exit_init;
 	}
 
@@ -304,12 +463,18 @@ int nf_ntce_init_proc(struct net *net)
 			 &nf_ntce_if_queue_fops))
 		goto exit_init_proc_queue;
 
+	if (!proc_create("nf_ntce_qos_map", 0644, net->proc_net,
+			 &nf_ntce_qos_map_fops))
+		goto exit_init_proc_qos_map;
+
 	if (register_netdevice_notifier(&nf_ntce_nb))
 		goto exit_init_notify;
 
 	return 0;
 
 exit_init_notify:
+	remove_proc_entry("nf_ntce_qos_map", net->proc_net);
+exit_init_proc_qos_map:
 	remove_proc_entry("nf_ntce_if_queue", net->proc_net);
 exit_init_proc_queue:
 	remove_proc_entry("nf_ntce_if", net->proc_net);
@@ -326,6 +491,7 @@ void nf_ntce_fini_proc(struct net *net)
 
 	remove_proc_entry("nf_ntce_if", net->proc_net);
 	remove_proc_entry("nf_ntce_if_queue", net->proc_net);
+	remove_proc_entry("nf_ntce_qos_map", net->proc_net);
 
 	nf_ct_extend_unregister(&ntce_extend);
 }
@@ -410,6 +576,62 @@ size_t nf_ntce_ctnetlink_size(const struct nf_conn *ct)
 	       + 2 * nla_total_size(sizeof(uint8_t));
 }
 
+static int nf_ntce_match_group(const void *key, const void *elt)
+{
+	const u32 *group = (const u32 *)key;
+	const struct nf_ntce_qos_map_ent *e = elt;
+
+	return
+		(*group < e->group) ? -1 :
+		(*group > e->group) ?  1 : 0;
+}
+
+static inline int nf_ntce_find_sc(struct nf_conn *ct,
+				  const struct nf_ct_ext_ntce_label *lbl)
+{
+	struct nf_ntce_qos_map_ent *e;
+
+	e = bsearch(&lbl->group, nf_ntce_qos_map,
+		    nf_ntce_qos_map_size, sizeof(*nf_ntce_qos_map),
+		    nf_ntce_match_group);
+
+	if (e == NULL)
+		return -1;
+
+	return e->sc;
+}
+
+static void nf_ntce_update_sc_ct_(struct nf_conn *ct,
+				  const struct nf_ct_ext_ntce_label *lbl)
+{
+	int sc;
+
+	if (lbl->group == 0)
+		return;
+
+	read_lock(&nf_ntce_qos_map_lock);
+
+	sc = nf_ntce_find_sc(ct, lbl);
+
+	read_unlock(&nf_ntce_qos_map_lock);
+
+	if (sc >= 0)
+		nf_nsc_update_sc_ct(ct, sc);
+}
+
+void nf_ntce_update_sc_ct(struct nf_conn *ct)
+{
+	const struct nf_ct_ext_ntce_label *lbl = nf_ct_ext_find_ntce(ct);
+
+	if (unlikely(lbl == NULL)) {
+		pr_err_ratelimited("unable to find NTCE label\n");
+		return;
+	}
+
+	nf_ntce_update_sc_ct_(ct, lbl);
+}
+EXPORT_SYMBOL(nf_ntce_update_sc_ct);
+
 static inline void nf_ntce_enq_packet(struct sk_buff *skb)
 {
 	struct net_device *dev;
@@ -430,11 +652,6 @@ static inline void nf_ntce_enq_packet(struct sk_buff *skb)
 	if (nskb == NULL)
 		goto exit_put;
 
-#if IS_ENABLED(CONFIG_RA_HW_NAT)
-	if (unlikely(!FOE_SKB_IS_KEEPALIVE(skb)))
-		FOE_ALG_MARK(skb);
-#endif
-
 	if (nskb->mac_len > 0)
 		skb_push(nskb, nskb->mac_len);
 
@@ -452,13 +669,16 @@ int nf_ntce_enq_pkt(struct nf_conn *ct, struct sk_buff *skb)
 	u64 pkts;
 
 	if (unlikely(lbl == NULL)) {
-		pr_err_ratelimited("unable to find ntce label\n");
+		pr_err_ratelimited("unable to find NTCE label\n");
 
 		return 0;
 	}
 
-	if (likely(nf_ct_ext_ntce_fastpath(lbl)))
+	if (likely(nf_ct_ext_ntce_fastpath(lbl))) {
+		nf_ntce_update_sc_ct_(ct, lbl);
+
 		return 0;
+	}
 
 	counters = (struct nf_conn_counter *)nf_conn_acct_find(ct);
 	if (unlikely(counters == NULL)) {
@@ -470,10 +690,18 @@ int nf_ntce_enq_pkt(struct nf_conn *ct, struct sk_buff *skb)
 	pkts = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets) +
 		atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
 
-	if (pkts > NF_NTCE_HARD_PACKET_LIMIT)
+	if (pkts > NF_NTCE_HARD_PACKET_LIMIT) {
+		nf_ntce_update_sc_ct_(ct, lbl);
+
 		return 0;
+	}
 
 	nf_ntce_enq_packet(skb);
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	if (unlikely(!FOE_SKB_IS_KEEPALIVE(skb)))
+		FOE_ALG_MARK(skb);
+#endif
 
 	return 1;
 }

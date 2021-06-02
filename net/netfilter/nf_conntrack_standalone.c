@@ -44,6 +44,7 @@
 #endif
 
 #include <net/netfilter/nf_ntce.h>
+#include <net/netfilter/nf_nsc.h>
 
 MODULE_LICENSE("GPL");
 
@@ -312,7 +313,8 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	seq_printf(s, "mark=%u ", ct->mark);
-	seq_printf(s, "nmark=%u ", ct->ndm_mark);
+	seq_printf(s, "nmark=%u sc=%u ",
+		   ct->ndm_mark, nf_nsc_ctmark_to_sc(ct->ndm_mark));
 #endif
 
 	ct_show_ndm_ifaces(s, ct);

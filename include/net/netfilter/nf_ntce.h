@@ -28,6 +28,7 @@ void nf_ntce_fini_proc(struct net *net);
 void nf_ntce_ct_show_labels(struct seq_file *s, const struct nf_conn *ct);
 int nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct);
 size_t nf_ntce_ctnetlink_size(const struct nf_conn *ct);
+void nf_ntce_update_sc_ct(struct nf_conn *ct);
 
 static inline void nf_ntce_rst_bypass(struct sk_buff *skb)
 {
@@ -44,11 +45,16 @@ static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
 	return !!(IPCB(skb)->flags & NF_NTCE_IPCB_BYPASS);
 }
 
-static inline void nf_ntce_check_limit(struct sk_buff *skb,
-				       const unsigned long long packets)
+static inline int nf_ntce_check_limit(struct sk_buff *skb,
+				      const unsigned long long packets)
 {
-	if (packets > NF_NTCE_HARD_PACKET_LIMIT)
+	if (packets > NF_NTCE_HARD_PACKET_LIMIT) {
 		nf_ntce_set_bypass(skb);
+
+		return 1;
+	}
+
+	return 0;
 }
 
 static inline bool nf_ntce_has_helper(struct nf_conn *ct)
@@ -186,7 +192,7 @@ nf_ct_ntce_append(int hooknum, struct nf_conn *ct)
 		ntce_ct_lbl = nf_ct_ext_add_ntce(ct);
 
 	if (unlikely(ntce_ct_lbl == NULL))
-		pr_err_ratelimited("unable to allocate ntce ct label");
+		pr_err_ratelimited("unable to allocate NTCE ct label");
 }
 
 #else
@@ -209,9 +215,14 @@ static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
 	return true;
 }
 
-static inline void nf_ntce_check_limit(struct sk_buff *skb,
-				       const unsigned long long packets)
+static void nf_ntce_update_sc_ct(struct nf_conn *ct)
 {
+}
+
+static inline int nf_ntce_check_limit(struct sk_buff *skb,
+				      const unsigned long long packets)
+{
+	return 1;
 }
 
 static inline bool nf_ntce_if_pass(const int idx)
@@ -228,7 +239,8 @@ static inline void nf_ntce_enqueue_out(struct sk_buff *skb)
 {
 }
 
-static inline int nf_ntce_enqueue_in(int h, struct nf_conn *ct, struct sk_buff *skb)
+static inline int nf_ntce_enqueue_in(int h,
+				     struct nf_conn *ct, struct sk_buff *skb)
 {
 	return 0;
 }

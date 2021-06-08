@@ -8,9 +8,14 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef __ASM_NEON_H
+#define __ASM_NEON_H
+
 #include <linux/types.h>
 
 #define cpu_has_neon()		(1)
 
 void kernel_neon_begin(void);
 void kernel_neon_end(void);
+
+#endif /* ! __ASM_NEON_H */

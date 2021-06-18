@@ -335,6 +335,12 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* novation SoundControl XL */
 	{ USB_DEVICE(0x1235, 0x0061), .driver_info = USB_QUIRK_RESET_RESUME },
 
+	/* Yota S15 */
+	{ USB_DEVICE(0x1376, 0x4e61), .driver_info = USB_QUIRK_DELAY_CTRL_MSG },
+
+	/* Yota W0 */
+	{ USB_DEVICE(0x1286, 0x4e31), .driver_info = USB_QUIRK_DELAY_CTRL_MSG },
+
 	{ }  /* terminating entry must be last */
 };
 

@@ -19,6 +19,8 @@ struct nf_conn_counter {
 	atomic64_t bytes;
 	atomic64_t prev_packets;
 	atomic64_t prev_bytes;
+	atomic64_t prev_ntce_packets;
+	atomic64_t prev_ntce_bytes;
 };
 
 struct nf_conn_acct {

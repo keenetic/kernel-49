@@ -1,6 +1,10 @@
 #ifndef _LINUX_NF_NTCE_H
 #define _LINUX_NF_NTCE_H
 
+struct sk_buff;
+struct nf_conn;
+struct net;
+
 #ifdef CONFIG_NTCE_MODULE
 #include <linux/version.h>
 #if IS_ENABLED(CONFIG_FAST_NAT)
@@ -15,9 +19,6 @@
 
 #define NF_NTCE_HARD_PACKET_LIMIT		500
 
-struct sk_buff;
-struct nf_conn;
-struct net;
 struct seq_file;
 
 bool nf_ntce_if_pass(const int ifidx);
@@ -215,7 +216,7 @@ static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
 	return true;
 }
 
-static void nf_ntce_update_sc_ct(struct nf_conn *ct)
+static inline void nf_ntce_update_sc_ct(struct nf_conn *ct)
 {
 }
 

@@ -110,6 +110,10 @@ struct nf_conn {
 	/* If we were expected by an expectation, this will be it */
 	struct nf_conn *master;
 
+#ifdef CONFIG_NTCE_MODULE
+	u32 created;
+#endif
+
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	u_int8_t fast_ext;
 	u_int8_t fast_bind_reached;

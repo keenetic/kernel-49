@@ -1393,6 +1393,16 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		return ERR_PTR(-ENOMEM);
 	}
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+	if (unlikely(nf_ct_ext_add_ntc(ct) == NULL))
+		pr_err_ratelimited("unable to allocate ntc ct label");
+#endif
+
+	nf_ct_ntce_append(NF_INET_PRE_ROUTING, ct);
+#ifdef CONFIG_NTCE_MODULE
+	ct->created = jiffies;
+#endif
+
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
 	if (timeout_ext) {
 		timeouts = nf_ct_timeout_data(timeout_ext);
@@ -1834,8 +1844,6 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			nf_conntrack_update_ifaces(net, skb,
 						   ntc_ct_lbl, protonum);
 	}
-
-	nf_ct_ntce_append(hooknum, ct);
 #endif
 
 	/* check fastpath condition */

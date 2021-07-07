@@ -60,8 +60,26 @@
 #define MTK_UART_HIGHS		0x09	/* Highspeed register */
 #define MTK_UART_SAMPLE_COUNT	0x0a	/* Sample count register */
 #define MTK_UART_SAMPLE_POINT	0x0b	/* Sample point register */
+#define MTK_UART_ESCAPE_DAT	0x10	/* Escape Character register */
+#define MTK_UART_ESCAPE_EN	0x11	/* Escape Enable register */
 #define MTK_UART_FRACDIV_L	0x15	/* Fractional divider LSB address */
 #define MTK_UART_FRACDIV_M	0x16	/* Fractional divider MSB address */
+
+#define MTK_UART_EFR_NO_SW_FC	0x0	/* no sw flow control */
+#define MTK_UART_EFR_XON1_XOFF1	0xa	/* XON1/XOFF1 as sw flow control */
+#define MTK_UART_EFR_SW_FC_MASK	0xf	/* Enable CTS Modem status interrupt */
+#define MTK_UART_EFR_HW_FC	(UART_EFR_RTS | UART_EFR_CTS)
+
+#define MTK_UART_IER_XOFFI	0x20	/* Enable XOFF character interrupt */
+#define MTK_UART_IER_RTSI	0x40	/* Enable RTS Modem status interrupt */
+#define MTK_UART_IER_CTSI	0x80	/* Enable CTS Modem status interrupt */
+
+enum {
+	MTK_UART_FC_NONE,
+	MTK_UART_FC_SW,
+	MTK_UART_FC_HW
+};
+
 #endif
 
 /*
@@ -2578,6 +2596,74 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 				  port->uartclk);
 }
 
+#if defined(CONFIG_RALINK_MT7621) || \
+    defined(CONFIG_RALINK_MT7628)
+static void mtk_disable_intrs(struct uart_8250_port *up, int mask)
+{
+	serial_out(up, UART_IER, serial_in(up, UART_IER) & (~mask));
+
+	up->ier &= ~mask;
+}
+
+static void mtk_enable_intrs(struct uart_8250_port *up, int mask)
+{
+	serial_out(up, UART_IER, serial_in(up, UART_IER) | mask);
+
+	up->ier |= mask;
+}
+
+static inline void mtk_set_flow_ctrl(struct uart_8250_port *up, int mode)
+{
+	struct uart_port *port = &up->port;
+	int lcr = serial_in(up, UART_LCR);
+
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+	serial_out(up, UART_EFR, UART_EFR_ECB);
+	serial_out(up, UART_LCR, lcr);
+
+	switch (mode) {
+	case MTK_UART_FC_HW:
+		serial_out(up, MTK_UART_ESCAPE_EN, 0x00);
+		serial_out(up, UART_MCR, UART_MCR_RTS);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+
+		/* enable HW flow control */
+		serial_out(up, UART_EFR, MTK_UART_EFR_HW_FC |
+			(serial_in(up, UART_EFR) &
+			(~(MTK_UART_EFR_HW_FC | MTK_UART_EFR_SW_FC_MASK))));
+
+		serial_out(up, UART_LCR, lcr);
+		mtk_disable_intrs(up, MTK_UART_IER_XOFFI);
+		mtk_enable_intrs(up, MTK_UART_IER_CTSI | MTK_UART_IER_RTSI);
+		break;
+
+	case MTK_UART_FC_SW:
+		serial_out(up, MTK_UART_ESCAPE_DAT, 0x77);
+		serial_out(up, MTK_UART_ESCAPE_EN, 0x01);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+
+		/* enable SW flow control */
+		serial_out(up, UART_EFR, MTK_UART_EFR_XON1_XOFF1 |
+			(serial_in(up, UART_EFR) &
+			(~(MTK_UART_EFR_HW_FC | MTK_UART_EFR_SW_FC_MASK))));
+
+		serial_out(up, UART_XON1, START_CHAR(port->state->port.tty));
+		serial_out(up, UART_XOFF1, STOP_CHAR(port->state->port.tty));
+		serial_out(up, UART_LCR, lcr);
+		mtk_disable_intrs(up, MTK_UART_IER_CTSI | MTK_UART_IER_RTSI);
+		mtk_enable_intrs(up, MTK_UART_IER_XOFFI);
+		break;
+
+	case MTK_UART_FC_NONE:
+	default:
+		serial_out(up, MTK_UART_ESCAPE_EN, 0x00);
+		mtk_disable_intrs(up, MTK_UART_IER_XOFFI |
+			MTK_UART_IER_RTSI | MTK_UART_IER_CTSI);
+		break;
+	}
+}
+#endif
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			  struct ktermios *old)
@@ -2586,6 +2672,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval;
 	unsigned long flags;
 	unsigned int baud, quot, frac = 0;
+	int mode;
 
 	cval = serial8250_compute_lcr(up, termios->c_cflag);
 
@@ -2712,6 +2799,8 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_port_out(port, UART_FCR, up->fcr);	/* set fcr */
 	}
 
+	serial8250_set_mctrl(port, port->mctrl);
+
 #if defined(CONFIG_RALINK_MT7621) || \
     defined(CONFIG_RALINK_MT7628)
 	if (baud >= 115200) {
@@ -2738,9 +2827,20 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_port_out(port, MTK_UART_FRACDIV_L, 0x00);
 		serial_port_out(port, MTK_UART_FRACDIV_M, 0x00);
 	}
+
+	if ((termios->c_cflag & CRTSCTS) && (!(termios->c_iflag & CRTSCTS)))
+		mode = MTK_UART_FC_HW;
+	else if (termios->c_iflag & CRTSCTS)
+		mode = MTK_UART_FC_SW;
+	else
+		mode = MTK_UART_FC_NONE;
+
+	mtk_set_flow_ctrl(up, mode);
+
+	if (uart_console(port))
+		up->port.cons->cflag = termios->c_cflag;
 #endif
 
-	serial8250_set_mctrl(port, port->mctrl);
 	spin_unlock_irqrestore(&port->lock, flags);
 	serial8250_rpm_put(up);
 

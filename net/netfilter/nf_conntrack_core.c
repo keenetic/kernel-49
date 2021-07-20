@@ -1759,6 +1759,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	NF_CT_ASSERT(skb->nfct);
 
 	nf_ntce_rst_bypass(skb);
+	nf_ntce_rst_enqueue(skb);
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	if (!ct->fast_bind_reached) {

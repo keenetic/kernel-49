@@ -39,6 +39,8 @@
 #include <net/route.h>
 #include <net/xfrm.h>
 
+#include <net/netfilter/nf_ntce.h>
+
 static bool ip_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 {
 	if (skb->len <= mtu)
@@ -143,6 +145,8 @@ int ip_forward(struct sk_buff *skb)
 		ip_rt_send_redirect(skb);
 
 	skb->priority = rt_tos2priority(iph->tos);
+
+	nf_ntce_enqueue_fwd(skb);
 
 	return NF_HOOK(NFPROTO_IPV4, NF_INET_FORWARD,
 		       net, NULL, skb, skb->dev, rt->dst.dev,

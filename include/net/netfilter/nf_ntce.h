@@ -14,15 +14,22 @@ struct net;
 #include <net/ip.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/xt_ndmmark.h>
+#include <net/netfilter/nf_conntrack_acct.h>
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
 
 #define NF_NTCE_IPCB_BYPASS			BIT(14)
+#define NF_NTCE_IPCB_ENQUEUE			BIT(15)
 
-#define NF_NTCE_HARD_PACKET_LIMIT		500
+#define NF_NTCE_HARD_PACKET_LIMIT		750
 
 struct seq_file;
 
 bool nf_ntce_if_pass(const int ifidx);
-int nf_ntce_enq_pkt(struct nf_conn *ct, struct sk_buff *skb);
+void nf_ntce_enq_packet(struct sk_buff *skb);
+bool nf_ntce_enabled(void);
 
 int nf_ntce_init_proc(struct net *net);
 void nf_ntce_fini_proc(struct net *net);
@@ -46,6 +53,21 @@ static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
 	return !!(IPCB(skb)->flags & NF_NTCE_IPCB_BYPASS);
 }
 
+static inline void nf_ntce_rst_enqueue(struct sk_buff *skb)
+{
+	IPCB(skb)->flags &= ~(NF_NTCE_IPCB_ENQUEUE);
+}
+
+static inline void nf_ntce_set_enqueue(struct sk_buff *skb)
+{
+	IPCB(skb)->flags |= NF_NTCE_IPCB_ENQUEUE;
+}
+
+static inline bool nf_ntce_is_enqueue(struct sk_buff *skb)
+{
+	return !!(IPCB(skb)->flags & NF_NTCE_IPCB_ENQUEUE);
+}
+
 static inline int nf_ntce_check_limit(struct sk_buff *skb,
 				      const unsigned long long packets)
 {
@@ -63,60 +85,6 @@ static inline bool nf_ntce_has_helper(struct nf_conn *ct)
 	struct nf_conn_help *help = nfct_help(ct);
 
 	return help && help->helper;
-}
-
-static inline int nf_ntce_enqueue(struct nf_conn *ct,
-				  struct sk_buff *skb,
-				  const int ifindex)
-{
-	if (skb->pkt_type != PACKET_HOST)
-		return 0;
-
-#if IS_ENABLED(CONFIG_FAST_NAT)
-	if (ct->fast_ext && !nf_ntce_has_helper(ct))
-		return 0;
-
-	if (!is_nf_connection_ipv4_tcpudp(ct))
-		return 0;
-#endif
-
-	if (!nf_ntce_if_pass(ifindex))
-		return 0;
-
-	return nf_ntce_enq_pkt(ct, skb);
-}
-
-static inline void nf_ntce_enqueue_out_(struct sk_buff *skb)
-{
-	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-
-	if (ct == NULL)
-		return;
-
-	nf_ntce_enqueue(ct, skb, skb->dev->ifindex);
-}
-
-static inline void nf_ntce_enqueue_out(struct sk_buff *skb)
-{
-	if (!xt_ndmmark_is_fwd(skb))
-		return;
-
-	nf_ntce_enqueue_out_(skb);
-}
-
-static inline int nf_ntce_enqueue_in(int hooknum,
-				     struct nf_conn *ct, struct sk_buff *skb)
-{
-	if (nf_ntce_is_bypass(skb))
-		return 0;
-
-	nf_ntce_set_bypass(skb);
-
-	if (hooknum != NF_INET_PRE_ROUTING)
-		return 0;
-
-	return nf_ntce_enqueue(ct, skb, skb->skb_iif);
 }
 
 #include <net/netfilter/nf_conntrack.h>
@@ -196,7 +164,125 @@ nf_ct_ntce_append(int hooknum, struct nf_conn *ct)
 		pr_err_ratelimited("unable to allocate NTCE ct label");
 }
 
+static inline int nf_ntce_enqueue__(struct nf_conn *ct, struct sk_buff *skb,
+				    const bool mark)
+{
+	const struct nf_conn_counter *counters;
+	const struct nf_ct_ext_ntce_label *lbl = nf_ct_ext_find_ntce(ct);
+	u64 pkts;
+
+	if (unlikely(lbl == NULL)) {
+		pr_err_ratelimited("unable to find NTCE label\n");
+
+		return 0;
+	}
+
+	if (likely(nf_ct_ext_ntce_fastpath(lbl))) {
+		nf_ntce_update_sc_ct(ct);
+
+		return 0;
+	}
+
+	counters = (struct nf_conn_counter *)nf_conn_acct_find(ct);
+	if (unlikely(counters == NULL)) {
+		pr_err_ratelimited("unable to find accoutings\n");
+
+		return 0;
+	}
+
+	pkts = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets) +
+		atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
+
+	if (pkts > NF_NTCE_HARD_PACKET_LIMIT) {
+		nf_ntce_update_sc_ct(ct);
+
+		return 0;
+	}
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+	if (unlikely(!FOE_SKB_IS_KEEPALIVE(skb)))
+		FOE_ALG_MARK(skb);
+#endif
+
+	if (mark)
+		nf_ntce_set_enqueue(skb);
+	else
+		nf_ntce_enq_packet(skb);
+
+	return 1;
+}
+
+static inline int nf_ntce_enqueue_(struct nf_conn *ct,
+				   struct sk_buff *skb,
+				   const int ifindex,
+				   const bool mark)
+{
+	/* Fast skip for miltucast / broadcast */
+	if (skb->pkt_type != PACKET_HOST)
+		return 0;
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (ct->fast_ext && !nf_ntce_has_helper(ct))
+		return 0;
+
+	if (!is_nf_connection_ipv4_tcpudp(ct))
+		return 0;
+#endif
+
+	if (!nf_ntce_if_pass(ifindex)) 
+		return 0;
+
+	return nf_ntce_enqueue__(ct, skb, mark);
+}
+
+static inline void nf_ntce_enqueue_out_(struct sk_buff *skb)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+
+	if (ct == NULL)
+		return;
+
+	nf_ntce_enqueue_(ct, skb, skb->dev->ifindex, false);
+}
+
+static inline void nf_ntce_enqueue_out(struct sk_buff *skb)
+{
+	if (skb->sk)
+		return;
+
+	if (!xt_ndmmark_is_fwd(skb))
+		return;
+
+	nf_ntce_enqueue_out_(skb);
+}
+
+static inline int nf_ntce_enqueue_in(int hooknum,
+				     struct nf_conn *ct, struct sk_buff *skb)
+{
+	if (hooknum != NF_INET_PRE_ROUTING)
+		return 0;
+
+	if (nf_ntce_is_bypass(skb))
+		return 0;
+
+	nf_ntce_set_bypass(skb);
+
+	return nf_ntce_enqueue_(ct, skb, skb->skb_iif, true);
+}
+
+static inline void nf_ntce_enqueue_fwd(struct sk_buff *skb)
+{
+	if (unlikely(nf_ntce_is_enqueue(skb)))
+		nf_ntce_enq_packet(skb);
+}
+
 #else
+
+static inline bool nf_ntce_enabled(void)
+{
+	return false;
+}
 
 static inline void
 nf_ct_ntce_append(int hooknum, struct nf_conn *ct)
@@ -214,6 +300,10 @@ static inline void nf_ntce_set_bypass(struct sk_buff *skb)
 static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
 {
 	return true;
+}
+
+static inline void nf_ntce_rst_enqueue(struct sk_buff *skb)
+{
 }
 
 static inline void nf_ntce_update_sc_ct(struct nf_conn *ct)
@@ -244,6 +334,10 @@ static inline int nf_ntce_enqueue_in(int h,
 				     struct nf_conn *ct, struct sk_buff *skb)
 {
 	return 0;
+}
+
+static inline void nf_ntce_enqueue_fwd(struct sk_buff *skb)
+{
 }
 
 static inline int nf_ntce_init_proc(struct net *net)

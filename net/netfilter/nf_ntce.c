@@ -5,13 +5,8 @@
 #include <linux/bsearch.h>
 #include <linux/vmalloc.h>
 
-#include <net/netfilter/nf_conntrack_acct.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
-
-#if IS_ENABLED(CONFIG_RA_HW_NAT)
-#include <../ndm/hw_nat/ra_nat.h>
-#endif
 
 #include <net/netfilter/nf_nsc.h>
 #include <net/netfilter/nf_ntce.h>
@@ -632,7 +627,7 @@ void nf_ntce_update_sc_ct(struct nf_conn *ct)
 }
 EXPORT_SYMBOL(nf_ntce_update_sc_ct);
 
-static inline void nf_ntce_enq_packet(struct sk_buff *skb)
+void nf_ntce_enq_packet(struct sk_buff *skb)
 {
 	struct net_device *dev;
 	struct sk_buff *nskb;
@@ -660,50 +655,6 @@ static inline void nf_ntce_enq_packet(struct sk_buff *skb)
 
 exit_put:
 	dev_put(dev);
-}
-
-int nf_ntce_enq_pkt(struct nf_conn *ct, struct sk_buff *skb)
-{
-	const struct nf_conn_counter *counters;
-	const struct nf_ct_ext_ntce_label *lbl = nf_ct_ext_find_ntce(ct);
-	u64 pkts;
-
-	if (unlikely(lbl == NULL)) {
-		pr_err_ratelimited("unable to find NTCE label\n");
-
-		return 0;
-	}
-
-	if (likely(nf_ct_ext_ntce_fastpath(lbl))) {
-		nf_ntce_update_sc_ct_(ct, lbl);
-
-		return 0;
-	}
-
-	counters = (struct nf_conn_counter *)nf_conn_acct_find(ct);
-	if (unlikely(counters == NULL)) {
-		pr_err_ratelimited("unable to find accoutings\n");
-
-		return 0;
-	}
-
-	pkts = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets) +
-		atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
-
-	if (pkts > NF_NTCE_HARD_PACKET_LIMIT) {
-		nf_ntce_update_sc_ct_(ct, lbl);
-
-		return 0;
-	}
-
-	nf_ntce_enq_packet(skb);
-
-#if IS_ENABLED(CONFIG_RA_HW_NAT)
-	if (unlikely(!FOE_SKB_IS_KEEPALIVE(skb)))
-		FOE_ALG_MARK(skb);
-#endif
-
-	return 1;
 }
 
 #endif

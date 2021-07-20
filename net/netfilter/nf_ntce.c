@@ -32,10 +32,30 @@ static struct net_device *nf_ntce_dev __read_mostly;
 
 static uint8_t nf_ntce_if_hash[NF_NTCE_IFACES_HASH_NUM] __read_mostly;
 static struct nf_ntce_if_ent nf_ntce_ifaces[NF_NTCE_IFACES_COUNT] __read_mostly;
+static size_t nf_ntce_ifaces_size __read_mostly;
 static DEFINE_SEQLOCK(nf_ntce_if_seqlock);
 static struct nf_ntce_qos_map_ent nf_ntce_qos_map[NF_NTCE_QOS_MAP_SIZE] __read_mostly;
 static size_t nf_ntce_qos_map_size __read_mostly;
 static DEFINE_RWLOCK(nf_ntce_qos_map_lock);
+
+bool nf_ntce_enabled(void)
+{
+	int seq = 0; /* reader-only, even */
+	bool enabled;
+
+	do {
+		enabled = false;
+
+		read_seqbegin_or_lock(&nf_ntce_if_seqlock, &seq);
+
+		enabled = (nf_ntce_ifaces_size != 0);
+
+	} while (need_seqretry(&nf_ntce_if_seqlock, seq));
+
+	done_seqretry(&nf_ntce_if_seqlock, seq);
+
+	return enabled;
+}
 
 static inline void nf_ntce_set_if_hash(int ifindex, int id)
 {
@@ -91,7 +111,7 @@ static ssize_t nf_ntce_if_seq_write(struct file *file,
 				   size_t count, loff_t *ppos)
 {
 	char buf[sizeof("-2147000000") + 2];
-	int i;
+	int i, j;
 	long ifidx = 0;
 	int ret;
 
@@ -132,6 +152,15 @@ static ssize_t nf_ntce_if_seq_write(struct file *file,
 
 	if (ifidx == 0)
 		memset(nf_ntce_if_hash, 0, sizeof(nf_ntce_if_hash));
+
+	nf_ntce_ifaces_size = 0;
+
+	for (j = 0; j < NF_NTCE_IFACES_COUNT; j++) {
+		if (nf_ntce_ifaces[j].iface == 0)
+			continue;
+
+		++nf_ntce_ifaces_size;
+	}
 
 	write_sequnlock_bh(&nf_ntce_if_seqlock);
 

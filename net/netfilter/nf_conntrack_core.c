@@ -1768,16 +1768,25 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (likely(acct != NULL)) {
 			struct nf_conn_counter *counter = acct->counter;
 			uint64_t pkt_o, pkt_r;
+			const bool ntce_enabled = nf_ntce_enabled();
+			const size_t limit_half =
+				ntce_enabled ?
+					NF_NTCE_HARD_PACKET_LIMIT :
+					FAST_NAT_BIND_PKT_DIR_HALF;
+			const size_t limit_both =
+				ntce_enabled ?
+					NF_NTCE_HARD_PACKET_LIMIT :
+					FAST_NAT_BIND_PKT_DIR_BOTH;
 
 			pkt_r = atomic64_read(&counter[IP_CT_DIR_REPLY].packets);
 			pkt_o = atomic64_read(&counter[IP_CT_DIR_ORIGINAL].packets);
 
-			if (pkt_o > FAST_NAT_BIND_PKT_DIR_BOTH &&
-			    pkt_r > FAST_NAT_BIND_PKT_DIR_BOTH)
+			if (pkt_o > limit_both &&
+			    pkt_r > limit_both)
 				ct->fast_bind_reached = 1;
 			else if (protonum == IPPROTO_UDP &&
-				 (pkt_o > FAST_NAT_BIND_PKT_DIR_HALF ||
-				  pkt_r > FAST_NAT_BIND_PKT_DIR_HALF))
+				 (pkt_o > limit_half ||
+				  pkt_r > limit_half))
 				ct->fast_bind_reached = 1;
 
 			nf_ntce_check_limit(skb, pkt_r + pkt_o);

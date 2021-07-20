@@ -33,6 +33,7 @@
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/netfilter/nf_nat_l4proto.h>
 #include <linux/netfilter/nf_conntrack_common.h>
+#include <linux/netfilter/xt_ndmmark.h>
 
 #ifdef CONFIG_XFRM
 #include <net/xfrm.h>
@@ -59,6 +60,7 @@ fast_nat_path_egress(struct net *net, struct sock *sk, struct sk_buff *skb)
 	}
 
 	ip_decrease_ttl(iph);
+	xt_ndmmark_set_fwd(skb);
 
 	/* Direct send packets to output */
 	ret = ip_finish_output(net, sk, skb);

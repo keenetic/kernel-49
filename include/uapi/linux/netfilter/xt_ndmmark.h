@@ -38,10 +38,17 @@ static inline bool xt_ndmmark_is_fwd(struct sk_buff *skb)
 {
 	return (skb->ndm_mark & XT_NDMMARK_FWD) == XT_NDMMARK_FWD;
 }
+static inline void xt_ndmmark_set_fwd(struct sk_buff *skb)
+{
+	skb->ndm_mark |= XT_NDMMARK_FWD;
+}
 #else
 static inline bool xt_ndmmark_is_fwd(struct sk_buff *skb)
 {
 	return false;
+}
+static inline void xt_ndmmark_set_fwd(struct sk_buff *skb)
+{
 }
 #endif
 

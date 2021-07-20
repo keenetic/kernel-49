@@ -853,11 +853,11 @@ static int mtk_nand_erase(struct mtd_info *mtd, int page);
 
 static const snand_flashdev_info gen_snand_FlashTable[] = {
 	{{0xEF, 0xAA, 0x20}, 3, 64, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
-		0x00000000, 0x0552000A, 0x0000, 0x3F00, "Winbond 512Mb", 0x00000000},
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "W25N512GV", 0x00000000},
 	{{0xEF, 0xAA, 0x21}, 3, 128, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
-		0x00000000, 0x0552000A, 0x0000, 0x3F00, "Winbond 1Gb", 0x00000000},
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "W25N01GV", 0x00000000},
 	{{0xEF, 0xAB, 0x21}, 3, 256, 128, 2048, 64, 0x00000000, 0x00000000, 0x00000028,
-		0x00000000, 0x0552000A, 0x0000, 0x3F00, "Winbond 2Gb", SNAND_ADV_TWO_DIE},
+		0x00000000, 0x0552000A, 0x0000, 0x3F00, "W25M02GV", SNAND_ADV_TWO_DIE},
 	{{0xEF, 0xAA, 0x22}, 3, 256, 128, 2048, 128, 0x00000000, 0x00000000, 0x00000028,
 		0x00000000, 0x0552000A, 0x0000, 0x3F00, "W25N02KV", 0x00000000},
 
@@ -3887,6 +3887,7 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	struct nand_chip *nand_chip;
 	struct resource *res = pdev->resource;
 	const struct of_device_id *of_nand_id;
+	struct nand_flash_dev spi_nand_flash_ids[2];
 	int i, err = 0;
 	u8 id[SNAND_MAX_ID];
 
@@ -4042,14 +4043,28 @@ static int mtk_snand_probe(struct platform_device *pdev)
 
 	mtd->writesize = devinfo.pagesize;
 	mtd->oobsize = devinfo.sparesize;
-	mtd->erasesize = devinfo.blocksize << 10;
+	mtd->erasesize = (u32)devinfo.blocksize << 10;
 
 	/* Use default large page ECC layout defined in NAND core */
 	mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
 
-	/* Scan to find existence of the device */
-	if (nand_scan(mtd, 1)) {
-		dev_warn(dev, "nand_scan fail.\n");
+	memset(spi_nand_flash_ids, 0, sizeof(spi_nand_flash_ids));
+	spi_nand_flash_ids[0].name	= devinfo.devicename;
+	spi_nand_flash_ids[0].mfr_id	= devinfo.id[0];
+	spi_nand_flash_ids[0].dev_id	= devinfo.id[1];
+	spi_nand_flash_ids[0].pagesize	= devinfo.pagesize;
+	spi_nand_flash_ids[0].oobsize	= devinfo.sparesize;
+	spi_nand_flash_ids[0].erasesize	= (u32)devinfo.blocksize << 10;
+	spi_nand_flash_ids[0].chipsize	= devinfo.totalsize;
+
+	if (nand_scan_ident(mtd, 1, spi_nand_flash_ids)) {
+		dev_warn(dev, "%s fail\n", "nand_scan_ident");
+		err = -ENXIO;
+		goto clk_disable;
+	}
+
+	if (nand_scan_tail(mtd)) {
+		dev_warn(dev, "%s fail\n", "nand_scan_tail");
 		err = -ENXIO;
 		goto clk_disable;
 	}

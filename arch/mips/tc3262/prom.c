@@ -227,6 +227,9 @@ static inline void tc_usb_setup(void)
 	/* disable both ports UPHY */
 	VPint(RALINK_USB_UPHY_P0_BASE + 0x1c) = 0xC0241580;
 	VPint(RALINK_USB_UPHY_P1_BASE + 0x1c) = 0xC0241580;
+
+	/* assert USB host reset */
+	VPint(CR_AHB_BASE + 0x834) |= (1U << 22);
 #endif
 }
 
@@ -248,8 +251,20 @@ static inline void tc_dmt_setup(void)
 	VPint(0xBFA20168) |= (1 << 8);
 #endif
 
-	/* Power down PON PHY since xPON is not supported */
-	VPint(CR_AHB_BASE + 0x830) |= 0x1;
+	/* assert PON PHY reset */
+	VPint(CR_AHB_BASE + 0x830) |= (1U << 0);
+
+	/* assert PON MAC reset */
+	VPint(CR_AHB_BASE + 0x834) |= (1U << 31);
+}
+
+static inline void tc_pcm_setup(void)
+{
+	/* assert PCM/ZSI/ICI reset */
+	VPint(CR_AHB_BASE + 0x834) |= (1U << 0) | (1U << 4) | (1U << 17);
+
+	/* assert SFC2 reset */
+	VPint(CR_AHB_BASE + 0x834) |= (1U << 25);
 }
 
 static inline void tc_fe_setup(void)
@@ -343,6 +358,7 @@ void __init prom_init(void)
 	tc_ahb_setup();
 	tc_usb_setup();
 	tc_dmt_setup();
+	tc_pcm_setup();
 	tc_fe_setup();
 
 	ram_type = (VPint(CR_DMC_BASE + 0xE4) & (1 << 7)) ? "DDR3" : "DDR2";

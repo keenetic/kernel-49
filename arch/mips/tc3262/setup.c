@@ -40,8 +40,10 @@ static inline void hw_uninit(void)
 	/* stop each module dma task */
 	tc_disable_irq_all();
 
+#if !defined(CONFIG_ECONET_EN7528)
 	/* stop atm sar dma */
 	TSARM_GFR &= ~((1 << 1) | (1 << 0));
+#endif
 
 	/* stop all APB module timers except an active watchdog */
 	pbus_timer_disable(PBUS_TIMER_0);

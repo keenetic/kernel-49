@@ -225,8 +225,8 @@ static inline void tc_usb_setup(void)
 {
 #if !IS_ENABLED(CONFIG_USB)
 	/* disable both ports UPHY */
-	VPint(RALINK_XHCI_UPHY_BASE + 0x081C) = 0xC0241580;
-	VPint(RALINK_XHCI_UPHY_BASE + 0x101C) = 0xC0241580;
+	VPint(RALINK_USB_UPHY_P0_BASE + 0x1c) = 0xC0241580;
+	VPint(RALINK_USB_UPHY_P1_BASE + 0x1c) = 0xC0241580;
 #endif
 }
 

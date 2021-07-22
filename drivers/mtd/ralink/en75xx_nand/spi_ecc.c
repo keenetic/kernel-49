@@ -390,10 +390,14 @@ SPI_ECC_RTN_T SPI_ECC_Decode_Check_Done( SPI_ECC_DECODE_STATUS_T *prt_rtn_decode
 
 	ret_val = _SPI_ECC_REG16_READ(_SPI_ECC_REGS_DECIRQSTA);
 
-	if( ret_val != 0 )
+	if( ret_val != _SPI_ECC_REGS_DECIRQSTA_PROCESSING )
 	{
 		_SPI_ECC_DEBUG_PRINTF("SPI_ECC_Decode_Check_Done : decode done, ret_val = 0x%x\n", ret_val);
 		*prt_rtn_decode_status_t = SPI_ECC_DECODE_STATUS_DONE ;
+	}
+	else
+	{
+		*prt_rtn_decode_status_t = SPI_ECC_DECODE_STATUS_PROCESSING ;
 	}
 
 	return (SPI_ECC_RTN_NO_ERROR);

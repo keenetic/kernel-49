@@ -43,18 +43,6 @@ static inline void hw_uninit(void)
 	/* stop atm sar dma */
 	TSARM_GFR &= ~((1 << 1) | (1 << 0));
 
-	/* reset USB */
-	/* reset USB DMA */
-	VPint(CR_USB_SYS_CTRL_REG) |= (1U << 31);
-	/* reset USB SIE */
-	VPint(CR_USB_DEV_CTRL_REG) |= (1 << 30);
-	mdelay(5);
-
-	/* restore USB SIE */
-	VPint(CR_USB_DEV_CTRL_REG) &= ~(1 << 30);
-	mdelay(5);
-	VPint(CR_USB_SYS_CTRL_REG) &= ~(1U << 31);
-
 	/* stop all APB module timers except an active watchdog */
 	pbus_timer_disable(PBUS_TIMER_0);
 	pbus_timer_disable(PBUS_TIMER_1);

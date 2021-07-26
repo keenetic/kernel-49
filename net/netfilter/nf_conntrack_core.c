@@ -1768,7 +1768,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (likely(acct != NULL)) {
 			struct nf_conn_counter *counter = acct->counter;
 			uint64_t pkt_o, pkt_r;
-			const bool ntce_enabled = nf_ntce_enabled();
+			const bool ntce_enabled = nf_ntce_is_enabled();
 			const size_t limit_half =
 				ntce_enabled ?
 					NF_NTCE_HARD_PACKET_LIMIT :

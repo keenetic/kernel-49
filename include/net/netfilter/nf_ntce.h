@@ -29,7 +29,7 @@ struct seq_file;
 
 bool nf_ntce_if_pass(const int ifidx);
 void nf_ntce_enq_packet(struct sk_buff *skb);
-bool nf_ntce_enabled(void);
+bool nf_ntce_is_enabled(void);
 
 int nf_ntce_init_proc(struct net *net);
 void nf_ntce_fini_proc(struct net *net);
@@ -279,7 +279,7 @@ static inline void nf_ntce_enqueue_fwd(struct sk_buff *skb)
 
 #else
 
-static inline bool nf_ntce_enabled(void)
+static inline bool nf_ntce_is_enabled(void)
 {
 	return false;
 }

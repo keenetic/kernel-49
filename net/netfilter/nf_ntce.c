@@ -124,15 +124,25 @@ static ssize_t nf_ntce_if_seq_write(struct file *file,
 		}
 
 		if (ifidx > 0) {
-			if (e->iface == 0 || e->iface == ifidx) {
-				e->iface = ifidx;
-				nf_ntce_set_if_hash(ifidx, i);
+			if (e->iface == ifidx) {
 				break;
 			}
 		} else if (e->iface == -ifidx) {
 			e->iface = 0;
 			nf_ntce_set_if_hash(0, i);
 			break;
+		}
+	}
+
+	if (ifidx > 0 && i == NF_NTCE_IFACES_COUNT) {
+		for (i = 0; i < ARRAY_SIZE(nf_ntce_ifaces); i++) {
+			struct nf_ntce_if_ent *e = &nf_ntce_ifaces[i];
+
+			if (e->iface == 0) {
+				e->iface = ifidx;
+				nf_ntce_set_if_hash(ifidx, i);
+				break;
+			}
 		}
 	}
 

@@ -1462,16 +1462,25 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
 		int retval = 0, count = 0;
 		struct task_struct * p;
 
+		pr_warn("sending signal %i to all processes...\n", sig);
+
 		for_each_process(p) {
+			pr_warn("checking %lu, %li (%s)...\n",
+				(unsigned long)p->pid, p->state, p->comm);
 			if (task_pid_vnr(p) > 1 &&
 					!same_thread_group(p, current)) {
-				int err = group_send_sig_info(sig, info, p);
+				int err;
+
+				pr_warn("sending %i to %lu, %li (%s)...\n",
+					sig, (unsigned long)p->pid, p->state, p->comm);
+				err = group_send_sig_info(sig, info, p);
 				++count;
 				if (err != -EPERM)
 					retval = err;
 			}
 		}
 		ret = count ? retval : -ESRCH;
+		pr_warn("sending done with %i result\n", ret);
 	}
 	read_unlock(&tasklist_lock);
 

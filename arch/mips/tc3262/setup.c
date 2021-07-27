@@ -82,19 +82,19 @@ static void hw_reset(bool do_reboot)
 
 static void tc_machine_restart(char *command)
 {
-	printk(KERN_WARNING "Machine restart ... \n");
+	pr_warn("Machine restart...\n");
 	hw_reset(true);
 }
 
 static void tc_machine_halt(void)
 {
-	printk(KERN_WARNING "Machine halted ... \n");
+	pr_warn("Machine halted...\n");
 	hw_reset(false);
 }
 
 static void tc_machine_power_off(void)
 {
-	printk(KERN_WARNING "Machine poweroff ... \n");
+	pr_warn("Machine poweroff...\n");
 	hw_reset(false);
 }
 

@@ -18,7 +18,22 @@
     defined(CONFIG_RALINK_VDSL)
 struct sk_buff;
 
-#include <asm/tc3162/TCIfSetQuery_os.h>
+#define ADSL_SET_DMT_CLOSE				(0x001a)
+
+typedef struct {
+	void (*query)(unsigned short query_id, void *result1, void *result2);
+	void (*set)(unsigned short set_id, void *value1, void *value2);
+
+	void (*rts_rcv)(struct sk_buff *skb);
+
+	int  (*rts_cmd)(int argc,char *argv[],void *p);
+	int  (*dmt_cmd)(int argc,char *argv[],void *p);
+	int  (*dmt2_cmd)(int argc,char *argv[],void *p);
+	int  (*hw_cmd)(int argc,char *argv[],void *p);
+	int  (*sw_cmd)(int argc,char *argv[],void *p);
+	int  (*ghs_cmd)(int argc,char *argv[],void *p);
+	int  (*tcif_cmd)(int argc,char *argv[],void *p);
+} adsldev_ops;
 
 adsldev_ops *adsl_dev_ops = NULL;
 EXPORT_SYMBOL(adsl_dev_ops);

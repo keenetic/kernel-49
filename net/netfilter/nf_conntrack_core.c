@@ -1769,14 +1769,10 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			struct nf_conn_counter *counter = acct->counter;
 			uint64_t pkt_o, pkt_r;
 			const bool ntce_enabled = nf_ntce_is_enabled();
-			const size_t limit_half =
-				ntce_enabled ?
-					NF_NTCE_HARD_PACKET_LIMIT :
-					FAST_NAT_BIND_PKT_DIR_HALF;
-			const size_t limit_both =
-				ntce_enabled ?
-					NF_NTCE_HARD_PACKET_LIMIT :
-					FAST_NAT_BIND_PKT_DIR_BOTH;
+			const size_t limit_half = nf_ntce_fastnat_limit(
+				FAST_NAT_BIND_PKT_DIR_HALF, ntce_enabled);
+			const size_t limit_both = nf_ntce_fastnat_limit(
+				FAST_NAT_BIND_PKT_DIR_BOTH, ntce_enabled);
 
 			pkt_r = atomic64_read(&counter[IP_CT_DIR_REPLY].packets);
 			pkt_o = atomic64_read(&counter[IP_CT_DIR_ORIGINAL].packets);

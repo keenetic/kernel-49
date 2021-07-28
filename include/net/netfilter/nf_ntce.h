@@ -87,6 +87,12 @@ static inline bool nf_ntce_has_helper(struct nf_conn *ct)
 	return help && help->helper;
 }
 
+static inline size_t nf_ntce_fastnat_limit(const size_t limit,
+					   const bool is_enabled)
+{
+	return is_enabled ? NF_NTCE_HARD_PACKET_LIMIT : limit;
+}
+
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 
@@ -278,6 +284,12 @@ static inline void nf_ntce_enqueue_fwd(struct sk_buff *skb)
 }
 
 #else
+
+static inline size_t nf_ntce_fastnat_limit(const size_t limit,
+					   const bool is_enabled)
+{
+	return limit;
+}
 
 static inline bool nf_ntce_is_enabled(void)
 {

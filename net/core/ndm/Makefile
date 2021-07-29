@@ -1,4 +1,5 @@
 
+obj-y += eth_stats_hooks.o
 obj-y += eth_switch_hooks.o
 obj-y += ntc_shaper_hooks.o
 obj-y += ppp_stats_hooks.o

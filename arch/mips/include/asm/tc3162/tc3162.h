@@ -324,7 +324,7 @@ typedef union {
  *****************************/
 #define ARB_CFG 		 0xBFA00008
 #define ROUND_ROBIN_ENABLE	 (1<<30)
-#define ROUND_ROBIN_DISBALE	~(1<<30)
+#define ROUND_ROBIN_DISABLE	~(1<<30)
 
 #if defined(CONFIG_ECONET_EN7528)
 #define RBUS_TIMEOUT_STS0	 0xBFA000D0

@@ -321,7 +321,7 @@ static inline void cpu_dma_round_robin(int mode)
 	if (mode == ENABLE)
 		reg_arb |= ROUND_ROBIN_ENABLE;
 	else
-		reg_arb &= ROUND_ROBIN_DISBALE;
+		reg_arb &= ROUND_ROBIN_DISABLE;
 
 	VPint(ARB_CFG) = reg_arb;
 }

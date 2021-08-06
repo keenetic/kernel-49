@@ -328,7 +328,7 @@ static inline void cpu_dma_round_robin(int mode)
 
 void __init prom_init(void)
 {
-	unsigned long memsize, memresv, memregn, memoffs;
+	unsigned long memsize, memresv, memregn, memoffs, memhigh = 0;
 	unsigned int bus_freq, cpu_freq, cpu_ratio;
 	const char *ram_type;
 
@@ -380,19 +380,30 @@ void __init prom_init(void)
 	memoffs = 0x02000;
 #endif
 
-	if (memsize > 0x1c000000) {
-		/* 1. Normal region 0..448MB */
-		memregn = 0x1c000000 - memoffs - memresv;
-		add_memory_region(memoffs, memregn, BOOT_MEM_RAM);
-#ifdef CONFIG_HIGHMEM
-		/* 2. Highmem region */
-		memregn = memsize - 0x1c000000;
-		add_memory_region(EN75XX_HIGHMEM_START, memregn, BOOT_MEM_RAM);
-#endif
-	} else {
-		memregn = memsize - memoffs - memresv;
-		add_memory_region(memoffs, memregn, BOOT_MEM_RAM);
+	if (memsize > EN75XX_PALMBUS_START) {
+		memhigh = memsize - EN75XX_PALMBUS_START;
+		memsize = EN75XX_PALMBUS_START;
 	}
+
+	/* 1. Initial reserved region. */
+	if (memoffs != 0)
+		add_memory_region(0, memoffs, BOOT_MEM_RESERVED);
+
+	/* 2. Normal region. */
+	memregn = memsize - memoffs - memresv;
+	add_memory_region(memoffs, memregn, BOOT_MEM_RAM);
+
+	/* 3. HWQ reserved region. */
+	if (memresv != 0)
+		add_memory_region(memoffs + memregn, memresv,
+				  BOOT_MEM_RESERVED);
+
+#ifdef CONFIG_HIGHMEM
+	/* 4. Highmem region. */
+	if (memhigh != 0)
+		add_memory_region(EN75XX_HIGHMEM_START, memhigh,
+				  BOOT_MEM_RAM);
+#endif
 
 	bus_freq = SYS_HCLK;
 	cpu_freq = bus_freq * cpu_ratio;
@@ -402,10 +413,10 @@ void __init prom_init(void)
 	surfboard_sysclk = bus_freq * 1000 * 1000;
 	tc_mips_cpu_freq = cpu_freq * 1000 * 1000;
 
-	printk(KERN_INFO "%s: RAM: %s %luMB\n",
+	printk(KERN_INFO "%s: RAM: %s %i MB\n",
 		get_system_type(),
 		ram_type,
-		memsize / 1024 / 1024);
+		GET_DRAM_SIZE);
 
 	printk(KERN_INFO "CPU/SYS frequency: %u/%u MHz\n",
 		cpu_freq,

@@ -300,7 +300,7 @@ void __init mips_nmi_setup(void)
 		(void *)(ebase + 0x200 + VECTORSPACING * 64) :
 		(void *)(ebase + 0x380);
 
-	printk(KERN_INFO "NMI base is %08X\n", (unsigned int)base);
+	pr_info("NMI base is %08x\n", (unsigned int)base);
 
 	/*
 	 * Fill the NMI_Handler address in a register, which is a R/W register
@@ -413,14 +413,9 @@ void __init prom_init(void)
 	surfboard_sysclk = bus_freq * 1000 * 1000;
 	tc_mips_cpu_freq = cpu_freq * 1000 * 1000;
 
-	printk(KERN_INFO "%s: RAM: %s %i MB\n",
-		get_system_type(),
-		ram_type,
-		GET_DRAM_SIZE);
-
-	printk(KERN_INFO "CPU/SYS frequency: %u/%u MHz\n",
-		cpu_freq,
-		bus_freq);
+	pr_info("%s: RAM: %s %i MB\n",
+		get_system_type(), ram_type, GET_DRAM_SIZE);
+	pr_info("CPU/SYS frequency: %u/%u MHz\n", cpu_freq, bus_freq);
 
 	board_nmi_handler_setup = mips_nmi_setup;
 	cpu_dma_round_robin(ENABLE);

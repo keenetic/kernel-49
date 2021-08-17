@@ -395,8 +395,7 @@
 		compatible = "mediatek,mt7622-wdt",
 			     "mediatek,mt6589-wdt";
 		reg = <0 0x10212000 0 0x1000>;
-		timeout-sec = <20>;
-		interrupts = <GIC_SPI 128 IRQ_TYPE_EDGE_FALLING>;
+		timeout-sec = <30>;
 		mediatek,timer = <&timer>;
 		#reset-cells = <1>;
 	};

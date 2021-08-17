@@ -1576,6 +1576,13 @@ config MIPS_WDT_CALLTRACE_THRESHOLD
 	default 3
 	depends on MIPS_WDT
 
+config MT_WDT
+	tristate "MediaTek MT7622 softirq watchdog"
+	depends on ARCH_MEDIATEK
+	depends on ARM64
+	help
+	  Driver for the MediaTek MT7622 SoC softirq watchdog timer.
+
 # PARISC Architecture
 
 # POWERPC Architecture

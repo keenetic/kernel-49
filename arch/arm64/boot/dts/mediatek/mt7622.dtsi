@@ -1029,6 +1029,13 @@
 		#reset-cells = <1>;
 	};
 
+	gsw: gsw@1b100000 {
+		compatible = "mediatek,rtk-gsw",
+			     "mediatek,mt753x";
+		mediatek,ethsys = <&ethsys>;
+		status = "disabled";
+	};
+
 	raeth: raeth@1b100000 {
 		compatible = "mediatek,mt7622-raeth";
 		reg = <0 0x1b100000 0 0x20000>;
@@ -1056,6 +1063,7 @@
 			      "sgmii_cdr_fb";
 		power-domains = <&scpsys MT7622_POWER_DOMAIN_ETHSYS>;
 		mediatek,ethsys = <&ethsys>;
+		mediatek,gsw = <&gsw>;
 		#reset-cells = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;

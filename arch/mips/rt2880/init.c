@@ -69,9 +69,6 @@ u32 mips_cpu_feq;
 u32 surfboard_sysclk;
 u32 ralink_asic_rev_id;
 
-int soc_power_status;
-EXPORT_SYMBOL(soc_power_status);
-
 #ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
 /* Environment variable */
 typedef struct {
@@ -118,26 +115,26 @@ char *prom_getenv(char *envname)
 
 static inline void prom_show_pstat(void)
 {
-	char *s;
+	unsigned long status;
+	const char *const s = prom_getenv("pstat");
 
-	s = prom_getenv("pstat");
 	if (!s)
 		return;
 
-	soc_power_status = (int)simple_strtoul(s, NULL, 0);
+	status = simple_strtoul(s, NULL, 0);
 
-	switch (soc_power_status) {
+	switch (status) {
 	default:
-		pr_warn("SoC power status: unknown");
+		pr_err("SoC power status: unknown (%08lx)\n", status);
 		break;
 	case 3:
-		pr_warn("SoC power status: watchdog reset occurred");
+		pr_warn("SoC power status: hardware watchdog reset\n");
 		break;
 	case 2:
-		pr_info("SoC power status: soft reset occurred");
+		pr_info("SoC power status: software reset\n");
 		break;
 	case 1:
-		pr_info("SoC power status: hard reset occurred");
+		pr_info("SoC power status: power-on reset\n");
 		break;
 	}
 }

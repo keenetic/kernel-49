@@ -17,3 +17,9 @@ ETH_SWITCH_DEFINE_HOOK(set_wan_port)
 ETH_SWITCH_DEFINE_HOOK(mt7530_reg_write_bh)
 ETH_SWITCH_DEFINE_HOOK(rtl83xx_reg_write_bh)
 ETH_SWITCH_DEFINE_HOOK(rtl8211_reg_write_bh)
+
+#define ETH_SWITCH_DEFINE_OPS(name)					\
+struct eth_switch_##name##_ops *__eth_switch_##name##_ops;		\
+EXPORT_SYMBOL(__eth_switch_##name##_ops);
+
+ETH_SWITCH_DEFINE_OPS(mt7531)

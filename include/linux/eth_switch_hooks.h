@@ -71,5 +71,44 @@ ETH_SWITCH_DECLARE_HOOK(mt7530_reg_write_bh);
 ETH_SWITCH_DECLARE_HOOK(rtl83xx_reg_write_bh);
 ETH_SWITCH_DECLARE_HOOK(rtl8211_reg_write_bh);
 
+#define ETH_SWITCH_DECLARE_OPS(name)					\
+extern struct eth_switch_##name##_ops *__eth_switch_##name##_ops;	\
+									\
+static inline bool							\
+eth_switch_##name##_ops_get_bh(struct eth_switch_##name##_ops **ops)	\
+{									\
+	read_lock_bh(&eth_switch_lock);					\
+	*ops = __eth_switch_##name##_ops;				\
+									\
+	if (*ops == NULL) {						\
+		read_unlock_bh(&eth_switch_lock);			\
+		return false;						\
+	}								\
+									\
+	return true;							\
+}									\
+									\
+static inline void							\
+eth_switch_##name##_ops_put_bh(struct eth_switch_##name##_ops **ops)	\
+{									\
+	*ops = NULL;							\
+	read_unlock_bh(&eth_switch_lock);				\
+}									\
+									\
+static inline void							\
+eth_switch_##name##_ops_set_bh(struct eth_switch_##name##_ops *ops)	\
+{									\
+	write_lock_bh(&eth_switch_lock);				\
+	__eth_switch_##name##_ops = ops;				\
+	write_unlock_bh(&eth_switch_lock);				\
+}
+
+struct eth_switch_mt7531_ops {
+	int (*r32_bh)(const u32 addr, u32 *data);
+	int (*w32_bh)(const u32 addr, const u32 data);
+};
+
+ETH_SWITCH_DECLARE_OPS(mt7531);
+
 #endif /* __INCLUDE_LINUX_ETH_SWITCH_HOOKS_H */
 

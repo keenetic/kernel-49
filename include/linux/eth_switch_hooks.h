@@ -110,5 +110,12 @@ struct eth_switch_mt7531_ops {
 
 ETH_SWITCH_DECLARE_OPS(mt7531);
 
+struct eth_switch_rtl8221_ops {
+	int (*r32_bh)(const u32 addr, u32 *data);
+	int (*w32_bh)(const u32 addr, const u32 data);
+};
+
+ETH_SWITCH_DECLARE_OPS(rtl8221);
+
 #endif /* __INCLUDE_LINUX_ETH_SWITCH_HOOKS_H */
 

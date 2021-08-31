@@ -2723,12 +2723,17 @@ static SPI_NAND_FLASH_RTN_T SPI_NAND_Flash_Init(void)
 #endif
 	SPI_NAND_FLASH_RTN_T rtn_status = SPI_NAND_FLASH_RTN_PROBE_ERROR;
 
-	/* 1. set SFC Clock to 50MHZ  */
+
 #if defined(CONFIG_ECONET_EN7528)
-	if (!isFPGA)
-		SPI_CONTROLLER_Clock_Edges_Set(2);
-#endif
+	/* 1. set SFC Clock to 40MHZ  */
+	spi_nand_set_clock_speed(40);
+
+	/* restore clock edge (compat with old boot) */
+	SPI_CONTROLLER_Clock_Edges_Set(1);
+#else
+	/* 1. set SFC Clock to 50MHZ  */
 	spi_nand_set_clock_speed(50);
+#endif
 
 	/* 2. Enable Manual Mode */
 	_SPI_NAND_ENABLE_MANUAL_MODE();

@@ -30,10 +30,6 @@ typedef int eth_switch_mt7530_reg_write_bh_fn(const u32 addr,
 typedef int eth_switch_rtl83xx_reg_write_bh_fn(const u32 addr,
 					       const u32 data);
 
-typedef int eth_switch_rtl8211_reg_write_bh_fn(const u16 page,
-					       const u16 addr,
-					       const u16 data);
-
 extern rwlock_t eth_switch_lock;
 
 #define ETH_SWITCH_DECLARE_HOOK(name)					\
@@ -69,7 +65,6 @@ ETH_SWITCH_DECLARE_HOOK(set_wan_port)
 
 ETH_SWITCH_DECLARE_HOOK(mt7530_reg_write_bh);
 ETH_SWITCH_DECLARE_HOOK(rtl83xx_reg_write_bh);
-ETH_SWITCH_DECLARE_HOOK(rtl8211_reg_write_bh);
 
 #define ETH_SWITCH_DECLARE_OPS(name)					\
 extern struct eth_switch_##name##_ops *__eth_switch_##name##_ops;	\
@@ -109,6 +104,13 @@ struct eth_switch_mt7531_ops {
 };
 
 ETH_SWITCH_DECLARE_OPS(mt7531);
+
+struct eth_switch_rtl8211_ops {
+	int (*r16_bh)(const u16 page, const u16 addr, u16 *data);
+	int (*w16_bh)(const u16 page, const u16 addr, const u16 data);
+};
+
+ETH_SWITCH_DECLARE_OPS(rtl8211);
 
 struct eth_switch_rtl8221_ops {
 	int (*r32_bh)(const u32 addr, u32 *data);

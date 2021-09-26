@@ -498,17 +498,17 @@ static void __init prom_init_serial_port(void)
 
 	// fixed 8n1
 	IER(RALINK_SYSCTL_BASE + 0xC00) = 0;
-	FCR(RALINK_SYSCTL_BASE + 0xC00) = 0;
 	LCR(RALINK_SYSCTL_BASE + 0xC00) = RT2880_UART_LCR_WLEN8;
 	DLL(RALINK_SYSCTL_BASE + 0xC00) = (clock_divisor & 0xFF);
 	DLM(RALINK_SYSCTL_BASE + 0xC00) = (clock_divisor >> 8) & 0xFF;
+	FCR(RALINK_SYSCTL_BASE + 0xC00) = 7; /* reset TX and RX */
 
 	// fixed 8n1
 	IER(RALINK_SYSCTL_BASE + 0xD00) = 0;
-	FCR(RALINK_SYSCTL_BASE + 0xD00) = 0;
 	LCR(RALINK_SYSCTL_BASE + 0xD00) = RT2880_UART_LCR_WLEN8;
 	DLL(RALINK_SYSCTL_BASE + 0xD00) = (clock_divisor & 0xFF);
 	DLM(RALINK_SYSCTL_BASE + 0xD00) = (clock_divisor >> 8) & 0xFF;
+	FCR(RALINK_SYSCTL_BASE + 0xD00) = 7; /* reset TX and RX */
 
 	serial_req[0].line       = 0;
 	serial_req[0].type       = PORT_16550A;
@@ -585,6 +585,6 @@ void __init prom_init(void)
 
 	prom_show_pstat();
 
-	prom_printf("\nLINUX started...\n");
+	prom_printf("Linux kernel started.\n");
 }
 

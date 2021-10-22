@@ -89,6 +89,19 @@ config MT7915_BACKGROUND_SCAN_SUPPORT
 	bool "Background Channels Scan support"
 	default y
 
+config MT7915_DEDICATED_RX_2G
+	bool "Dedicated RX antenna for 2.4GHz"
+	depends on MT7915_BACKGROUND_SCAN_SUPPORT
+
+config MT7915_DEDICATED_RX_5G
+	bool "Dedicated RX antenna for 5GHz"
+	depends on MT7915_BACKGROUND_SCAN_SUPPORT
+	default y
+
+config MT7915_DEDICATED_RX_6G
+	bool "Dedicated RX antenna for 6GHz"
+	depends on MT7915_BACKGROUND_SCAN_SUPPORT
+
 config MT7915_TXBF_SUPPORT
 	bool "Tx Beam Forming support"
 	default y

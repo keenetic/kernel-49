@@ -1938,6 +1938,14 @@ static const struct driver_info wwan_noarp_info = {
 };
 
 static const struct usb_device_id cdc_devs[] = {
+	/* Blacklisted */
+	/* Realtek RTL8156 Based USB 3.0 Ethernet Adapters */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0bda, 0x8156,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = 0,
+	},
+
 	/* Ericsson MBM devices like F5521gw */
 	{ .match_flags = USB_DEVICE_ID_MATCH_INT_INFO
 		| USB_DEVICE_ID_MATCH_VENDOR,

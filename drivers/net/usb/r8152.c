@@ -2070,17 +2070,17 @@ static struct rx_agg *alloc_rx_agg(struct r8152 *tp, gfp_t mflags)
 	struct rx_agg *rx_agg;
 	unsigned long flags;
 
-	rx_agg = kmalloc_node(sizeof(*rx_agg), mflags, node);
+	rx_agg = kmalloc_node(sizeof(*rx_agg), mflags | __GFP_NOWARN, node);
 	if (!rx_agg)
 		return NULL;
 
-	rx_agg->page = alloc_pages(mflags | __GFP_COMP, order);
+	rx_agg->page = alloc_pages(mflags | __GFP_COMP | __GFP_NOWARN, order);
 	if (!rx_agg->page)
 		goto free_rx;
 
 	rx_agg->buffer = page_address(rx_agg->page);
 
-	rx_agg->urb = usb_alloc_urb(0, mflags);
+	rx_agg->urb = usb_alloc_urb(0, mflags | __GFP_NOWARN);
 	if (!rx_agg->urb)
 		goto free_buf;
 
@@ -10021,6 +10021,23 @@ static int rtl8152_probe(struct usb_interface *intf,
 	ret = rtl_ops_init(tp);
 	if (ret)
 		goto out;
+
+#ifndef CONFIG_64BIT
+	if (tp->support_2500full) {
+		/* limit RX buffer size to 32K */
+		if (tp->rx_buf_sz > 32 * 1024)
+			tp->rx_buf_sz = 32 * 1024;
+	} else {
+		/* limit RX buffer size to 16K */
+		if (tp->rx_buf_sz > 16 * 1024)
+			tp->rx_buf_sz = 16 * 1024;
+	}
+#endif
+
+	/* limit RX buffer size to 16K for USB2 mode */
+	if (tp->rx_buf_sz > 16 * 1024 &&
+	    tp->udev->speed < USB_SPEED_SUPER)
+		tp->rx_buf_sz = 16 * 1024;
 
 	rtl_fw_init(tp);
 

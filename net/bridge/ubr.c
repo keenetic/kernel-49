@@ -561,6 +561,242 @@ static void ubr_set_gso_limits(const struct ubr_private *ubr)
 	ubr->dev->gso_max_segs = gso_max_segs;
 }
 
+static void
+ubr_ethtool_proxy_get_drvinfo(struct net_device *netdev,
+			      struct ethtool_drvinfo *info)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+
+	if (slave_dev == NULL)
+		return;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->get_drvinfo)
+		return;
+
+	ops->get_drvinfo(slave_dev, info);
+}
+
+static int
+ubr_ethtool_proxy_get_settings(struct net_device *netdev,
+			       struct ethtool_cmd *cmd)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->get_settings)
+		return -EOPNOTSUPP;
+
+	return ops->get_settings(slave_dev, cmd);
+}
+
+static int
+ubr_ethtool_proxy_set_settings(struct net_device *netdev,
+			       struct ethtool_cmd *cmd)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->set_settings)
+		return -EOPNOTSUPP;
+
+	return ops->set_settings(slave_dev, cmd);
+}
+
+static void
+ubr_ethtool_proxy_get_wol(struct net_device *netdev,
+			  struct ethtool_wolinfo *wol)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->get_wol)
+		return;
+
+	ops->get_wol(slave_dev, wol);
+}
+
+static int
+ubr_ethtool_proxy_set_wol(struct net_device *netdev,
+			  struct ethtool_wolinfo *wol)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->set_wol)
+		return -EOPNOTSUPP;
+
+	return ops->set_wol(slave_dev, wol);
+}
+
+static void
+ubr_ethtool_proxy_get_ethtool_stats(struct net_device *netdev,
+				    struct ethtool_stats *stats, u64 *data)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->get_ethtool_stats)
+		return;
+
+	ops->get_ethtool_stats(slave_dev, stats, data);
+}
+
+static int
+ubr_ethtool_proxy_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->get_eee)
+		return -EOPNOTSUPP;
+
+	return ops->get_eee(slave_dev, edata);
+}
+
+static int
+ubr_ethtool_proxy_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->set_eee)
+		return -EOPNOTSUPP;
+
+	return ops->set_eee(slave_dev, edata);
+}
+
+static int
+ubr_ethtool_proxy_get_link_ksettings(struct net_device *netdev,
+				     struct ethtool_link_ksettings *cmd)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->get_link_ksettings)
+		return -EOPNOTSUPP;
+
+	return ops->get_link_ksettings(slave_dev, cmd);
+}
+
+static int
+ubr_ethtool_proxy_set_link_ksettings(struct net_device *netdev,
+				     const struct ethtool_link_ksettings *cmd)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->set_link_ksettings)
+		return -EOPNOTSUPP;
+
+	return ops->set_link_ksettings(slave_dev, cmd);
+}
+
+static void
+ubr_ethtool_proxy_get_pauseparam(struct net_device *netdev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->get_pauseparam)
+		return;
+
+	ops->get_pauseparam(slave_dev, pause);
+}
+
+static int
+ubr_ethtool_proxy_set_pauseparam(struct net_device *netdev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->set_pauseparam)
+		return -EOPNOTSUPP;
+
+	return ops->set_pauseparam(slave_dev, pause);
+}
+
+static void
+ubr_install_ethtool_hooks(struct net_device *master_dev)
+{
+	struct ethtool_ops *mops =
+		(struct ethtool_ops *)master_dev->ethtool_ops;
+
+	mops->get_drvinfo = ubr_ethtool_proxy_get_drvinfo;
+	mops->get_settings = ubr_ethtool_proxy_get_settings;
+	mops->set_settings = ubr_ethtool_proxy_set_settings;
+	mops->get_wol = ubr_ethtool_proxy_get_wol;
+	mops->set_wol = ubr_ethtool_proxy_set_wol;
+	mops->get_ethtool_stats = ubr_ethtool_proxy_get_ethtool_stats;
+	mops->get_eee = ubr_ethtool_proxy_get_eee;
+	mops->set_eee = ubr_ethtool_proxy_set_eee;
+	mops->get_link_ksettings = ubr_ethtool_proxy_get_link_ksettings;
+	mops->set_link_ksettings = ubr_ethtool_proxy_set_link_ksettings;
+	mops->get_pauseparam = ubr_ethtool_proxy_get_pauseparam;
+	mops->set_pauseparam = ubr_ethtool_proxy_set_pauseparam;
+}
+
 static int
 ubr_attach_if(struct net_device *master_dev, struct net_device *slave_dev)
 {
@@ -650,7 +886,6 @@ ubr_attach_if(struct net_device *master_dev, struct net_device *slave_dev)
 
 	dev_set_mtu(master_dev, ubr_min_mtu(ubr));
 	ubr_set_gso_limits(ubr);
-
 	netif_carrier_on(master_dev);
 
 	return 0;
@@ -685,7 +920,6 @@ static void ubr_unreg_if(struct ubr_private *ubr)
 		update_headroom(ubr, get_max_headroom(ubr));
 	dev_set_mtu(master_dev, ubr_min_mtu(ubr));
 	ubr_set_gso_limits(ubr);
-
 	netdev_update_features(master_dev);
 }
 
@@ -869,6 +1103,9 @@ static int ubr_alloc_master(struct net *net, const char *name)
 	rtnl_lock();
 	list_add(&ubr->list, &ubr_list);
 	rtnl_unlock();
+
+	dev->ethtool_ops = &ubr->ethtool_ops;
+	ubr_install_ethtool_hooks(dev);
 
 out:
 	return err;

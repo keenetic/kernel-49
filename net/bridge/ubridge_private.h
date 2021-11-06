@@ -8,11 +8,12 @@
 #include <linux/netdevice.h>
 
 struct ubr_private {
-	struct net_device		*slave_dev;
+	struct net_device			*slave_dev;
 	struct pcpu_sw_netstats		__percpu *stats;
-	struct list_head		list;
-	struct net_device		*dev;
-	unsigned long			flags;
+	struct list_head			list;
+	struct net_device			*dev;
+	unsigned long				flags;
+	struct ethtool_ops			ethtool_ops;
 };
 
 #define is_ubridge_port(dev)	(dev->priv_flags & IFF_UBRIDGE_PORT)

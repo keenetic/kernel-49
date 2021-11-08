@@ -8865,6 +8865,10 @@ static int rtl8152_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (cmd->advertising & ADVERTISED_2500baseX_Full)
 		advertising |= RTL_ADVERTISED_2500_FULL;
 
+	/* Workaround for NDM and old ethtool API */
+	if (cmd->speed == SPEED_2500)
+		advertising |= RTL_ADVERTISED_2500_FULL;
+
 	mutex_lock(&tp->control);
 
 	ret = rtl8152_set_speed(tp, cmd->autoneg, cmd->speed, cmd->duplex,
@@ -9076,6 +9080,10 @@ static int rtl8152_set_link_ksettings(struct net_device *dev,
 
 	if (test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
 		     cmd->link_modes.advertising))
+		advertising |= RTL_ADVERTISED_2500_FULL;
+
+	/* Workaround for NDM and old ethtool API */
+	if (cmd->base.speed == SPEED_2500)
 		advertising |= RTL_ADVERTISED_2500_FULL;
 
 	mutex_lock(&tp->control);

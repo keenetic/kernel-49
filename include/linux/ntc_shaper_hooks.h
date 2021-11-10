@@ -87,8 +87,8 @@ ntc_shaper_hooks_set(ntc_shaper_hook_fn *ingress_hook,
 
 /* Must be no more than 128 bits long */
 struct nf_ct_ext_ntc_label {
-	int iface1;
-	int iface2;
+	int wan_iface;
+	int lan_iface;
 };
 
 extern enum nf_ct_ext_id nf_ct_ext_id_ntc;
@@ -120,20 +120,15 @@ static inline struct nf_ct_ext_ntc_label *nf_ct_ext_add_ntc(struct nf_conn *ct)
 	if (unlikely(lbl == NULL))
 		return NULL;
 
-	lbl->iface1 = -1;
-	lbl->iface2 = -1;
+	lbl->wan_iface = 0;
+	lbl->lan_iface = 0;
 
 	return lbl;
 }
 
 static inline bool nf_ct_ext_ntc_filled(struct nf_ct_ext_ntc_label *lbl)
 {
-	return lbl != NULL && lbl->iface1 >= 0 && lbl->iface2 >= 0;
-}
-
-static inline bool nf_ct_ext_ntc_part_filled(struct nf_ct_ext_ntc_label *lbl)
-{
-	return lbl != NULL && lbl->iface1 >= 0;
+	return lbl != NULL && lbl->wan_iface > 0 && lbl->lan_iface > 0;
 }
 
 #endif

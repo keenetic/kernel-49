@@ -1900,6 +1900,15 @@ struct net_device {
 	struct lock_class_key	*qdisc_tx_busylock;
 	struct lock_class_key	*qdisc_running_key;
 	bool			proto_down;
+
+#if IS_ENABLED(CONFIG_NDM_SECURITY_LEVEL)
+	enum {
+		NDM_SECURITY_LEVEL_NONE = 0,
+		NDM_SECURITY_LEVEL_PRIVATE,
+		NDM_SECURITY_LEVEL_PROTECTED,
+		NDM_SECURITY_LEVEL_PUBLIC
+	} ndm_security_level:8;
+#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

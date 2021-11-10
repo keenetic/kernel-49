@@ -1620,73 +1620,61 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 }
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
+#ifdef CONFIG_NDM_SECURITY_LEVEL
+
 static inline void
-nf_conntrack_update_ifaces(struct net *net, struct sk_buff *skb,
-			   struct nf_ct_ext_ntc_label *lbl, uint8_t protonum)
+nf_conntrack_update_ntc_ifaces(struct net *net, struct sk_buff *skb,
+			       struct nf_conn *ct, unsigned int hooknum)
 {
-	if (unlikely(
-		protonum != IPPROTO_TCP &&
-		protonum != IPPROTO_UDP &&
-		protonum != IPPROTO_GRE &&
-		protonum != IPPROTO_ESP &&
-		protonum != IPPROTO_UDPLITE &&
-		protonum != IPPROTO_ICMP &&
-		protonum != IPPROTO_IPIP &&
-		protonum != IPPROTO_IPV6 &&
-		protonum != IPPROTO_SCTP &&
-		protonum != IPPROTO_AH))
+	struct nf_ct_ext_ntc_label *lbl;
+	struct net_device *dev;
+	int idx;
+
+	if (unlikely(nf_ct_ext_id_ntc == 0))
+		return;
+ 
+	if (hooknum != NF_INET_PRE_ROUTING)
 		return;
 
-	if (lbl->iface1 < 0)
-		lbl->iface1 = skb->skb_iif;
-	else
-	if (lbl->iface1 != skb->skb_iif &&
-	    lbl->iface2 < 0)
-		lbl->iface2 = skb->skb_iif;
-	else
-	if (nf_ct_ext_ntc_filled(lbl) &&
-	    lbl->iface1 != skb->skb_iif &&
-	    lbl->iface2 != skb->skb_iif) {
-		struct net_device *iface1 = dev_get_by_index(net, lbl->iface1);
-		struct net_device *iface2 = dev_get_by_index(net, lbl->iface2);
+	if (unlikely(skb_sec_path(skb)))
+		return;
 
-		if (iface1 != NULL) {
-			if (br_port_exists(iface1))
-				lbl->iface1 = -1;
-
-			dev_put(iface1);
-		} else
-			lbl->iface1 = -1;
-
-		if (iface2 != NULL) {
-			if (br_port_exists(iface2))
-				lbl->iface2 = -1;
-
-			dev_put(iface2);
-		} else
-			lbl->iface2 = -1;
-
-		if (lbl->iface1 < 0 &&
-			lbl->iface2 >= 0) {
-			lbl->iface1 = lbl->iface2;
-			lbl->iface2 = -1;
+	lbl = nf_ct_ext_find_ntc(ct);
+	if (!lbl) {
+		lbl = nf_ct_ext_add_ntc(ct);
+		if (unlikely(!lbl)) {
+			pr_err_ratelimited("unable to create a NTC extension");
+			return;
 		}
-
-		if (lbl->iface1 < 0)
-			lbl->iface1 = skb->skb_iif;
-		else
-		if (lbl->iface1 != skb->skb_iif &&
-			lbl->iface2 < 0)
-			lbl->iface2 = skb->skb_iif;
-		else
-		if (nf_ct_ext_ntc_filled(lbl) &&
-		    lbl->iface1 != skb->skb_iif &&
-		    lbl->iface2 != skb->skb_iif)
-			pr_err_ratelimited(
-				"unable to save third interface %d, already has %d and %d (protonum %u)",
-				skb->skb_iif, lbl->iface1, lbl->iface2, (uint16_t)protonum);
 	}
+
+	if (likely(nf_ct_ext_ntc_filled(lbl)))
+		return;
+
+	idx = skb->skb_iif;
+	if (idx <= 0)
+		return;
+
+	dev = dev_get_by_index(net, idx);
+	if (!dev)
+		return;
+
+	if (!br_port_exists(dev)) {
+		const unsigned short sl = dev->ndm_security_level;
+
+		if (sl != NDM_SECURITY_LEVEL_NONE) {
+			if (sl == NDM_SECURITY_LEVEL_PUBLIC)
+				lbl->wan_iface = idx;
+			else
+				lbl->lan_iface = idx;
+		}
+	}
+
+	dev_put(dev);
 }
+#else
+#error NDM Security level is required
+#endif
 #endif
 
 unsigned int
@@ -1840,21 +1828,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		goto fast_nat_exit;
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
-	if (likely(
-	    !skb_sec_path(skb) &&
-	     nf_ct_ext_id_ntc != 0 &&
-	     hooknum == NF_INET_PRE_ROUTING)) {
-		struct nf_ct_ext_ntc_label *ntc_ct_lbl = nf_ct_ext_find_ntc(ct);
-
-		if (ntc_ct_lbl == NULL)
-			ntc_ct_lbl = nf_ct_ext_add_ntc(ct);
-
-		if (unlikely(ntc_ct_lbl == NULL))
-			pr_err_ratelimited("unable to allocate ntc ct label");
-		else
-			nf_conntrack_update_ifaces(net, skb,
-						   ntc_ct_lbl, protonum);
-	}
+	nf_conntrack_update_ntc_ifaces(net, skb, ct, hooknum);
 #endif
 
 	/* check fastpath condition */

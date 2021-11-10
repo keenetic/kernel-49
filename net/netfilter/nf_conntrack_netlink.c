@@ -356,8 +356,8 @@ static int ctnetlink_dump_ndm_ifaces(struct sk_buff *skb,
 	if (nest_lbl == NULL)
 		goto nla_put_failure;
 
-	if (nla_put_s32(skb, CTA_NDM_IFACE1, lbl->iface1) ||
-	    nla_put_s32(skb, CTA_NDM_IFACE2, lbl->iface2))
+	if (nla_put_s32(skb, CTA_NDM_IFACE1, lbl->wan_iface) ||
+	    nla_put_s32(skb, CTA_NDM_IFACE2, lbl->lan_iface))
 		goto nla_put_failure;
 	nla_nest_end(skb, nest_lbl);
 

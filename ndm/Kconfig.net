@@ -3,6 +3,10 @@ config UBRIDGE
 	depends on BRIDGE
 	default y
 
+config NDM_SECURITY_LEVEL
+	bool "NDM security level support"
+	default y
+
 config FAST_NAT
 	bool "Fast NAT support"
 	depends on NETFILTER

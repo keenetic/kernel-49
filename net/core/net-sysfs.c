@@ -503,6 +503,68 @@ static ssize_t phys_switch_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(phys_switch_id);
 
+#if IS_ENABLED(CONFIG_NDM_SECURITY_LEVEL)
+
+static const char *security_level_str[] = {
+	[NDM_SECURITY_LEVEL_NONE] = "none",
+	[NDM_SECURITY_LEVEL_PRIVATE] = "private",
+	[NDM_SECURITY_LEVEL_PROTECTED] = "protected",
+	[NDM_SECURITY_LEVEL_PUBLIC] = "public"
+};
+
+static ssize_t ndm_security_level_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	struct net *net = dev_net(netdev);
+	size_t count = len;
+	int i = NDM_SECURITY_LEVEL_NONE;
+
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+	/* ignore trailing newline */
+	if (len >  0 && buf[len - 1] == '\n')
+		--count;
+
+	for (i = 0; i < ARRAY_SIZE(security_level_str); i++) {
+		if (!strncmp(buf, security_level_str[i], count))
+			break;
+	}
+
+	if (i == NDM_SECURITY_LEVEL_NONE || i >= ARRAY_SIZE(security_level_str))
+		return -EINVAL;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+	netdev->ndm_security_level = i;
+	rtnl_unlock();
+
+	return len;
+}
+
+static ssize_t ndm_security_level_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	const struct net_device *netdev = to_net_dev(dev);
+	u8 sl = NDM_SECURITY_LEVEL_NONE;
+	int i;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+	sl = netdev->ndm_security_level;
+	rtnl_unlock();
+
+	for (i = 0; i < ARRAY_SIZE(security_level_str); i++)
+		if (i == sl)
+			return sprintf(buf, "%s\n", security_level_str[i]);
+
+	return sprintf(buf, "%s\n", security_level_str[NDM_SECURITY_LEVEL_NONE]);
+}
+static DEVICE_ATTR_RW(ndm_security_level);
+#endif
+
 static struct attribute *net_class_attrs[] = {
 	&dev_attr_netdev_group.attr,
 	&dev_attr_type.attr,
@@ -531,6 +593,9 @@ static struct attribute *net_class_attrs[] = {
 	&dev_attr_phys_port_name.attr,
 	&dev_attr_phys_switch_id.attr,
 	&dev_attr_proto_down.attr,
+#if IS_ENABLED(CONFIG_NDM_SECURITY_LEVEL)
+	&dev_attr_ndm_security_level.attr,
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(net_class);

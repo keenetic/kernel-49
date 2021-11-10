@@ -218,12 +218,12 @@ static void ct_show_ndm_ifaces(struct seq_file *s, const struct nf_conn *ct)
 	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
 
 	if (lbl) {
-		if (lbl->iface1 >= 0) {
-			seq_printf(s, "if1=%d ", lbl->iface1);
+		if (lbl->wan_iface > 0) {
+			seq_printf(s, "ifw=%d ", lbl->wan_iface);
 			ctr++;
 		}
-		if (lbl->iface2 >= 0) {
-			seq_printf(s, "if2=%d ", lbl->iface2);
+		if (lbl->lan_iface > 0) {
+			seq_printf(s, "ifl=%d ", lbl->lan_iface);
 			ctr++;
 		}
 	}

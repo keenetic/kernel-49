@@ -25,6 +25,8 @@
  *  - "U-State" search
  */
 
+#define pr_fmt(fmt)				  KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -376,21 +378,20 @@ static int mtd_write_retry(struct mtd_info *mtd, loff_t to, size_t len,
 	do {
 		ret = mtd_write(mtd, to, len, retlen, buf);
 		if (ret) {
-			printk("%s: write%s failed at 0x%012llx\n", __func__,
-				"", (unsigned long long) to);
+			pr_err("MTD write retry failed at 0x%012llx\n",
+			       (unsigned long long)to);
 		}
 
 		if (len != *retlen) {
-			printk("%s: short write at 0x%012llx\n", __func__,
-				(unsigned long long) to);
+			pr_err("MTD short write at 0x%012llx\n",
+			       (unsigned long long)to);
 			ret = -EIO;
 		}
 	} while (ret && --retries);
 
-	if (ret) {
-		printk("%s: write%s failed at 0x%012llx\n", __func__,
-			" completely", (unsigned long long) to);
-	}
+	if (ret)
+		pr_err("MTD write failed at 0x%012llx\n",
+		       (unsigned long long)to);
 
 	return ret;
 }
@@ -402,15 +403,14 @@ static int mtd_erase_retry(struct mtd_info *mtd, struct erase_info *instr)
 	do {
 		ret = mtd_erase(mtd, instr);
 		if (ret) {
-			printk("%s: erase%s failed at 0x%012llx\n", __func__,
-				"", (unsigned long long) instr->addr);
+			pr_err("MTD erase retry failed at 0x%012llx\n",
+			       (unsigned long long)instr->addr);
 		}
 	} while (ret && --retries);
 
-	if (ret) {
-		printk("%s: erase%s failed at 0x%012llx\n", __func__,
-			" completely", (unsigned long long) instr->addr);
-	}
+	if (ret)
+		pr_err("MTD erase failed at 0x%012llx\n",
+		       (unsigned long long)instr->addr);
 
 	return ret;
 }
@@ -438,7 +438,8 @@ static int ndm_flash_boot(struct mtd_info *master,
 
 	/* Check bootloader size */
 	if (boot_bin_len > p_size) {
-		printk(KERN_ERR "too big bootloader\n");
+		pr_err("the bootloader image is too big (%u > %u)\n",
+		       (unsigned int)boot_bin_len, (unsigned int)p_size);
 		goto out;
 	}
 
@@ -454,7 +455,7 @@ static int ndm_flash_boot(struct mtd_info *master,
 
 	ret = mtd_read(master, p_off, p_size, &len, m);
 	if (ret || len != p_size) {
-		printk(KERN_ERR "read failed");
+		pr_err("failed to read the bootloader image\n");
 		goto out_kfree;
 	}
 
@@ -473,12 +474,12 @@ static int ndm_flash_boot(struct mtd_info *master,
 	}
 
 	if (!update_need) {
-		printk(KERN_INFO "Bootloader is up to date\n");
+		pr_info("the bootloader is up to date\n");
 		res = 0;
 		goto out_kfree;
 	}
 
-	printk(KERN_INFO "Updating bootloader...\n");
+	pr_info("updating the bootloader...\n");
 
 	/* Flash bootloader */
 	memcpy(m, boot_bin, boot_bin_len);
@@ -522,7 +523,7 @@ static int ndm_flash_boot(struct mtd_info *master,
 	}
 
 	if (src_crc == dst_crc) {
-		printk("Bootloader update complete, scheduling reboot...\n");
+		pr_info("bootloader update complete, scheduling reboot...\n");
 		queue_work(system_unbound_wq, &restart_work);
 		res = 0;
 
@@ -531,8 +532,8 @@ static int ndm_flash_boot(struct mtd_info *master,
 
 out_write_fail:
 	if (src_crc != dst_crc)
-		printk(KERN_ERR "Bootloader update FAILED!"
-			" Device may be bricked!\n");
+		pr_crit("bootloader update failed, "
+			"the device may become unbootable\n");
 out_kfree:
 	kfree(v);
 	kfree(m);
@@ -677,8 +678,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 		off_si = part_u_state_offset(m);
 		if (off_si < flash_size_lim) {
-			printk(KERN_ERR "di: invalid flash size limit (0x%x)\n",
-				off_si);
+			pr_err("di: invalid flash size limit (0x%08x)\n",
+			       off_si);
 			return -EINVAL;
 		}
 
@@ -699,8 +700,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 		else
 			ndmpart_image_cur = di_image_num_pair_get(boot_backup);
 
-		printk(KERN_INFO "di: active = %d, backup = %d, current = %d\n",
-				 boot_active, boot_backup, ndmpart_image_cur);
+		pr_info("di: active = %d, backup = %d, current = %d\n",
+		        boot_active, boot_backup, ndmpart_image_cur);
 	}
 #endif
 
@@ -993,7 +994,7 @@ static int show_boot(struct seq_file *s, void *v)
 
 	ret = u_state_get(name, &val);
 	if (ret < 0) {
-		printk(KERN_WARNING "unknown name \"%s\"\n", name);
+		pr_crit("di: unknown state name: \"%s\"\n", name);
 		return ret;
 	}
 
@@ -1036,7 +1037,7 @@ static ssize_t commit_proc_write(struct file *file, const char __user *buffer,
 
 	ret = u_state_commit();
 	if (ret)
-		printk(KERN_WARNING "%s: commit failed\n", __func__);
+		pr_crit("di: state commit failed (%i)\n", ret);
 
 	return count;
 }
@@ -1169,7 +1170,7 @@ static int __init ndm_parser_init(void)
 		BUG_ON(entry == NULL);
 	}
 #endif
-	printk(KERN_INFO "Registering NDM partitions parser\n");
+	pr_info("registering the NDM partition parser...\n");
 
 	return register_mtd_parser(&ndm_parser);
 }
@@ -1195,19 +1196,17 @@ static int u_state_init(struct mtd_info *m, uint32_t off, uint32_t size)
 
 	ret = mtd_read(m, off, sizeof(u_state), &len, (void *)&u_state);
 	if (ret != 0 || len != sizeof(u_state)) {
-		printk("%s: read failed at 0x%012x\n", __func__, off);
+		pr_err("di: MTD read failed at 0x%012x\n", off);
 		return -EIO;
 	}
 
 	if (ntohl(u_state.magic) != DI_U_STATE_MAGIC) {
-		printk("%s: unknown magic %08x\n", __func__,
-			ntohl(u_state.magic));
+		pr_err("di: unknown magic 0x%08x\n", ntohl(u_state.magic));
 		return -EINVAL;
 	}
 
 	if (u_state.version != DI_U_STATE_VERSION) {
-		printk("%s: unknown version %d\n", __func__,
-			(int)u_state.version);
+		pr_err("di: unknown version %d\n", (int)u_state.version);
 		return -EINVAL;
 	}
 

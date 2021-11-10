@@ -1033,11 +1033,12 @@ static int boot_fails_proc_open(struct inode *inode, struct file *file)
 static ssize_t commit_proc_write(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *pos)
 {
-	int ret;
+	const int ret = u_state_commit();
 
-	ret = u_state_commit();
-	if (ret)
+	if (ret != 0) {
 		pr_crit("di: state commit failed (%i)\n", ret);
+		return ret;
+	}
 
 	return count;
 }

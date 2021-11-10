@@ -376,6 +376,18 @@ static int mtd_write_retry(struct mtd_info *mtd, loff_t to, size_t len,
 	int ret, retries = MTD_MAX_RETRIES;
 
 	do {
+		struct erase_info ei = {
+			.mtd  = mtd,
+			.addr = to,
+			.len  = mtd->erasesize
+		};
+
+		ret = mtd_erase(mtd, &ei);
+		if (ret) {
+			pr_err("MTD erase retry failed at 0x%012llx\n",
+			       (unsigned long long)to);
+		}
+
 		ret = mtd_write(mtd, to, len, retlen, buf);
 		if (ret) {
 			pr_err("MTD write retry failed at 0x%012llx\n",
@@ -392,25 +404,6 @@ static int mtd_write_retry(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ret)
 		pr_err("MTD write failed at 0x%012llx\n",
 		       (unsigned long long)to);
-
-	return ret;
-}
-
-static int mtd_erase_retry(struct mtd_info *mtd, struct erase_info *instr)
-{
-	int ret, retries = MTD_MAX_RETRIES;
-
-	do {
-		ret = mtd_erase(mtd, instr);
-		if (ret) {
-			pr_err("MTD erase retry failed at 0x%012llx\n",
-			       (unsigned long long)instr->addr);
-		}
-	} while (ret && --retries);
-
-	if (ret)
-		pr_err("MTD erase failed at 0x%012llx\n",
-		       (unsigned long long)instr->addr);
 
 	return ret;
 }
@@ -491,11 +484,7 @@ static int ndm_flash_boot(struct mtd_info *master,
 
 	/* erase & write -> verify */
 	for (off = 0; off < size; off += es) {
-		struct erase_info ei = {
-			.mtd = master,
-			.addr = off + p_off,
-			.len = es
-		};
+		const loff_t addr = off + p_off;
 
 		/* write size can be < erase size */
 		ws = min(es, size - off);
@@ -505,17 +494,13 @@ static int ndm_flash_boot(struct mtd_info *master,
 
 		retries = MTD_MAX_RETRIES;
 		do {
-			ret = mtd_erase_retry(master, &ei);
-			if (ret)
-				goto out_write_fail;
-
-			ret = mtd_write_retry(master, ei.addr, ws, &len,
+			ret = mtd_write_retry(master, addr, ws, &len,
 					      m + off);
 			if (ret)
 				goto out_write_fail;
 
 			memset(v, 0xff, ws);
-			ret = mtd_read(master, ei.addr, ws, &len, v);
+			ret = mtd_read(master, addr, ws, &len, v);
 			if (ret == 0 && len == ws)
 				dst_crc = crc32(0, v, ws);
 
@@ -1254,22 +1239,16 @@ static int u_state_commit(void)
 {
 	int res = -1, ret;
 	size_t len;
-	struct mtd_info *master = u_state_master;
+	struct mtd_info *mtd = u_state_master;
 	uint32_t off = u_state_offset;
 	void *m;
-
-	struct erase_info ei = {
-		.mtd = master,
-		.addr = off,
-		.len = master->erasesize
-	};
 
 	if (!u_state_is_pending()) {
 		res = 0;
 		goto out;
 	}
 
-	m = kzalloc(master->erasesize, GFP_KERNEL);
+	m = kzalloc(mtd->erasesize, GFP_KERNEL);
 	if (m == NULL) {
 		res = -ENOMEM;
 		goto out;
@@ -1277,13 +1256,7 @@ static int u_state_commit(void)
 
 	memcpy(m, &u_state, sizeof(u_state));
 
-	ret = mtd_erase_retry(master, &ei);
-	if (ret) {
-		res = ret;
-		goto out_kfree;
-	}
-
-	ret = mtd_write_retry(master, ei.addr, ei.len, &len, m);
+	ret = mtd_write_retry(mtd, off, mtd->erasesize, &len, m);
 	if (ret) {
 		res = ret;
 		goto out_kfree;

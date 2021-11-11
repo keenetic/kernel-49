@@ -1236,44 +1236,45 @@ static int u_state_set(const char *name, int val)
 
 static int u_state_commit(void)
 {
-	int res = -1, ret;
-	size_t len;
-	struct mtd_info *mtd = u_state_master;
-	uint32_t off = u_state_offset;
 	struct di_u_state u;
-	void *m;
+	size_t len, buf_size;
+	int ret = mtd_read(u_state_master, u_state_offset, sizeof(u),
+			   &len, (u8 *)&u);
 
-	ret = mtd_read(mtd, off, sizeof(u), &len, (u8 *)&u);
 	if (ret != 0)
 		return ret;
 
 	if (len != sizeof(u))
 		return -EIO;
 
-	/* is a commit required? */
 	if (memcmp(&u, &u_state, sizeof(u)) == 0)
 		return 0;
 
-	m = kzalloc(mtd->erasesize, GFP_KERNEL);
-	if (m == NULL) {
-		res = -ENOMEM;
-		goto out;
+	if (u_state_master->type == MTD_NORFLASH) {
+		buf_size = sizeof(u_state);
+		ret = mtd_write_retry(u_state_master, u_state_offset,
+				      buf_size, &len, (u8 *)&u_state);
+	} else {
+		void *buf;
+
+		buf_size = ALIGN(sizeof(u_state), u_state_master->writesize);
+		buf = kmalloc(buf_size, GFP_KERNEL);
+
+		if (buf == NULL)
+			return -ENOMEM;
+
+		memset(buf, 0xff, buf_size);
+		memcpy(buf, &u_state, sizeof(u_state));
+
+		ret = mtd_write_retry(u_state_master, u_state_offset,
+				      buf_size, &len, buf);
+		kfree(buf);
 	}
 
-	memcpy(m, &u_state, sizeof(u_state));
+	if (ret == 0 && len != buf_size)
+		ret = -EIO;
 
-	ret = mtd_write_retry(mtd, off, mtd->erasesize, &len, m);
-	if (ret) {
-		res = ret;
-		goto out_kfree;
-	}
-
-	res = 0;
-
-out_kfree:
-	kfree(m);
-out:
-	return res;
+	return ret;
 }
 
 #ifdef CONFIG_MIPS

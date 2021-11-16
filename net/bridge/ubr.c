@@ -849,6 +849,8 @@ ubr_attach_if(struct net_device *master_dev, struct net_device *slave_dev)
 
 		mac_differ = !ether_addr_equal(master_dev->dev_addr,
 					       slave_dev->dev_addr);
+	} else {
+		master_dev->flags |= slave_dev->flags & IFF_POINTOPOINT;
 	}
 
 	call_netdevice_notifiers(NETDEV_JOIN, slave_dev);
@@ -920,6 +922,9 @@ static void ubr_unreg_if(struct ubr_private *ubr)
 		update_headroom(ubr, get_max_headroom(ubr));
 	dev_set_mtu(master_dev, ubr_min_mtu(ubr));
 	ubr_set_gso_limits(ubr);
+
+	master_dev->flags &= ~IFF_POINTOPOINT;
+
 	netdev_update_features(master_dev);
 }
 

@@ -41,9 +41,11 @@ int nf_nsc_ctmark_to_sc(const u8 mark)
 
 int nf_nsc_update_dscp(struct nf_conn *ct, struct sk_buff *skb)
 {
-	const u8 ctdscp = ndm_sc_to_dscp(nf_nsc_ctmark_to_sc_(ct->ndm_mark));
+	u8 ctdscp =  0;
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
+	ctdscp = ndm_sc_to_dscp(nf_nsc_ctmark_to_sc_(ct->ndm_mark));
+
 #if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
 	skb->ndm_mark = ct->ndm_mark & ~XT_CONNNDMMARK_CS_MASK;
 #endif
@@ -73,6 +75,8 @@ int nf_nsc_update_dscp(struct nf_conn *ct, struct sk_buff *skb)
 
 void nf_nsc_update_sc_ct(struct nf_conn *ct, const u8 sc)
 {
+#ifdef CONFIG_NF_CONNTRACK_MARK
 	ct->ndm_mark = (ct->ndm_mark & ~XT_CONNNDMMARK_CS_MASK) ^
 		       (sc << XT_CONNNDMMARK_CS_SHIFT);
+#endif
 }

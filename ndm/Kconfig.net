@@ -6,6 +6,7 @@ config UBRIDGE
 config FAST_NAT
 	bool "Fast NAT support"
 	depends on NETFILTER
+	select NF_NAT_IPV4
 	default y
 
 config FAST_NAT_V2

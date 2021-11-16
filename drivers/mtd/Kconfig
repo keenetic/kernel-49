@@ -163,6 +163,8 @@ config MTD_NDM_DUAL_IMAGE
 	bool "Dual image"
 	default y
 	depends on MTD_NDM_PARTS
+	select LIBFDT if !MIPS
+	select OF_EARLY_FLATTREE if !MIPS
 
 config MTD_NDM_U_STATE_SEARCH
 	bool "\"U-State\" search"

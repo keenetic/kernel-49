@@ -796,14 +796,8 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 		}
 	}
 	sdr_clr_bits(host->base + MSDC_CFG, MSDC_CFG_CKPDN);
-	/*
-	 * As src_clk/HCLK use the same bit to gate/ungate,
-	 * So if want to only gate src_clk, need gate its parent(mux).
-	 */
-	if (host->src_clk_cg)
-		clk_disable_unprepare(host->src_clk_cg);
-	else
-		clk_disable_unprepare(clk_get_parent(host->src_clk));
+
+	clk_disable_unprepare(host->src_clk_cg);
 	if (host->dev_comp->clk_div_bits == 8)
 		sdr_set_field(host->base + MSDC_CFG,
 			      MSDC_CFG_CKMOD | MSDC_CFG_CKDIV,
@@ -812,11 +806,8 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 		sdr_set_field(host->base + MSDC_CFG,
 			      MSDC_CFG_CKMOD_EXTRA | MSDC_CFG_CKDIV_EXTRA,
 			      (mode << 12) | div);
-	if (host->src_clk_cg)
-		clk_prepare_enable(host->src_clk_cg);
-	else
-		clk_prepare_enable(clk_get_parent(host->src_clk));
 
+	clk_prepare_enable(host->src_clk_cg);
 	while (!(readl(host->base + MSDC_CFG) & MSDC_CFG_CKSTB))
 		cpu_relax();
 	sdr_set_bits(host->base + MSDC_CFG, MSDC_CFG_CKPDN);
@@ -2156,6 +2147,19 @@ static int msdc_of_clock_parse(struct platform_device *pdev,
 	host->src_clk_cg = devm_clk_get_optional(&pdev->dev, "source_cg");
 	if (IS_ERR(host->src_clk_cg))
 		return PTR_ERR(host->src_clk_cg);
+
+	/*
+	 * Fallback for legacy device-trees: src_clk and HCLK use the same
+	 * bit to control gating but they are parented to a different mux,
+	 * hence if our intention is to gate only the source, required
+	 * during a clk mode switch to avoid hw hangs, we need to gate
+	 * its parent (specified as a different clock only on new DTs).
+	 */
+	if (!host->src_clk_cg) {
+		host->src_clk_cg = clk_get_parent(host->src_clk);
+		if (IS_ERR(host->src_clk_cg))
+			return PTR_ERR(host->src_clk_cg);
+	}
 
 	host->sys_clk_cg = devm_clk_get_optional(&pdev->dev, "sys_cg");
 	if (IS_ERR(host->sys_clk_cg))

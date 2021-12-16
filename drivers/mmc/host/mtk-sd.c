@@ -1437,6 +1437,7 @@ static void msdc_init_hw(struct msdc_host *host)
 {
 	u32 val;
 	u32 tune_reg = host->dev_comp->pad_tune_reg;
+	struct mmc_host *mmc = host->mmc;
 
 	/* Configure to MMC/SD mode, clock free running */
 	sdr_set_bits(host->base + MSDC_CFG, MSDC_CFG_MODE | MSDC_CFG_CKPDN);
@@ -1525,10 +1526,13 @@ static void msdc_init_hw(struct msdc_host *host)
 				     MSDC_PAD_TUNE_RXDLYSEL);
 	}
 
-	/* Configure to enable SDIO mode.
-	 * it's must otherwise sdio cmd5 failed
-	 */
-	sdr_set_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
+	if (mmc->caps2 & MMC_CAP2_NO_SDIO) {
+		/* disable SDIO mode */
+		sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
+	} else {
+		/* Configure to enable SDIO mode, otherwise SDIO CMD5 fails */
+		sdr_set_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
+	}
 
 	/* disable detect SDIO device interrupt function */
 	sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_SDIOIDE);

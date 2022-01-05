@@ -18,6 +18,7 @@
  * Based on sunxi_wdt.c
  */
 
+#include <dt-bindings/reset/mt7986-resets.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -88,6 +89,10 @@ struct mtk_wdt_dev {
 
 struct mtk_wdt_data {
 	int toprgu_sw_rst_num;
+};
+
+static const struct mtk_wdt_data mt7986_data = {
+	.toprgu_sw_rst_num = MT7986_TOPRGU_SW_RST_NUM,
 };
 
 static int toprgu_reset_update(struct reset_controller_dev *rcdev,
@@ -472,6 +477,7 @@ static int mtk_wdt_resume(struct device *dev)
 
 static const struct of_device_id mtk_wdt_dt_ids[] = {
 	{ .compatible = "mediatek,mt6589-wdt" },
+	{ .compatible = "mediatek,mt7986-wdt", .data = &mt7986_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mtk_wdt_dt_ids);

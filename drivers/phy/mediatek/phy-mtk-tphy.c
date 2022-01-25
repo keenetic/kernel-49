@@ -348,10 +348,14 @@ struct mtk_phy_instance {
 	struct regmap *type_sw;
 	u32 type_sw_reg;
 	u32 type_sw_index;
-	u32 efuse_sw_en;
+	bool efuse_sw_en;
+	bool efuse_alv_en;
+	bool efuse_alv_en_ln1;
+	u32 efuse_alv;
 	u32 efuse_intr;
 	u32 efuse_tx_imp;
 	u32 efuse_rx_imp;
+	u32 efuse_alv_ln1;
 	u32 efuse_intr_ln1;
 	u32 efuse_tx_imp_ln1;
 	u32 efuse_rx_imp_ln1;
@@ -1015,10 +1019,11 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 {
 	struct device *dev = &instance->phy->dev;
 	int ret = 0;
+	bool alv = false;
 
 	/* tphy v1 doesn't support sw efuse, skip it */
 	if (!tphy->pdata->sw_efuse_supported) {
-		instance->efuse_sw_en = 0;
+		instance->efuse_sw_en = false;
 		return 0;
 	}
 
@@ -1029,6 +1034,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 
 	switch (instance->type) {
 	case PHY_TYPE_USB2:
+		alv = of_property_read_bool(dev->of_node, "auto_load_valid");
+		if (alv) {
+			instance->efuse_alv_en = alv;
+			ret = nvmem_cell_read_variable_le_u32(dev, "auto_load_valid",
+							      &instance->efuse_alv);
+			if (ret) {
+				dev_err(dev, "fail to get u2 alv efuse, %d\n", ret);
+				break;
+			}
+			dev_info(dev,
+				 "u2 auto load valid efuse: ENABLE with value: %u\n",
+				 instance->efuse_alv);
+		}
+
 		ret = nvmem_cell_read_variable_le_u32(dev, "intr", &instance->efuse_intr);
 		if (ret) {
 			dev_err(dev, "fail to get u2 intr efuse, %d\n", ret);
@@ -1038,7 +1057,7 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 		/* no efuse, ignore it */
 		if (!instance->efuse_intr) {
 			dev_warn(dev, "no u2 intr efuse, but dts enable it\n");
-			instance->efuse_sw_en = 0;
+			instance->efuse_sw_en = false;
 			break;
 		}
 
@@ -1047,6 +1066,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 
 	case PHY_TYPE_USB3:
 	case PHY_TYPE_PCIE:
+		alv = of_property_read_bool(dev->of_node, "auto_load_valid");
+		if (alv) {
+			instance->efuse_alv_en = alv;
+			ret = nvmem_cell_read_variable_le_u32(dev, "auto_load_valid",
+							      &instance->efuse_alv);
+			if (ret) {
+				dev_err(dev, "fail to get u3(pcei) alv efuse, %d\n", ret);
+				break;
+			}
+			dev_info(dev,
+				 "u3 auto load valid efuse: ENABLE with value: %u\n",
+				 instance->efuse_alv);
+		}
+
 		ret = nvmem_cell_read_variable_le_u32(dev, "intr", &instance->efuse_intr);
 		if (ret) {
 			dev_err(dev, "fail to get u3 intr efuse, %d\n", ret);
@@ -1070,7 +1103,7 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 		    !instance->efuse_rx_imp &&
 		    !instance->efuse_tx_imp) {
 			dev_warn(dev, "no u3 intr efuse, but dts enable it\n");
-			instance->efuse_sw_en = 0;
+			instance->efuse_sw_en = false;
 			break;
 		}
 
@@ -1079,6 +1112,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 
 		if (tphy->pdata->version != MTK_PHY_V4)
 			break;
+
+		alv = of_property_read_bool(dev->of_node, "auto_load_valid_ln1");
+		if (alv) {
+			instance->efuse_alv_en_ln1 = alv;
+			ret = nvmem_cell_read_variable_le_u32(dev, "auto_load_valid_ln1",
+							      &instance->efuse_alv_ln1);
+			if (ret) {
+				dev_err(dev, "fail to get pcie auto_load_valid efuse, %d\n", ret);
+				break;
+			}
+			dev_info(dev,
+				 "pcie auto load valid efuse: ENABLE with value: %u\n",
+				 instance->efuse_alv_ln1);
+		}
 
 		ret = nvmem_cell_read_variable_le_u32(dev, "intr_ln1", &instance->efuse_intr_ln1);
 		if (ret) {
@@ -1103,13 +1150,13 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 		    !instance->efuse_rx_imp_ln1 &&
 		    !instance->efuse_tx_imp_ln1) {
 			dev_warn(dev, "no u3 lane1 efuse, but dts enable it\n");
-			instance->efuse_sw_en = 0;
+			instance->efuse_sw_en = false;
 			break;
 		}
 
-		dev_info(dev, "u3 lane1 efuse - intr %x, rx_imp %x, tx_imp %x\n",
-			 instance->efuse_intr_ln1, instance->efuse_rx_imp_ln1,
-			 instance->efuse_tx_imp_ln1);
+		dev_dbg(dev, "u3 lane1 efuse - intr %x, rx_imp %x, tx_imp %x\n",
+			instance->efuse_intr_ln1, instance->efuse_rx_imp_ln1,
+			instance->efuse_tx_imp_ln1);
 		break;
 	default:
 		dev_err(dev, "no sw efuse for type %d\n", instance->type);
@@ -1131,6 +1178,10 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
 
 	switch (instance->type) {
 	case PHY_TYPE_USB2:
+		if (instance->efuse_alv_en &&
+		    instance->efuse_alv == 1)
+			break;
+
 		tmp = readl(u2_banks->misc + U3P_MISC_REG1);
 		tmp |= MR1_EFUSE_AUTO_LOAD_DIS;
 		writel(tmp, u2_banks->misc + U3P_MISC_REG1);
@@ -1139,8 +1190,13 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
 		tmp &= ~PA1_RG_INTR_CAL;
 		tmp |= PA1_RG_INTR_CAL_VAL(instance->efuse_intr);
 		writel(tmp, u2_banks->com + U3P_USBPHYACR1);
+		dev_info(dev, "set efuse intr %x\n", instance->efuse_intr);
 		break;
 	case PHY_TYPE_USB3:
+		if (instance->efuse_alv_en &&
+		    instance->efuse_alv == 1)
+			break;
+
 		tmp = readl(u3_banks->phyd + U3P_U3_PHYD_RSV);
 		tmp |= P3D_RG_EFUSE_AUTO_LOAD_DIS;
 		writel(tmp, u3_banks->phyd + U3P_U3_PHYD_RSV);
@@ -1161,11 +1217,15 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
 		tmp &= ~P3A_RG_IEXT_INTR;
 		tmp |= P3A_RG_IEXT_INTR_VAL(instance->efuse_intr);
 		writel(tmp, u3_banks->phya + U3P_U3_PHYA_REG0);
-		pr_info("%s set efuse, tx_imp %x, rx_imp %x intr %x\n",
-			__func__, instance->efuse_tx_imp,
-			instance->efuse_rx_imp, instance->efuse_intr);
+		dev_info(dev, "set efuse, tx_imp %x, rx_imp %x, intr %x\n",
+			instance->efuse_tx_imp, instance->efuse_rx_imp,
+			instance->efuse_intr);
 		break;
 	case PHY_TYPE_PCIE:
+		if (instance->efuse_alv_en &&
+		    instance->efuse_alv == 1)
+			break;
+
 		tmp = readl(u3_banks->phyd + U3P_U3_PHYD_RSV);
 		tmp |= P3D_RG_EFUSE_AUTO_LOAD_DIS;
 		writel(tmp, u3_banks->phyd + U3P_U3_PHYD_RSV);
@@ -1186,13 +1246,15 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
 		tmp &= ~P3A_RG_IEXT_INTR;
 		tmp |= P3A_RG_IEXT_INTR_VAL(instance->efuse_intr);
 		writel(tmp, u3_banks->phya + U3P_U3_PHYA_REG0);
-		pr_info("%s set efuse, tx_imp %x, rx_imp %x intr %x\n",
-			__func__, instance->efuse_tx_imp,
-			instance->efuse_rx_imp, instance->efuse_intr);
+		dev_info(dev, "set efuse, tx_imp %x, rx_imp %x, intr %x\n",
+			instance->efuse_tx_imp, instance->efuse_rx_imp,
+			instance->efuse_intr);
 
-		if (!instance->efuse_intr_ln1 &&
-		    !instance->efuse_rx_imp_ln1 &&
-		    !instance->efuse_tx_imp_ln1)
+		if ((!instance->efuse_intr_ln1 &&
+		     !instance->efuse_rx_imp_ln1 &&
+		     !instance->efuse_tx_imp_ln1) ||
+		    (instance->efuse_alv_en_ln1 &&
+		     instance->efuse_alv_ln1 == 1))
 			break;
 
 		tmp = readl(u3_banks->phyd + SSUSB_LN1_OFFSET + U3P_U3_PHYD_RSV);
@@ -1215,9 +1277,9 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
 		tmp &= ~P3A_RG_IEXT_INTR;
 		tmp |= P3A_RG_IEXT_INTR_VAL(instance->efuse_intr_ln1);
 		writel(tmp, u3_banks->phya + SSUSB_LN1_OFFSET + U3P_U3_PHYA_REG0);
-		pr_info("%s set LN1 efuse, tx_imp %x, rx_imp %x intr %x\n",
-			__func__, instance->efuse_tx_imp_ln1,
-			instance->efuse_rx_imp_ln1, instance->efuse_intr_ln1);
+		dev_info(dev, "set LN1 efuse, tx_imp %x, rx_imp %x, intr %x\n",
+			instance->efuse_tx_imp_ln1, instance->efuse_rx_imp_ln1,
+			instance->efuse_intr_ln1);
 		break;
 	default:
 		dev_warn(dev, "no sw efuse for type %d\n", instance->type);

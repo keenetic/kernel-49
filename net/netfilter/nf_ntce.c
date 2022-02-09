@@ -670,7 +670,7 @@ void nf_ntce_enq_packet(struct sk_buff *skb)
 	if (dev == NULL)
 		return;
 
-	nskb = skb_clone(skb, GFP_ATOMIC | __GFP_NOWARN);
+	nskb = skb_copy(skb, GFP_ATOMIC | __GFP_NOWARN);
 	if (nskb == NULL)
 		goto exit_put;
 

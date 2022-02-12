@@ -523,11 +523,16 @@ int __init init_en75xx_pci(void)
 	sysRegWrite(ECONET_PCIEC_REG, reg_val);
 	mdelay(1);
 
-	/* assert PCIe RC0/RC1/HB reset signal */
+	/* de-assert PCIe RC0/RC1/HB reset signal */
 	reg_val = sysRegRead(ECONET_RSTCTRL_REG);
+	reg_val &= ~(RALINK_PCIE0_RST | RALINK_PCIE1_RST | RALINK_PCIEHB_RST);
+	sysRegWrite(ECONET_RSTCTRL_REG, reg_val);
+	mdelay(1);
+
+	/* assert PCIe RC0/RC1/HB reset signal */
 	reg_val |=  (RALINK_PCIE0_RST | RALINK_PCIE1_RST | RALINK_PCIEHB_RST);
 	sysRegWrite(ECONET_RSTCTRL_REG, reg_val);
-	mdelay(10);
+	mdelay(100);
 
 	/* de-assert PCIe RC0/RC1/HB reset signal */
 	reg_val &= ~(RALINK_PCIE0_RST | RALINK_PCIE1_RST | RALINK_PCIEHB_RST);
@@ -540,7 +545,7 @@ int __init init_en75xx_pci(void)
 	sysRegWrite(ECONET_PCIEC_REG, reg_val);
 
 	/* wait before detect card in slots */
-	msleep(200);
+	mdelay(250);
 	for (i = 0; i < 20; i++) {
 		pcie_link_status = (sysRegRead(ECONET_PCIE_LINKUP) >> 1) & 0x3;
 

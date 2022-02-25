@@ -90,6 +90,7 @@
 #include <net/netfilter/nf_fp_smb.h>
 #endif
 
+#include <net/netfilter/nf_nsc.h>
 #include <net/netfilter/nf_ntce.h>
 
 static int
@@ -334,6 +335,7 @@ int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 #endif
 
 	nf_ntce_enqueue_out(skb);
+	nf_nsc_update_ndm_mark(skb);
 
 	mtu = ip_skb_dst_mtu(sk, skb);
 	if (skb_is_gso(skb))

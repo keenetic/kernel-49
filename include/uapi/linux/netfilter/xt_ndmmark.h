@@ -21,7 +21,9 @@ enum xt_ndmmark_list {
 };
 
 enum xt_ndmmark_kernel_list {
-	XT_NDMMARK_KERNEL_NTC       = 0x01
+	XT_NDMMARK_KERNEL_NTC       = 0x01,
+	XT_NDMMARK_KERNEL_CS_MASK   = 0x1C,
+	XT_NDMMARK_KERNEL_CS_SHIFT  = 0x02
 };
 
 struct xt_ndmmark_tginfo {

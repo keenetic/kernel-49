@@ -28,6 +28,21 @@ typedef int eth_switch_mt7530_reg_write_bh_fn(const u32 addr,
 typedef int eth_switch_rtl83xx_reg_write_bh_fn(const u32 addr,
 					       const u32 data);
 
+#define ETH_SWITCH_DECLARE_HOOK_RCU(name)				\
+extern eth_switch_##name##_fn __rcu *eth_switch_##name##_hook;		\
+									\
+static inline eth_switch_##name##_fn *					\
+eth_switch_##name##_hook_get_rcu(void)					\
+{									\
+	return rcu_dereference(eth_switch_##name##_hook);		\
+}									\
+									\
+static inline void							\
+eth_switch_##name##_hook_set(eth_switch_##name##_fn *name##_hook)	\
+{									\
+	rcu_assign_pointer(eth_switch_##name##_hook, name##_hook);	\
+}
+
 extern rwlock_t eth_switch_lock;
 
 #define ETH_SWITCH_DECLARE_HOOK(name)					\
@@ -37,7 +52,6 @@ static inline eth_switch_##name##_fn *					\
 eth_switch_##name##_hook_get(void)					\
 {									\
 	read_lock_bh(&eth_switch_lock);					\
-									\
 	return eth_switch_##name##_hook;				\
 }									\
 									\
@@ -55,10 +69,10 @@ eth_switch_##name##_hook_set(eth_switch_##name##_fn *name##_hook)	\
 	write_unlock_bh(&eth_switch_lock);				\
 }
 
-ETH_SWITCH_DECLARE_HOOK(map_mc_mac)
-ETH_SWITCH_DECLARE_HOOK(unmap_mc_mac)
-ETH_SWITCH_DECLARE_HOOK(mark_mr_mac)
-ETH_SWITCH_DECLARE_HOOK(set_wan_port)
+ETH_SWITCH_DECLARE_HOOK_RCU(map_mc_mac)
+ETH_SWITCH_DECLARE_HOOK_RCU(unmap_mc_mac)
+ETH_SWITCH_DECLARE_HOOK_RCU(mark_mr_mac)
+ETH_SWITCH_DECLARE_HOOK_RCU(set_wan_port)
 
 ETH_SWITCH_DECLARE_HOOK(mt7530_reg_write_bh);
 ETH_SWITCH_DECLARE_HOOK(rtl83xx_reg_write_bh);

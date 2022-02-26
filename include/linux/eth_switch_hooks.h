@@ -8,8 +8,6 @@
 
 struct net_device;
 
-typedef bool eth_switch_iface_fn(const struct net_device *const dev);
-
 typedef int eth_switch_map_mc_mac_fn(const struct net_device *const dev,
 				     const u8 *const uc_mac,
 				     const u8 *const mc_mac);
@@ -57,7 +55,6 @@ eth_switch_##name##_hook_set(eth_switch_##name##_fn *name##_hook)	\
 	write_unlock_bh(&eth_switch_lock);				\
 }
 
-ETH_SWITCH_DECLARE_HOOK(iface)
 ETH_SWITCH_DECLARE_HOOK(map_mc_mac)
 ETH_SWITCH_DECLARE_HOOK(unmap_mc_mac)
 ETH_SWITCH_DECLARE_HOOK(mark_mr_mac)

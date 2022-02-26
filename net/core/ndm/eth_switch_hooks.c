@@ -8,7 +8,6 @@ EXPORT_SYMBOL(eth_switch_lock);
 eth_switch_##name##_fn *eth_switch_##name##_hook;			\
 EXPORT_SYMBOL(eth_switch_##name##_hook);
 
-ETH_SWITCH_DEFINE_HOOK(iface)
 ETH_SWITCH_DEFINE_HOOK(map_mc_mac)
 ETH_SWITCH_DEFINE_HOOK(unmap_mc_mac)
 ETH_SWITCH_DEFINE_HOOK(mark_mr_mac)

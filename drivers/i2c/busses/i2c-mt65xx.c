@@ -83,6 +83,25 @@
 
 #define I2C_DRV_NAME		"i2c-mt65xx"
 
+/**
+ * enum i2c_mt65xx_clks - Clocks enumeration for MT65XX I2C
+ *
+ * @I2C_MT65XX_CLK_MAIN: main clock for i2c bus
+ * @I2C_MT65XX_CLK_DMA:  DMA clock for i2c via DMA
+ * @I2C_MT65XX_CLK_PMIC: PMIC clock for i2c from PMIC
+ * @I2C_MT65XX_CLK_MAX:  Number of supported clocks
+ */
+enum i2c_mt65xx_clks {
+	I2C_MT65XX_CLK_MAIN = 0,
+	I2C_MT65XX_CLK_DMA,
+	I2C_MT65XX_CLK_PMIC,
+	I2C_MT65XX_CLK_MAX
+};
+
+static const char * const i2c_mt65xx_clk_ids[I2C_MT65XX_CLK_MAX] = {
+	"main", "dma", "pmic"
+};
+
 enum DMA_REGS_OFFSET {
 	OFFSET_INT_FLAG = 0x0,
 	OFFSET_INT_EN = 0x04,
@@ -210,9 +229,7 @@ struct mtk_i2c {
 	/* set in i2c probe */
 	void __iomem *base;		/* i2c base addr */
 	void __iomem *pdmabase;		/* dma base address*/
-	struct clk *clk_main;		/* main clock for i2c bus */
-	struct clk *clk_dma;		/* DMA clock for i2c via DMA */
-	struct clk *clk_pmic;		/* PMIC clock for i2c from PMIC */
+	struct clk_bulk_data clocks[I2C_MT65XX_CLK_MAX]; /* clocks for i2c */
 	bool have_pmic;			/* can use i2c pins from PMIC */
 	bool use_push_pull;		/* IO config push-pull mode */
 
@@ -337,42 +354,6 @@ static void mtk_i2c_writew(struct mtk_i2c *i2c, u16 val,
 			   enum I2C_REGS_OFFSET reg)
 {
 	writew(val, i2c->base + i2c->dev_comp->regs[reg]);
-}
-
-static int mtk_i2c_clock_enable(struct mtk_i2c *i2c)
-{
-	int ret;
-
-	ret = clk_prepare_enable(i2c->clk_dma);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(i2c->clk_main);
-	if (ret)
-		goto err_main;
-
-	if (i2c->have_pmic) {
-		ret = clk_prepare_enable(i2c->clk_pmic);
-		if (ret)
-			goto err_pmic;
-	}
-	return 0;
-
-err_pmic:
-	clk_disable_unprepare(i2c->clk_main);
-err_main:
-	clk_disable_unprepare(i2c->clk_dma);
-
-	return ret;
-}
-
-static void mtk_i2c_clock_disable(struct mtk_i2c *i2c)
-{
-	if (i2c->have_pmic)
-		clk_disable_unprepare(i2c->clk_pmic);
-
-	clk_disable_unprepare(i2c->clk_main);
-	clk_disable_unprepare(i2c->clk_dma);
 }
 
 static void mtk_i2c_init_hw(struct mtk_i2c *i2c)
@@ -731,7 +712,7 @@ static int mtk_i2c_transfer(struct i2c_adapter *adap,
 	int left_num = num;
 	struct mtk_i2c *i2c = i2c_get_adapdata(adap);
 
-	ret = mtk_i2c_clock_enable(i2c);
+	ret = clk_bulk_prepare_enable(I2C_MT65XX_CLK_MAX, i2c->clocks);
 	if (ret)
 		return ret;
 
@@ -784,7 +765,7 @@ static int mtk_i2c_transfer(struct i2c_adapter *adap,
 	ret = num;
 
 err_exit:
-	mtk_i2c_clock_disable(i2c);
+	clk_bulk_disable_unprepare(I2C_MT65XX_CLK_MAX, i2c->clocks);
 	return ret;
 }
 
@@ -856,9 +837,8 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct mtk_i2c *i2c;
-	struct clk *clk;
 	struct resource *res;
-	int irq;
+	int i, irq, speed_clk;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
@@ -900,31 +880,38 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	if (i2c->have_pmic && !i2c->dev_comp->pmic_i2c)
 		return -EINVAL;
 
-	i2c->clk_main = devm_clk_get(&pdev->dev, "main");
-	if (IS_ERR(i2c->clk_main)) {
+	/* Fill in clk-bulk IDs */
+	for (i = 0; i < I2C_MT65XX_CLK_MAX; i++)
+		i2c->clocks[i].id = i2c_mt65xx_clk_ids[i];
+
+	/* Get clocks one by one, some may be optional */
+	i2c->clocks[I2C_MT65XX_CLK_MAIN].clk = devm_clk_get(&pdev->dev, "main");
+	if (IS_ERR(i2c->clocks[I2C_MT65XX_CLK_MAIN].clk)) {
 		dev_err(&pdev->dev, "cannot get main clock\n");
-		return PTR_ERR(i2c->clk_main);
+		return PTR_ERR(i2c->clocks[I2C_MT65XX_CLK_MAIN].clk);
 	}
 
-	i2c->clk_dma = devm_clk_get(&pdev->dev, "dma");
-	if (IS_ERR(i2c->clk_dma)) {
+	i2c->clocks[I2C_MT65XX_CLK_DMA].clk = devm_clk_get(&pdev->dev, "dma");
+	if (IS_ERR(i2c->clocks[I2C_MT65XX_CLK_DMA].clk)) {
 		dev_err(&pdev->dev, "cannot get dma clock\n");
-		return PTR_ERR(i2c->clk_dma);
+		return PTR_ERR(i2c->clocks[I2C_MT65XX_CLK_DMA].clk);
 	}
 
-	clk = i2c->clk_main;
 	if (i2c->have_pmic) {
-		i2c->clk_pmic = devm_clk_get(&pdev->dev, "pmic");
-		if (IS_ERR(i2c->clk_pmic)) {
+		i2c->clocks[I2C_MT65XX_CLK_PMIC].clk = devm_clk_get(&pdev->dev, "pmic");
+		if (IS_ERR(i2c->clocks[I2C_MT65XX_CLK_PMIC].clk)) {
 			dev_err(&pdev->dev, "cannot get pmic clock\n");
-			return PTR_ERR(i2c->clk_pmic);
+			return PTR_ERR(i2c->clocks[I2C_MT65XX_CLK_PMIC].clk);
 		}
-		clk = i2c->clk_pmic;
+		speed_clk = I2C_MT65XX_CLK_PMIC;
+	} else {
+		i2c->clocks[I2C_MT65XX_CLK_PMIC].clk = NULL;
+		speed_clk = I2C_MT65XX_CLK_MAIN;
 	}
 
 	strlcpy(i2c->adap.name, I2C_DRV_NAME, sizeof(i2c->adap.name));
 
-	ret = mtk_i2c_set_speed(i2c, clk_get_rate(clk));
+	ret = mtk_i2c_set_speed(i2c, clk_get_rate(i2c->clocks[speed_clk].clk));
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to set the speed.\n");
 		return -EINVAL;
@@ -938,13 +925,13 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = mtk_i2c_clock_enable(i2c);
+	ret = clk_bulk_prepare_enable(I2C_MT65XX_CLK_MAX, i2c->clocks);
 	if (ret) {
 		dev_err(&pdev->dev, "clock enable failed!\n");
 		return ret;
 	}
 	mtk_i2c_init_hw(i2c);
-	mtk_i2c_clock_disable(i2c);
+	clk_bulk_disable_unprepare(I2C_MT65XX_CLK_MAX, i2c->clocks);
 
 	ret = devm_request_irq(&pdev->dev, irq, mtk_i2c_irq,
 			       IRQF_TRIGGER_NONE, I2C_DRV_NAME, i2c);
@@ -981,8 +968,7 @@ static int mtk_i2c_resume(struct device *dev)
 	int ret;
 	struct mtk_i2c *i2c = dev_get_drvdata(dev);
 
-	/* enable i2c clock to sync i2c register configuration */
-	ret = mtk_i2c_clock_enable(i2c);
+	ret = clk_bulk_prepare_enable(I2C_MT65XX_CLK_MAX, i2c->clocks);
 	if (ret) {
 		dev_err(dev, "clock enable failed!\n");
 		return ret;
@@ -990,7 +976,7 @@ static int mtk_i2c_resume(struct device *dev)
 
 	mtk_i2c_init_hw(i2c);
 
-	mtk_i2c_clock_disable(i2c);
+	clk_bulk_disable_unprepare(I2C_MT65XX_CLK_MAX, i2c->clocks);
 
 	return 0;
 }

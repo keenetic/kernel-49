@@ -129,6 +129,49 @@ static void nf_conn_rtcache_dst_obsolete(struct nf_conn_rtcache *rtc,
 	rtc->cached_dst[dir].iif = -1;
 }
 
+void nf_conn_rtcache_dump(struct seq_file *s, struct nf_conn *ct)
+{
+	struct nf_conn_rtcache *rtc;
+	int orig_if, repl_if;
+	struct dst_entry *orig_dst = NULL, *repl_dst = NULL;
+
+	rtc = nf_ct_rtcache_find_usable(ct);
+	if (!rtc)
+		return;
+
+	orig_if = nf_conn_rtcache_iif_get(rtc, IP_CT_DIR_ORIGINAL);
+	repl_if = nf_conn_rtcache_iif_get(rtc, IP_CT_DIR_REPLY);
+
+	orig_dst = nf_conn_rtcache_dst_get(rtc, IP_CT_DIR_ORIGINAL);
+	repl_dst = nf_conn_rtcache_dst_get(rtc, IP_CT_DIR_REPLY);
+	if (!orig_dst && !repl_dst)
+		return;
+
+	if (orig_dst)
+		orig_dst = dst_check(orig_dst,
+				     nf_rtcache_get_cookie(nf_ct_l3num(ct),
+							   orig_dst));
+	if (repl_dst)
+		repl_dst = dst_check(repl_dst,
+				     nf_rtcache_get_cookie(nf_ct_l3num(ct),
+							   repl_dst));
+
+	if (!orig_dst && !repl_dst)
+		return;
+	
+	seq_printf(s, "[RTCACHE ");
+
+	if (orig_dst)
+		seq_printf(s, "o%d", orig_if);
+
+	if (repl_dst)
+		seq_printf(s, "%sr%d",
+			   (orig_dst != NULL ? "/" : ""),
+			   repl_if);
+
+	seq_printf(s, "] ");
+}
+
 static int do_rtcache_in(u_int8_t pf, struct sk_buff *skb, int ifindex)
 {
 	struct nf_conn_rtcache *rtc;

@@ -32,3 +32,5 @@ static inline int nf_conn_rtcache_iif_get(const struct nf_conn_rtcache *rtc,
 {
 	return rtc->cached_dst[dir].iif;
 }
+
+void nf_conn_rtcache_dump(struct seq_file *s, struct nf_conn *ct);

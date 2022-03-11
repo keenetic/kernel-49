@@ -43,6 +43,10 @@
 #include <linux/ntc_shaper_hooks.h>
 #endif
 
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+#include <net/netfilter/nf_conntrack_rtcache.h>
+#endif
+
 #include <net/netfilter/nf_ntce.h>
 #include <net/netfilter/nf_nsc.h>
 
@@ -238,6 +242,17 @@ ct_show_ndm_ifaces(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+static void ct_show_rtcache(struct seq_file *s, const struct nf_conn *ct)
+{
+	nf_conn_rtcache_dump(s, ct);
+}
+#else
+static inline void ct_show_rtcache(struct seq_file *s, const struct nf_conn *ct)
+{
+}
+#endif
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -307,6 +322,8 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (l3proto->l3proto == PF_INET && !ct->fast_ext)
 		seq_printf(s, "[FASTNAT] ");
 #endif
+
+	ct_show_rtcache(s, ct);
 
 	if (seq_has_overflowed(s))
 		goto release;

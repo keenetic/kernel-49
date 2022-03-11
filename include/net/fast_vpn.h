@@ -98,6 +98,8 @@ extern void (*prebind_from_pptptx)(struct sk_buff *skb,
 extern void (*prebind_from_pppoetx)(struct sk_buff *skb,
 				    struct sock *sock,
 				    __be16 sid);
+
+extern void (*prebind_from_ct_mark)(struct nf_conn *ct);
 /* End of prebind hooks */
 
 /* List of new MC streams */

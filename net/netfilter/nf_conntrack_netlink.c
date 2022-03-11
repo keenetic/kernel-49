@@ -56,6 +56,7 @@
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/fast_nat.h>
+#include <net/fast_vpn.h>
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
@@ -63,6 +64,7 @@
 #endif
 
 #include <net/netfilter/nf_ntce.h>
+#include <net/netfilter/nf_nsc.h>
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
@@ -692,6 +694,27 @@ static size_t ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       ;
 }
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+static inline void swnat_ct_mark_hook(struct nf_conn *ct)
+{
+	typeof(prebind_from_ct_mark) swnat_prebind;
+
+	if (nf_ct_is_dying(ct) || nf_ct_is_expired(ct))
+		return;
+
+	if (nf_nsc_ctmark_to_sc(ct->ndm_mark) == 0)
+		return;
+
+	rcu_read_lock();
+
+	swnat_prebind = rcu_dereference(prebind_from_ct_mark);
+	if (swnat_prebind)
+		swnat_prebind(ct);
+
+	rcu_read_unlock();
+}
+#endif
+
 static int
 ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 {
@@ -720,6 +743,11 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	} else  if (events) {
 		type = IPCTNL_MSG_CT_NEW;
 		group = NFNLGRP_CONNTRACK_UPDATE;
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+		if (events & (1 << IPCT_NDMMARK))
+			swnat_ct_mark_hook(ct);
+#endif
 	} else
 		return 0;
 

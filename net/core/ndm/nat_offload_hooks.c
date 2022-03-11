@@ -47,6 +47,9 @@ void (*prebind_from_pppoetx)(struct sk_buff *skb,
 			     __be16 sid) = NULL;
 EXPORT_SYMBOL(prebind_from_pppoetx);
 
+void (*prebind_from_ct_mark)(struct nf_conn *ct);
+EXPORT_SYMBOL(prebind_from_ct_mark);
+
 #ifdef CONFIG_FAST_NAT_V2
 int (*nf_fastpath_pptp_in)(struct sk_buff *skb,
 			   unsigned int dataoff,

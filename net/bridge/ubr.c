@@ -777,13 +777,32 @@ ubr_ethtool_proxy_set_pauseparam(struct net_device *netdev,
 	return ops->set_pauseparam(slave_dev, pause);
 }
 
+static u32
+ubr_ethtool_proxy_get_link(struct net_device *netdev)
+{
+	struct ubr_private *ubr = netdev_priv(netdev);
+	struct net_device *slave_dev = ubr->slave_dev;
+	const struct ethtool_ops *ops;
+
+	if (slave_dev == NULL)
+		return 0;
+
+	ops = slave_dev->ethtool_ops;
+	if (!ops->get_link)
+		return -EOPNOTSUPP;
+
+	return ops->get_link(slave_dev);
+}
+
 static void
-ubr_install_ethtool_hooks(struct net_device *master_dev)
+ubr_install_ethtool_hooks(struct net_device *master_dev,
+			  struct net_device *slave_dev)
 {
 	struct ethtool_ops *mops =
 		(struct ethtool_ops *)master_dev->ethtool_ops;
 
 	mops->get_drvinfo = ubr_ethtool_proxy_get_drvinfo;
+	mops->get_link = ubr_ethtool_proxy_get_link;
 	mops->get_settings = ubr_ethtool_proxy_get_settings;
 	mops->set_settings = ubr_ethtool_proxy_set_settings;
 	mops->get_wol = ubr_ethtool_proxy_get_wol;
@@ -795,6 +814,16 @@ ubr_install_ethtool_hooks(struct net_device *master_dev)
 	mops->set_link_ksettings = ubr_ethtool_proxy_set_link_ksettings;
 	mops->get_pauseparam = ubr_ethtool_proxy_get_pauseparam;
 	mops->set_pauseparam = ubr_ethtool_proxy_set_pauseparam;
+
+	if (slave_dev) {
+		/* Enforce to use old -> new in-kernel API compat layer */
+
+		if (!slave_dev->ethtool_ops->get_link_ksettings)
+			mops->get_link_ksettings = NULL;
+
+		if (!slave_dev->ethtool_ops->set_link_ksettings)
+			mops->set_link_ksettings = NULL;
+	}
 }
 
 static int
@@ -889,6 +918,8 @@ ubr_attach_if(struct net_device *master_dev, struct net_device *slave_dev)
 	dev_set_mtu(master_dev, ubr_min_mtu(ubr));
 	ubr_set_gso_limits(ubr);
 	netif_carrier_on(master_dev);
+
+	ubr_install_ethtool_hooks(master_dev, slave_dev);
 
 	return 0;
 
@@ -1110,7 +1141,7 @@ static int ubr_alloc_master(struct net *net, const char *name)
 	rtnl_unlock();
 
 	dev->ethtool_ops = &ubr->ethtool_ops;
-	ubr_install_ethtool_hooks(dev);
+	ubr_install_ethtool_hooks(dev, NULL);
 
 out:
 	return err;

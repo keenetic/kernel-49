@@ -79,14 +79,11 @@ nf_conn_rtcache_dst_get(const struct nf_conn_rtcache *rtc,
 	return rtc->cached_dst[dir].dst;
 }
 
-static u32 nf_rtcache_get_cookie(int pf, const struct dst_entry *dst)
+static u32 nf_rtcache_get_cookie(u_int8_t pf, const struct dst_entry *dst)
 {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_IPV6)
 	if (pf == NFPROTO_IPV6) {
-		const struct rt6_info *rt = (const struct rt6_info *)dst;
-
-		if (rt->rt6i_node)
-			return (u32)rt->rt6i_node->fn_sernum;
+		return rt6_get_cookie((const struct rt6_info *)dst);
 	}
 #endif
 	return 0;
@@ -97,6 +94,9 @@ static void nf_conn_rtcache_dst_set(int pf,
 				    struct dst_entry *dst,
 				    enum ip_conntrack_dir dir, int iif)
 {
+	if (dst->dev->ifindex == iif)
+		return;
+
 	if (rtc->cached_dst[dir].iif != iif)
 		rtc->cached_dst[dir].iif = iif;
 

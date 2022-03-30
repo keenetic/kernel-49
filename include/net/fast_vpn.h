@@ -4,6 +4,7 @@
 #include <linux/list.h>
 
 struct iphdr;
+struct ipv6hdr;
 struct nf_conn;
 enum ip_conntrack_info;
 
@@ -11,18 +12,19 @@ enum ip_conntrack_info;
 #define FAST_VPN_ACTION_RELEASE		0
 
 #define FAST_VPN_RES_OK			1
-#define FAST_VPN_RES_SKIPPED	0
+#define FAST_VPN_RES_SKIPPED		0
 
 /* SWNAT section */
 
 #define SWNAT_ORIGIN_RAETH		0x10
 #define SWNAT_ORIGIN_RT2860		0x20
-#define SWNAT_ORIGIN_USB_MAC	0x30
+#define SWNAT_ORIGIN_USB_MAC		0x30
 
-#define SWNAT_CB_OFFSET		47
+#define SWNAT_CB_OFFSET			47
 
-#define SWNAT_FNAT_MARK		0x01
-#define SWNAT_PPP_MARK		0x02
+#define SWNAT_FNAT_MARK			0x01
+#define SWNAT_PPP_MARK			0x02
+#define SWNAT_NAT46_MARK		0x03
 
 #define SWNAT_RESET_MARKS(skb_) \
 do { \
@@ -52,6 +54,18 @@ do { \
 	((skb_)->cb[SWNAT_CB_OFFSET] == SWNAT_PPP_MARK)
 
 /* End of PPP mark */
+
+/* NAT46 mark */
+
+#define SWNAT_NAT46_SET_MARK(skb_) \
+do { \
+	(skb_)->cb[SWNAT_CB_OFFSET] = SWNAT_NAT46_MARK; \
+} while (0);
+
+#define SWNAT_NAT46_CHECK_MARK(skb_) \
+	((skb_)->cb[SWNAT_CB_OFFSET] == SWNAT_NAT46_MARK)
+
+/* End of NAT46 mark */
 
 /* KA mark */
 
@@ -98,6 +112,10 @@ extern void (*prebind_from_pptptx)(struct sk_buff *skb,
 extern void (*prebind_from_pppoetx)(struct sk_buff *skb,
 				    struct sock *sock,
 				    __be16 sid);
+
+extern void (*prebind_from_nat46tx)(struct sk_buff *skb,
+				    struct iphdr *ip4,
+				    struct ipv6hdr *ip6);
 
 extern void (*prebind_from_ct_mark)(struct nf_conn *ct);
 /* End of prebind hooks */

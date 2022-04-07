@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
@@ -995,7 +996,6 @@ static int mtk_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct mtk_spi *mdata;
-	const struct of_device_id *of_id;
 	struct resource *res;
 	int i, irq, ret, addr_bits;
 
@@ -1015,15 +1015,13 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	master->can_dma = mtk_spi_can_dma;
 	master->setup = mtk_spi_setup;
 
-	of_id = of_match_node(mtk_spi_of_match, pdev->dev.of_node);
-	if (!of_id) {
+	mdata = spi_master_get_devdata(master);
+	mdata->dev_comp = of_device_get_match_data(&pdev->dev);
+	if (!mdata->dev_comp) {
 		dev_err(&pdev->dev, "failed to probe of_node\n");
 		ret = -EINVAL;
 		goto err_put_master;
 	}
-
-	mdata = spi_master_get_devdata(master);
-	mdata->dev_comp = of_id->data;
 
 	/* Set device configs to default first. Calibrate it later. */
 	mdata->dev_config.sample_sel = 0;

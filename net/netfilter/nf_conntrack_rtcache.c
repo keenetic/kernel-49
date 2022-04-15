@@ -31,6 +31,7 @@
 
 #ifdef CONFIG_FAST_NAT_V2
 #include <net/fast_nat.h>
+#include <net/fast_vpn.h>
 #endif
 
 static void __nf_conn_rtcache_destroy(struct nf_conn_rtcache *rtc,
@@ -172,6 +173,110 @@ void nf_conn_rtcache_dump(struct seq_file *s, struct nf_conn *ct)
 	seq_printf(s, "] ");
 }
 
+#ifdef CONFIG_FAST_NAT_V2
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+#ifdef CONFIG_NDM_SECURITY_LEVEL
+static inline void
+swnat_rtcache_prebind__(struct sk_buff *skb,
+			struct nf_conn *ct,
+			enum ip_conntrack_info ctinfo)
+{
+	typeof(prebind_from_rtcache) swnat_prebind;
+
+	rcu_read_lock();
+
+	swnat_prebind = rcu_dereference(prebind_from_rtcache);
+	if (swnat_prebind) {
+		swnat_prebind(skb, ct, ctinfo);
+		SWNAT_RTCACHE_SET_MARK(skb);
+	}
+
+	rcu_read_unlock();
+}
+
+static inline void
+swnat_rtcache_prebind_(struct sk_buff *skb,
+		       struct nf_conn *ct,
+		       enum ip_conntrack_info ctinfo,
+		       struct nf_conn_rtcache *rtc,
+		       int iif)
+{
+	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
+	int orig_if, repl_if;
+	struct dst_entry *orig_dst = NULL, *repl_dst = NULL;
+
+	if (unlikely(lbl == NULL || !nf_ct_ext_ntc_filled(lbl)))
+		return;
+
+	orig_if = nf_conn_rtcache_iif_get(rtc, IP_CT_DIR_ORIGINAL);
+	repl_if = nf_conn_rtcache_iif_get(rtc, IP_CT_DIR_REPLY);
+
+	orig_dst = nf_conn_rtcache_dst_get(rtc, IP_CT_DIR_ORIGINAL);
+	repl_dst = nf_conn_rtcache_dst_get(rtc, IP_CT_DIR_REPLY);
+
+	if (unlikely(!orig_dst || !repl_dst))
+		return;
+
+	orig_dst = dst_check(orig_dst,
+			     nf_rtcache_get_cookie(nf_ct_l3num(ct),
+						   orig_dst));
+	repl_dst = dst_check(repl_dst,
+			     nf_rtcache_get_cookie(nf_ct_l3num(ct),
+						   repl_dst));
+
+	if (unlikely(!orig_dst || !repl_dst))
+		return;
+
+	if (unlikely(orig_dst->dev->ifindex != repl_if ||
+		     repl_dst->dev->ifindex != orig_if ||
+		     orig_if == repl_if))
+		return;
+
+	if (!((orig_if == lbl->lan_iface && repl_if == lbl->wan_iface) ||
+	      (orig_if == lbl->wan_iface && repl_if == lbl->lan_iface)))
+		return;
+
+	if (iif != lbl->lan_iface)
+		return;
+
+	swnat_rtcache_prebind__(skb, ct, ctinfo);
+}
+
+static inline void
+swnat_rtcache_prebind(struct sk_buff *skb,
+		      struct nf_conn *ct,
+		      enum ip_conntrack_info ctinfo,
+		      struct nf_conn_rtcache *rtc,
+		      int iif)
+{
+	struct ipv6hdr *ip6 = ipv6_hdr(skb);
+
+	if (ip6->nexthdr != IPPROTO_TCP && ip6->nexthdr != IPPROTO_UDP)
+		return;
+
+	if (ip6->nexthdr == IPPROTO_TCP &&
+	    (ctinfo != IP_CT_ESTABLISHED &&
+	     ctinfo != IP_CT_ESTABLISHED_REPLY))
+		return;
+
+	if (ip6->nexthdr == IPPROTO_UDP &&
+	    !test_bit(IPS_ASSURED_BIT, &ct->status))
+		return;
+
+	if (unlikely(skb_sec_path(skb)))
+		return;
+
+	swnat_rtcache_prebind_(skb, ct, ctinfo, rtc, iif);
+}
+
+#else
+#err NDM Security level is required
+#endif
+#else
+#err Conntrack extensions are required
+#endif
+#endif
+
 static int do_rtcache_in(u_int8_t pf, struct sk_buff *skb, int ifindex)
 {
 	struct nf_conn_rtcache *rtc;
@@ -216,6 +321,12 @@ static int do_rtcache_in(u_int8_t pf, struct sk_buff *skb, int ifindex)
 	pr_debug("obtained dst %p for skb %p, cookie %d\n", dst, skb, cookie);
 	if (likely(dst)) {
 		skb_dst_set_noref(skb, dst);
+
+#ifdef CONFIG_FAST_NAT_V2
+		if (pf == PF_INET6)
+			swnat_rtcache_prebind(skb, ct, ctinfo, rtc, ifindex);
+#endif
+
 		return 1;
 	} else
 		nf_conn_rtcache_dst_obsolete(rtc, dir);

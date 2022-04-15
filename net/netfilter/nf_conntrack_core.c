@@ -1822,14 +1822,15 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #endif
 	}
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+	if (pf == PF_INET || pf == PF_INET6)
+		nf_conntrack_update_ntc_ifaces(net, skb, ct, hooknum);
+#endif
+
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	/* check IPv4 condition */
 	if (pf != PF_INET)
 		goto fast_nat_exit;
-
-#ifdef CONFIG_NF_CONNTRACK_CUSTOM
-	nf_conntrack_update_ntc_ifaces(net, skb, ct, hooknum);
-#endif
 
 	/* check fastpath condition */
 	if (!(hooknum == NF_INET_PRE_ROUTING &&
@@ -1889,13 +1890,14 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (orig_src != new_src && !ntce_skip_swnat) {
 			typeof(prebind_from_fastnat) swnat_prebind;
 
-			/* Set mark for further binds */
-			SWNAT_FNAT_SET_MARK(skb);
-
 			/* rcu_read_lock()ed by nf_hook_thresh */
 			swnat_prebind = rcu_dereference(prebind_from_fastnat);
-			if (swnat_prebind)
+			if (swnat_prebind) {
 				swnat_prebind(skb, orig_src, orig_port, ct, ctinfo);
+
+				/* Set mark for further binds */
+				SWNAT_FNAT_SET_MARK(skb);
+			}
 		}
 
 		if (ret == NF_FAST_NAT && orig_src != new_src)

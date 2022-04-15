@@ -70,6 +70,11 @@ int (*nf_fastroute_rtcache_in)(u_int8_t pf,
 			       struct sk_buff *skb,
 			       int ifindex) = NULL;
 EXPORT_SYMBOL(nf_fastroute_rtcache_in);
+
+int (*prebind_from_rtcache)(struct sk_buff *skb,
+			    struct nf_conn *ct,
+			    enum ip_conntrack_info ctinfo) = NULL;
+EXPORT_SYMBOL(prebind_from_rtcache);
 #endif
 #endif /* CONFIG_FAST_NAT_V2 */
 #endif /* CONFIG_FAST_NAT */

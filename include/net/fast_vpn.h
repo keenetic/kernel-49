@@ -25,6 +25,7 @@ enum ip_conntrack_info;
 #define SWNAT_FNAT_MARK			0x01
 #define SWNAT_PPP_MARK			0x02
 #define SWNAT_NAT46_MARK		0x03
+#define SWNAT_RTCACHE_MARK		0x04
 
 #define SWNAT_RESET_MARKS(skb_) \
 do { \
@@ -66,6 +67,18 @@ do { \
 	((skb_)->cb[SWNAT_CB_OFFSET] == SWNAT_NAT46_MARK)
 
 /* End of NAT46 mark */
+
+/* RTCACHE mark */
+
+#define SWNAT_RTCACHE_SET_MARK(skb_) \
+do { \
+	(skb_)->cb[SWNAT_CB_OFFSET] = SWNAT_RTCACHE_MARK; \
+} while (0);
+
+#define SWNAT_RTCACHE_CHECK_MARK(skb_) \
+	((skb_)->cb[SWNAT_CB_OFFSET] == SWNAT_RTCACHE_MARK)
+
+/* End of RTCACHE mark */
 
 /* KA mark */
 
@@ -116,6 +129,10 @@ extern void (*prebind_from_pppoetx)(struct sk_buff *skb,
 extern void (*prebind_from_nat46tx)(struct sk_buff *skb,
 				    struct iphdr *ip4,
 				    struct ipv6hdr *ip6);
+
+extern void (*prebind_from_rtcache)(struct sk_buff *skb,
+				    struct nf_conn *ct,
+				    enum ip_conntrack_info ctinfo);
 
 extern void (*prebind_from_ct_mark)(struct nf_conn *ct);
 /* End of prebind hooks */

@@ -971,7 +971,8 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 		if (SWNAT_PPP_CHECK_MARK(skb)) {
 			/* We already have PPP encap, do skip it */
 			SWNAT_RESET_MARKS(skb);
-		} else if (SWNAT_FNAT_CHECK_MARK(skb)) {
+		} else if (SWNAT_FNAT_CHECK_MARK(skb) ||
+			   SWNAT_RTCACHE_CHECK_MARK(skb)) {
 			typeof(prebind_from_pppoetx) swnat_prebind;
 
 			rcu_read_lock();

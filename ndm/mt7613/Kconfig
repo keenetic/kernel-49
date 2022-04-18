@@ -86,6 +86,10 @@ config MT7613_SINGLE_SKU
 	bool "Single SKU V2 support"
 	default n
 
+config MT7613_SNIFFER_SUPPORT
+	bool "SNIFFER support"
+	default n
+
 config MT7613_PCIE_ASPM_DYM_CTRL_SUPPORT
 	bool "PCIe ASPM Dynamic Control Support"
 	default y

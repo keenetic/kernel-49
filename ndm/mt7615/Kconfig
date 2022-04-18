@@ -100,6 +100,10 @@ config MT7615_SINGLE_SKU
 	bool "Single SKU V2 support"
 	default n
 
+config MT7615_SNIFFER_SUPPORT
+	bool "SNIFFER support"
+	default n
+
 config MT7615_RF_LOCKDOWN_SUPPORT
 	bool "Single SKU RF lockdown support"
 	depends on MT7615_SINGLE_SKU

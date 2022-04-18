@@ -118,6 +118,10 @@ config MT7915_SINGLE_SKU
 	bool "Single SKU V2 support"
 	default n
 
+config MT7915_SNIFFER_SUPPORT
+	bool "SNIFFER support"
+	default n
+
 #config MT7915_RF_LOCKDOWN_SUPPORT
 #	bool "Single SKU RF lockdown support"
 #	depends on MT7915_SINGLE_SKU

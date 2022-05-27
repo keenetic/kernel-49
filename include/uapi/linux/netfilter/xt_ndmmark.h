@@ -23,7 +23,8 @@ enum xt_ndmmark_list {
 enum xt_ndmmark_kernel_list {
 	XT_NDMMARK_KERNEL_NTC       = 0x01,
 	XT_NDMMARK_KERNEL_CS_MASK   = 0x1C,
-	XT_NDMMARK_KERNEL_CS_SHIFT  = 0x02
+	XT_NDMMARK_KERNEL_CS_SHIFT  = 0x02,
+	XT_NDMMARK_KERNEL_WAN       = 0x20
 };
 
 struct xt_ndmmark_tginfo {
@@ -53,5 +54,16 @@ static inline void xt_ndmmark_set_fwd(struct sk_buff *skb)
 {
 }
 #endif
+
+static inline void xt_ndmmark_kernel_set_wan(struct sk_buff *skb)
+{
+	skb->ndm_mark_kernel |= XT_NDMMARK_KERNEL_WAN;
+}
+
+static inline bool xt_ndmmark_kernel_is_wan(struct sk_buff *skb)
+{
+	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_WAN) ==
+		XT_NDMMARK_KERNEL_WAN;
+}
 
 #endif /* _XT_NDMMARK_H */

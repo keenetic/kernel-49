@@ -1648,8 +1648,12 @@ nf_conntrack_update_ntc_ifaces(struct net *net, struct sk_buff *skb,
 		}
 	}
 
-	if (likely(nf_ct_ext_ntc_filled(lbl)))
+	if (likely(nf_ct_ext_ntc_filled(lbl))) {
+		if (lbl->wan_iface == skb->skb_iif)
+			xt_ndmmark_kernel_set_wan(skb);
+
 		return;
+	}
 
 	idx = skb->skb_iif;
 	if (idx <= 0)
@@ -1663,10 +1667,12 @@ nf_conntrack_update_ntc_ifaces(struct net *net, struct sk_buff *skb,
 		const unsigned short sl = dev->ndm_security_level;
 
 		if (sl != NDM_SECURITY_LEVEL_NONE) {
-			if (sl == NDM_SECURITY_LEVEL_PUBLIC)
+			if (sl == NDM_SECURITY_LEVEL_PUBLIC) {
 				lbl->wan_iface = idx;
-			else
+				xt_ndmmark_kernel_set_wan(skb);
+			} else {
 				lbl->lan_iface = idx;
+			}
 		}
 	}
 

@@ -27,6 +27,12 @@
 
 #define pr_fmt(fmt)				  KBUILD_MODNAME ": " fmt
 
+#if defined(CONFIG_MTD_NDM_PRELOADER_UPDATE) || \
+    defined(CONFIG_MTD_NDM_ATF_UPDATE) || \
+    defined(CONFIG_MTD_NDM_BOOT_UPDATE)
+#define MTD_NDM_PARTITION_UPDATE
+#endif
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -37,12 +43,21 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-#ifdef CONFIG_MTD_NDM_BOOT_UPDATE
+#ifdef MTD_NDM_PARTITION_UPDATE
 #include <linux/crc32.h>
 #include <linux/reboot.h>
 #include <linux/workqueue.h>
+
+#ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
+#include "ndm_preloader.h"
+#endif
+#ifdef CONFIG_MTD_NDM_ATF_UPDATE
+#include "ndm_atf.h"
+#endif
+#ifdef CONFIG_MTD_NDM_BOOT_UPDATE
 #include "ndm_boot.h"
 #endif
+#endif /* MTD_NDM_PARTITION_UPDATE */
 
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 #include <asm/uaccess.h>
@@ -132,6 +147,10 @@ struct di_u_state {
 
 struct part_dsc {
 	const char *name;
+#ifdef MTD_NDM_PARTITION_UPDATE
+	const unsigned char *image;
+	const unsigned int *image_len;
+#endif
 	uint32_t offset;
 	uint32_t size;
 	bool skip;
@@ -157,15 +176,28 @@ static struct part_dsc parts[PART_MAX] = {
 #if defined(CONFIG_MACH_MT7622)
 	[PART_PRELOADER] = {
 		name: "Preloader",
+#ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
+		image: preloader_bin,
+		image_len: &preloader_bin_len,
+#endif
 		read_only: true
 	},
 	[PART_ATF] = {
 		name: "ATF",
+#ifdef CONFIG_MTD_NDM_ATF_UPDATE
+		image: atf_bin,
+		image_len: &atf_bin_len,
+#endif
 		read_only: true
 	},
-#endif
+#endif /* CONFIG_MACH_MT7622 */
 	[PART_U_BOOT] = {
-		name: "U-Boot"
+		name: "U-Boot",
+#ifdef CONFIG_MTD_NDM_BOOT_UPDATE
+		image: boot_bin,
+		image_len: &boot_bin_len,
+#endif
+		read_only: true
 	},
 	[PART_U_CONFIG] = {
 		name: "U-Config"
@@ -367,7 +399,7 @@ static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 	return size;
 }
 
-#if defined(CONFIG_MTD_NDM_BOOT_UPDATE) || \
+#if defined(MTD_NDM_PARTITION_UPDATE) || \
     defined(CONFIG_MTD_NDM_DUAL_IMAGE)
 static int mtd_write_retry(struct mtd_info *mtd, loff_t to, size_t len,
 			   size_t *retlen, const u_char *buf)
@@ -408,84 +440,75 @@ static int mtd_write_retry(struct mtd_info *mtd, loff_t to, size_t len,
 }
 #endif
 
-#ifdef CONFIG_MTD_NDM_BOOT_UPDATE
-static void do_restart(struct work_struct *work)
+#ifdef MTD_NDM_PARTITION_UPDATE
+static int ndm_flash_partition(struct mtd_info *master,
+			       const struct part_dsc *p)
 {
-	kernel_restart(NULL);
-}
-
-static DECLARE_WORK(restart_work, do_restart);
-
-static int ndm_flash_boot(struct mtd_info *master,
-			  uint32_t p_off, uint32_t p_size)
-{
-	bool update_need;
-	int res = -1, ret, retries;
+	int res = 0, ret, retries;
 	size_t len;
-	uint32_t off, size, es, ws;
-	uint32_t dst_crc = 0, src_crc = 0;
-	unsigned char *m, *v;
+	uint32_t off, size, ws, es, image_len = *p->image_len;
+	uint32_t orig_crc = 0, src_crc = 0, dst_crc = 0;
+	unsigned char *m = NULL, *v = NULL;
+
+	/* Check partition size */
+	if (image_len > p->size) {
+		pr_err("the image for %s partition is too big (%u > %u)\n",
+		       p->name,
+		       (unsigned int)image_len, (unsigned int)p->size);
+		res = -EFBIG;
+		goto out;
+	}
+
+	/* Allocate main partition buffer */
+	m = kmalloc(p->size, GFP_KERNEL);
+	if (m == NULL) {
+		res = -ENOMEM;
+		goto out;
+	}
 
 	es = master->erasesize;
 
-	/* Check bootloader size */
-	if (boot_bin_len > p_size) {
-		pr_err("the bootloader image is too big (%u > %u)\n",
-		       (unsigned int)boot_bin_len, (unsigned int)p_size);
-		goto out;
-	}
-
-	/* Read current bootloader */
-	m = kmalloc(p_size, GFP_KERNEL);
-	if (m == NULL)
-		goto out;
-
-	/* Alloc verify buffer */
+	/* Allocate verification buffer */
 	v = kmalloc(es, GFP_KERNEL);
-	if (v == NULL)
-		goto out_kfree;
-
-	ret = mtd_read(master, p_off, p_size, &len, m);
-	if (ret || len != p_size) {
-		pr_err("failed to read the bootloader image\n");
-		goto out_kfree;
+	if (v == NULL) {
+		res = -ENOMEM;
+		goto out;
 	}
 
-	/* Detect and compare version */
-	len = strlen(NDM_BOOT_VERSION);
-	size = p_size;
-	update_need = true;
-
-	for (off = 0; off < size; off++) {
-		if (size - off < len)
-			break;
-		else if (!memcmp(NDM_BOOT_VERSION, m + off, len)) {
-			update_need = false;
-			break;
-		}
+	/* Read partition content */
+	ret = mtd_read(master, p->offset, p->size, &len, m);
+	if (ret || len != p->size) {
+		pr_err("failed to read %s partition content\n", p->name);
+		res = -EACCES;
+		goto out;
 	}
 
-	if (!update_need) {
-		pr_info("the bootloader is up to date\n");
-		res = 0;
-		goto out_kfree;
+	orig_crc = crc32(0, m, image_len);
+
+	/* Fill main buffer with new partition content */
+	memcpy(m, p->image, image_len);
+	size = ALIGN(image_len, master->writesize);
+
+	dst_crc = crc32(0, m, image_len);
+
+	/* Compare actual partition content with the new one */
+	if (orig_crc == dst_crc) {
+		pr_info("%s partition is up to date\n", p->name);
+		res = -EEXIST;
+		goto out;
 	}
 
-	pr_info("updating the bootloader...\n");
+	pr_info("updating %s partition content...\n", p->name);
 
-	/* Flash bootloader */
-	memcpy(m, boot_bin, boot_bin_len);
-	size = ALIGN(boot_bin_len, master->writesize);
+	/* Fill padding */
+	if (size > image_len)
+		memset(m + image_len, 0xff, size - image_len);
 
-	/* fill padding */
-	if (size > boot_bin_len)
-		memset(m + boot_bin_len, 0xff, size - boot_bin_len);
-
-	/* erase & write -> verify */
+	/* Erase & write -> verify */
 	for (off = 0; off < size; off += es) {
-		const loff_t addr = off + p_off;
+		const loff_t addr = off + p->offset;
 
-		/* write size can be < erase size */
+		/* Write size can be < erase size */
 		ws = min(es, size - off);
 
 		src_crc = crc32(0, m + off, ws);
@@ -493,8 +516,7 @@ static int ndm_flash_boot(struct mtd_info *master,
 
 		retries = MTD_MAX_RETRIES;
 		do {
-			ret = mtd_write_retry(master, addr, ws, &len,
-					      m + off);
+			ret = mtd_write_retry(master, addr, ws, &len, m + off);
 			if (ret)
 				goto out_write_fail;
 
@@ -502,29 +524,60 @@ static int ndm_flash_boot(struct mtd_info *master,
 			ret = mtd_read(master, addr, ws, &len, v);
 			if (ret == 0 && len == ws)
 				dst_crc = crc32(0, v, ws);
-
 		} while (src_crc != dst_crc && --retries);
 	}
 
-	if (src_crc == dst_crc) {
-		pr_info("bootloader update complete, scheduling reboot...\n");
-		queue_work(system_unbound_wq, &restart_work);
-		res = 0;
-
-		goto out_kfree;
-	}
+	if (src_crc == dst_crc)
+		pr_info("%s partition update complete\n", p->name);
 
 out_write_fail:
-	if (src_crc != dst_crc)
-		pr_crit("bootloader update failed, "
-			"the device may become unbootable\n");
-out_kfree:
+	if (src_crc != dst_crc) {
+		pr_crit("%s partition update failed, "
+			"the device may become unbootable\n", p->name);
+		res = -EIO;
+	}
+
+out:
 	kfree(v);
 	kfree(m);
-out:
+
 	return res;
 }
-#endif /* CONFIG_MTD_NDM_BOOT_UPDATE */
+
+static void do_restart(struct work_struct *work)
+{
+	kernel_restart(NULL);
+}
+
+static DECLARE_WORK(restart_work, do_restart);
+
+static void ndm_update_partitions(struct mtd_info *m)
+{
+	bool need_reboot = false;
+	int i;
+
+	for (i = 0; i < PART_MAX; i++) {
+		if (parts[i].image && parts[i].image_len) {
+			int ret = ndm_flash_partition(m, &parts[i]);
+
+			if (!ret)
+				need_reboot = true;
+			else if (ret == -EIO) {
+				pr_crit("fatal error while updating "
+					"%s partition, giving up...\n",
+					parts[i].name);
+				need_reboot = false;
+				break;
+			}
+		}
+	}
+
+	if (need_reboot) {
+		pr_info("update routine is done, scheduling reboot...\n");
+		queue_work(system_unbound_wq, &restart_work);
+	}
+}
+#endif /* MTD_NDM_PARTITION_UPDATE */
 
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 static inline uint32_t part_u_state_offset_(struct mtd_info *master)
@@ -646,14 +699,14 @@ static int create_mtd_partitions(struct mtd_info *m,
 	parts[PART_ATF].size = parts_size_default_get(PART_ATF, m);
 
 	offs_uboot = parts_offset_end(PART_ATF);
-#endif
+#endif /* CONFIG_MACH_MT7622 */
 
-#ifdef CONFIG_MTD_NDM_BOOT_UPDATE
 	/* early fill partition info for NAND */
 	parts[PART_U_BOOT].offset = offs_uboot;
 	parts[PART_U_BOOT].size = parts_size_default_get(PART_U_BOOT, m);
 
-	ndm_flash_boot(m, offs_uboot, (uint32_t)parts[PART_U_BOOT].size);
+#ifdef MTD_NDM_PARTITION_UPDATE
+	ndm_update_partitions(m);
 #endif
 
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE

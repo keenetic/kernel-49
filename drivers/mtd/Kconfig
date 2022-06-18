@@ -178,11 +178,20 @@ config MTD_NDM_U_STATE_SEARCH_END_BLOCK
 	hex "End block"
 	depends on MTD_NDM_U_STATE_SEARCH
 
+config MTD_NDM_PRELOADER_UPDATE
+	bool "Update preloader"
+	default n
+	depends on MTD_NDM_PARTS
+
+config MTD_NDM_ATF_UPDATE
+	bool "Update ATF"
+	default n
+	depends on MTD_NDM_PARTS
+
 config MTD_NDM_BOOT_UPDATE
 	bool "Update bootloader"
 	default n
 	depends on MTD_NDM_PARTS
-	select XZ_DEC
 
 config MTD_NDM_CONFIG_SIZE
 	hex "\"Config\" partition size"

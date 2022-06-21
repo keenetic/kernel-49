@@ -66,7 +66,7 @@ static void nf_ct_rtcache_ext_add(struct nf_conn *ct)
 	}
 }
 
-static struct nf_conn_rtcache *nf_ct_rtcache_find_usable(struct nf_conn *ct)
+static struct nf_conn_rtcache *nf_ct_rtcache_find_usable(const struct nf_conn *ct)
 {
 	if (nf_ct_is_untracked(ct))
 		return NULL;
@@ -130,7 +130,7 @@ static void nf_conn_rtcache_dst_obsolete(struct nf_conn_rtcache *rtc,
 	rtc->cached_dst[dir].iif = -1;
 }
 
-void nf_conn_rtcache_dump(struct seq_file *s, struct nf_conn *ct)
+void nf_conn_rtcache_dump(struct seq_file *s, const struct nf_conn *ct)
 {
 	struct nf_conn_rtcache *rtc;
 	int orig_if, repl_if;

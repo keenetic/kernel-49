@@ -175,108 +175,108 @@ static struct part_dsc parts[PART_MAX] = {
 	/* Image 1 */
 #if defined(CONFIG_MACH_MT7622)
 	[PART_PRELOADER] = {
-		name: "Preloader",
+		.name		= "Preloader",
 #ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
-		image: preloader_bin,
-		image_len: &preloader_bin_len,
+		.image		= preloader_bin,
+		.image_len	= &preloader_bin_len,
 #endif
-		read_only: true
+		.read_only	= true
 	},
 	[PART_ATF] = {
-		name: "ATF",
+		.name		= "ATF",
 #ifdef CONFIG_MTD_NDM_ATF_UPDATE
-		image: atf_bin,
-		image_len: &atf_bin_len,
+		.image		= atf_bin,
+		.image_len	= &atf_bin_len,
 #endif
-		read_only: true
+		.read_only	= true
 	},
 #endif /* CONFIG_MACH_MT7622 */
 	[PART_U_BOOT] = {
-		name: "U-Boot",
+		.name		= "U-Boot",
 #ifdef CONFIG_MTD_NDM_BOOT_UPDATE
-		image: boot_bin,
-		image_len: &boot_bin_len,
+		.image		= boot_bin,
+		.image_len	= &boot_bin_len,
 #endif
-		read_only: true
+		.read_only	= true
 	},
 	[PART_U_CONFIG] = {
-		name: "U-Config"
+		.name		= "U-Config"
 	},
 	[PART_RF_EEPROM] = {
-		name: "RF-EEPROM"
+		.name		= "RF-EEPROM"
 	},
 	[PART_KERNEL_1] = {
-		name: "Kernel",
-		skip: true,
-		read_only: true
+		.name		= "Kernel",
+		.skip		= true,
+		.read_only	= true
 	},
 	[PART_ROOTFS_1] = {
-		name: "RootFS",
-		skip: true,
-		read_only: true
+		.name		= "RootFS",
+		.skip		= true,
+		.read_only	= true
 	},
 	[PART_FIRMWARE_1] = {
-		name: "Firmware"
+		.name		= "Firmware"
 	},
 	[PART_CONFIG_1] = {
-		name: "Config"
+		.name		= "Config"
 	},
 	[PART_STORAGE] = {
-		name: "Storage",
-		skip: true
+		.name		= "Storage",
+		.skip		= true
 	},
 	[PART_DUMP] = {
-		name: "Dump",
-		skip: true
+		.name		= "Dump",
+		.skip		= true
 	},
 	[PART_STORAGE_A] = {
-		name: "Storage_A",
-		skip: true
+		.name		= "Storage_A",
+		.skip		= true
 	},
 	/* Image 2 */
 	[PART_U_STATE] = {
-		name: "U-State",
-		skip: true
+		.name		= "U-State",
+		.skip		= true
 	},
 	[PART_RESERVE] = {
-		name: "Reserve",
-		skip: true
+		.name		= "Reserve",
+		.skip		= true
 	},
 	[PART_U_CONFIG_RES] = {
-		name: "U-Config_res",
-		skip: true
+		.name		= "U-Config_res",
+		.skip		= true
 	},
 	[PART_RF_EEPROM_RES] = {
-		name: "RF-EEPROM_res",
-		skip: true
+		.name		= "RF-EEPROM_res",
+		.skip		= true
 	},
 	[PART_KERNEL_2] = {
-		name: "Kernel_2",
-		skip: true,
-		read_only: true
+		.name		= "Kernel_2",
+		.skip		= true,
+		.read_only	= true
 	},
 	[PART_ROOTFS_2] = {
-		name: "RootFS_2",
-		skip: true,
-		read_only: true
+		.name		= "RootFS_2",
+		.skip		= true,
+		.read_only	= true
 	},
 	[PART_FIRMWARE_2] = {
-		name: "Firmware_2",
-		skip: true
+		.name		= "Firmware_2",
+		.skip		= true
 	},
 	[PART_CONFIG_2] = {
-		name: "Config_2",
-		skip: true
+		.name		= "Config_2",
+		.skip		= true
 	},
 	[PART_STORAGE_B] = {
-		name: "Storage_B",
-		skip: true
+		.name		= "Storage_B",
+		.skip		= true
 	},
 	/* Pseudo */
 	[PART_FULL] = {
-		name: "Full",
-		size: MTDPART_SIZ_FULL,
-		read_only: true
+		.name		= "Full",
+		.size		= MTDPART_SIZ_FULL,
+		.read_only	= true
 	}
 };
 

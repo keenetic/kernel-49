@@ -369,12 +369,11 @@ static uint32_t parts_size_default_get(enum part part,
 	case PART_U_CONFIG:
 	case PART_RF_EEPROM:
 	case PART_CONFIG_1:
+		size = master->erasesize;
 #ifdef NAND_BB_MODE_SKIP
 		if (master->type == MTD_NANDFLASH)
 			size = master->erasesize << 2;
-		else
 #endif
-		size = master->erasesize;
 		break;
 	case PART_RESERVE:
 		size = 0;

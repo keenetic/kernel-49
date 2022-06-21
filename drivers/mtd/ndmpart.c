@@ -299,7 +299,8 @@ static unsigned parts_num(void)
 	return num;
 }
 
-static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
+static uint32_t parts_size_default_get(enum part part,
+				       struct mtd_info *master)
 {
 	uint32_t size = PART_SIZE_UNKNOWN;
 
@@ -936,7 +937,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 }
 
 #ifdef NAND_BB_MODE_SKIP
-int get_partition_range(int blk, uint32_t bshift, int *blk_start, int *blk_end)
+int get_partition_range(int blk, uint32_t bshift,
+			int *blk_start, int *blk_end)
 {
 	int i, blk_end_last;
 	uint64_t offs, size;
@@ -1104,7 +1106,8 @@ static inline bool boot_active_is_valid(char c)
 	return c >= '0' && c <= '2';
 }
 
-static ssize_t boot_active_proc_write(struct file *file, const char __user *buffer,
+static ssize_t boot_active_proc_write(struct file *file,
+				      const char __user *buffer,
 				      size_t count, loff_t *pos)
 {
 	return boot_proc_write(buffer, count, DI_BOOT_ACTIVE,
@@ -1116,7 +1119,8 @@ static inline bool boot_backup_is_valid(char c)
 	return c >= '1' && c <= '2';
 }
 
-static ssize_t boot_backup_proc_write(struct file *file, const char __user *buffer,
+static ssize_t boot_backup_proc_write(struct file *file,
+				      const char __user *buffer,
 				      size_t count, loff_t *pos)
 {
 	return boot_proc_write(buffer, count, DI_BOOT_BACKUP,
@@ -1129,7 +1133,8 @@ static inline bool boot_fails_is_valid(char c)
 	return c >= '0' && c <= '2';
 }
 
-static ssize_t boot_fails_proc_write(struct file *file, const char __user *buffer,
+static ssize_t boot_fails_proc_write(struct file *file,
+				     const char __user *buffer,
 				     size_t count, loff_t *pos)
 {
 	return boot_proc_write(buffer, count, DI_BOOT_FAILS,

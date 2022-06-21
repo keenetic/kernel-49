@@ -285,10 +285,10 @@ static inline uint32_t parts_offset_end(enum part part)
 	return parts[part].offset + parts[part].size;
 }
 
-static unsigned parts_num(void)
+static unsigned int parts_num(void)
 {
 	int i;
-	unsigned num = 0;
+	unsigned int num = 0;
 
 	for (i = 0; i < PART_MAX; i++) {
 		if (parts[i].skip)
@@ -680,7 +680,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 #endif
 	uint32_t off, flash_size_lim;
 	struct mtd_partition *ndm_parts;
-	unsigned ndm_parts_num;
+	unsigned int ndm_parts_num;
 
 	use_dump = use_storage = false;
 	if (CONFIG_MTD_NDM_DUMP_SIZE)

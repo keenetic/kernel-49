@@ -1192,23 +1192,23 @@ static int __init ndm_parser_init(void)
 		proc_dir = proc_mkdir("dual_image", NULL);
 		BUG_ON(proc_dir == NULL);
 
-		entry = proc_create(DI_BOOT_ACTIVE, S_IRUGO | S_IWUSR, proc_dir,
-			&fops_boot_active);
+		entry = proc_create(DI_BOOT_ACTIVE, 0644, proc_dir,
+				    &fops_boot_active);
 		BUG_ON(entry == NULL);
 
-		entry = proc_create(DI_BOOT_BACKUP, S_IRUGO | S_IWUSR, proc_dir,
-			&fops_boot_backup);
+		entry = proc_create(DI_BOOT_BACKUP, 0644, proc_dir,
+				    &fops_boot_backup);
 		BUG_ON(entry == NULL);
 
-		entry = proc_create("boot_current", S_IRUGO | S_IWUSR, proc_dir,
-			&fops_boot_current);
+		entry = proc_create("boot_current", 0644, proc_dir,
+				    &fops_boot_current);
 		BUG_ON(entry == NULL);
 
-		entry = proc_create(DI_BOOT_FAILS, S_IRUGO | S_IWUSR, proc_dir,
-			&fops_boot_fails);
+		entry = proc_create(DI_BOOT_FAILS, 0644, proc_dir,
+				    &fops_boot_fails);
 		BUG_ON(entry == NULL);
 
-		entry = proc_create("commit", S_IWUSR, proc_dir, &fops_commit);
+		entry = proc_create("commit", 0200, proc_dir, &fops_commit);
 		BUG_ON(entry == NULL);
 	}
 #endif

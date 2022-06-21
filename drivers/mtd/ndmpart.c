@@ -912,7 +912,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 	/* Post actions */
 	ndm_parts_num = parts_num();
 
-	ndm_parts = kzalloc(sizeof(*ndm_parts) * ndm_parts_num, GFP_KERNEL);
+	ndm_parts = kcalloc(ndm_parts_num, sizeof(*ndm_parts), GFP_KERNEL);
 	if (ndm_parts == NULL)
 		return -ENOMEM;
 

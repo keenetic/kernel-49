@@ -1344,13 +1344,15 @@ static bool di_is_enabled(void)
 #else
 static bool di_is_enabled(void)
 {
-	int off;
 	const unsigned char *val;
 	void *fdt = initial_boot_params;
+	const int off = fdt_path_offset(fdt, "/chosen");
 
-	if ((off = fdt_path_offset(fdt, "/chosen")) >= 0 &&
-	    (val = fdt_getprop(fdt, off, "dualimage", NULL)) &&
-	    *val)
+	if (off < 0)
+		return false;
+
+	val = fdt_getprop(fdt, off, "dualimage", NULL);
+	if (val	&& *val)
 		return true;
 
 	return false;

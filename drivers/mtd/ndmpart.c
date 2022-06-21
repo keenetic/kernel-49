@@ -738,7 +738,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 			ndmpart_image_cur = di_image_num_pair_get(boot_backup);
 
 		pr_info("di: active = %d, backup = %d, current = %d\n",
-		        boot_active, boot_backup, ndmpart_image_cur);
+			boot_active, boot_backup, ndmpart_image_cur);
 	}
 #endif
 

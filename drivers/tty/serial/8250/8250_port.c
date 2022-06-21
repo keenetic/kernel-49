@@ -2679,7 +2679,10 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval;
 	unsigned long flags;
 	unsigned int baud, quot, frac = 0;
+#if defined(CONFIG_RALINK_MT7621) || \
+    defined(CONFIG_RALINK_MT7628)
 	int mode;
+#endif
 
 	cval = serial8250_compute_lcr(up, termios->c_cflag);
 

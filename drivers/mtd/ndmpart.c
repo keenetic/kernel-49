@@ -1256,15 +1256,14 @@ static int u_state_get(const char *name, int *val)
 	if (name == NULL || val == NULL)
 		return -EINVAL;
 
-	if (!strcmp(name, DI_BOOT_ACTIVE)) {
+	if (!strcmp(name, DI_BOOT_ACTIVE))
 		*val = u_state.boot_active;
-	} else if (!strcmp(name, DI_BOOT_BACKUP)) {
+	else if (!strcmp(name, DI_BOOT_BACKUP))
 		*val = u_state.boot_backup;
-	} else if (!strcmp(name, DI_BOOT_FAILS)) {
+	else if (!strcmp(name, DI_BOOT_FAILS))
 		*val = u_state.boot_fails;
-	} else {
+	else
 		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -1274,15 +1273,14 @@ static int u_state_set(const char *name, int val)
 	if (name == NULL)
 		return -EINVAL;
 
-	if (!strcmp(name, DI_BOOT_ACTIVE)) {
+	if (!strcmp(name, DI_BOOT_ACTIVE))
 		u_state.boot_active = val;
-	} else if (!strcmp(name, DI_BOOT_BACKUP)) {
+	else if (!strcmp(name, DI_BOOT_BACKUP))
 		u_state.boot_backup = val;
-	} else if (!strcmp(name, DI_BOOT_FAILS)) {
+	else if (!strcmp(name, DI_BOOT_FAILS))
 		u_state.boot_fails = val;
-	} else {
+	else
 		return -EINVAL;
-	}
 
 	return 0;
 }

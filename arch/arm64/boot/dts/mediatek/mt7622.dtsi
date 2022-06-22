@@ -396,6 +396,7 @@
 			     "mediatek,mt6589-wdt";
 		reg = <0 0x10212000 0 0x1000>;
 		timeout-sec = <30>;
+		interrupts = <GIC_SPI 128 IRQ_TYPE_EDGE_FALLING>;
 		mediatek,timer = <&timer>;
 		#reset-cells = <1>;
 	};

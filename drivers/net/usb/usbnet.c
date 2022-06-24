@@ -71,7 +71,7 @@
 #define	TX_QLEN(dev)		((dev)->tx_qlen)
 
 // reawaken network queue this soon after stopping; else watchdog barks
-#define TX_TIMEOUT_JIFFIES	(5*HZ)
+#define TX_TIMEOUT_JIFFIES	(8*HZ)
 
 /* throttle rx/tx briefly after some faults, so hub_wq might disconnect()
  * us (it polls at HZ/4 usually) before we report too many false errors.

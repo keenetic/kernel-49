@@ -2,6 +2,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/sizes.h>
 #include <linux/sched.h>
+#include <linux/random.h>
 
 #define MTD_PART_CONFIG_1		"Config_1"
 #define MTD_PART_CONFIG			"Config"
@@ -21,8 +22,7 @@
 #define RNG_ENTROPY_BITS		249
 
 /* drivers/char/random.c */
-int random_add_entropy(void *p, size_t size, size_t ent_count);
-void crng_wait_ready_external(void);
+void random_add_entropy(void *p, size_t size, size_t ent_count);
 
 static int ndm_rng_read_device_eb(struct mtd_info *mtd, loff_t addr,
 				  const size_t size, u8 *buf)
@@ -154,18 +154,12 @@ void ndm_rng_seed(void)
 			goto out;
 		}
 
-		if (random_add_entropy(digest, HASH_DIGEST_SIZE,
-				       RNG_ENTROPY_BITS) < 0) {
-			pr_err("unable to credit entropy pool\n");
-			goto out;
-		}
+		random_add_entropy(digest, HASH_DIGEST_SIZE, RNG_ENTROPY_BITS);
 	} while (0);
 
 	cond_resched();
 
-	pr_info("RNG reseeded\n");
-
-	crng_wait_ready_external();
+	wait_for_random_bytes();
 
 out:
 	if (tfm != NULL)

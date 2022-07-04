@@ -720,7 +720,7 @@ static void __cold _credit_init_bits(size_t bits)
 		process_random_ready_list();
 		wake_up_interruptible(&crng_init_wait);
 		kill_fasync(&fasync, SIGIO, POLL_IN);
-		pr_notice("crng init done\n");
+		pr_info("crng init done\n");
 		if (urandom_warning.missed)
 			pr_notice("%d urandom warning(s) missed due to ratelimiting\n",
 				  urandom_warning.missed);
@@ -1393,20 +1393,11 @@ const struct file_operations urandom_fops = {
 
 
 #ifdef CONFIG_NDM_RNG_SEED
-int random_add_entropy(void *p, size_t size, size_t ent_count)
+void random_add_entropy(void *p, size_t size, size_t ent_count)
 {
-	int retval = write_pool(&input_pool, p, size);
+	mix_pool_bytes(p, size);
 
-	if (retval < 0)
-		return retval;
-
-	return credit_entropy_bits_safe(&input_pool, ent_count);
-}
-
-void crng_wait_ready_external(void)
-{
-	if (!crng_ready())
-		crng_wait_ready();
+	credit_init_bits(ent_count);
 }
 #endif
 

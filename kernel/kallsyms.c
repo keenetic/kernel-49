@@ -427,7 +427,7 @@ found:
 static int __sprint_symbol(char *buffer, unsigned long address,
 			   int symbol_offset, int add_offset)
 {
-	char *modname;
+	char *modname = NULL;
 	const char *name;
 	unsigned long offset, size;
 	int len;

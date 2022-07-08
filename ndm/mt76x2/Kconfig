@@ -11,6 +11,10 @@ config LED_PHR_CONTROL_SUPPORT
 	depends on LED_CONTROL_SUPPORT
 	default y
 
+config NETLINK_SUPPORT
+	bool "Netlink communication support"
+	default y
+
 config RATE_ADAPTION
 	bool "Rate Adaptation Support"
 	default y

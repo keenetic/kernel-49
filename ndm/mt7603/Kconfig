@@ -11,6 +11,10 @@ config MT7603_LED_PHR_CONTROL_SUPPORT
 	depends on MT7603_LED_CONTROL_SUPPORT
 	default y
 
+config MT7603_NETLINK_SUPPORT
+	bool "Netlink communication support"
+	default y
+
 config MT7603_GPIO_SUPPORT
 	bool "GPIO Pins Control Support"
 	default n

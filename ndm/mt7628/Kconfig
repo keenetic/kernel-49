@@ -11,6 +11,10 @@ config MT7628_LED_PHR_CONTROL_SUPPORT
 	depends on MT7628_LED_CONTROL_SUPPORT
 	default y
 
+config MT7628_NETLINK_SUPPORT
+	bool "Netlink communication support"
+	default y
+
 config MT7628_RATE_ADAPTION
 	bool "Rate Adaptation Support"
 	default y

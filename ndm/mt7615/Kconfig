@@ -96,6 +96,10 @@ config MT7615_TCP_RACK_SUPPORT
 	bool "TCP Reduced ACK support"
 	default n
 
+config MT7615_NETLINK_SUPPORT
+	bool "Netlink communication support"
+	default y
+
 config MT7615_SINGLE_SKU
 	bool "Single SKU V2 support"
 	default n

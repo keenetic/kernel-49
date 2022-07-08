@@ -89,6 +89,10 @@ config MT7610_LED_PHR_CONTROL_SUPPORT
 	depends on MT7610_LED_CONTROL_SUPPORT
 	default y
 
+config MT7610_NETLINK_SUPPORT
+	bool "Netlink communication support"
+	default y
+
 config MT7610_WSC_INCLUDED
 	bool "WSC (WiFi Simple Config)"
 	default y

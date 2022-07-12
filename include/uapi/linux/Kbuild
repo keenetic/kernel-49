@@ -279,6 +279,7 @@ header-y += mroute.h
 header-y += msdos_fs.h
 header-y += msg.h
 header-y += mtio.h
+header-y += mtk_wifi.h
 header-y += nbd.h
 header-y += ncp_fs.h
 header-y += ncp.h

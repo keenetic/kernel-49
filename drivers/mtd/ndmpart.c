@@ -109,6 +109,7 @@
 enum part {
 	/* Image 1 */
 #if defined(CONFIG_MACH_MT7622)
+	PART_ROM_HDR,
 	PART_PRELOADER,
 	PART_ATF,		/* ARM Trusted Firmware */
 #endif
@@ -174,6 +175,10 @@ static bool ndmpart_di_is_enabled;
 static struct part_dsc parts[PART_MAX] = {
 	/* Image 1 */
 #if defined(CONFIG_MACH_MT7622)
+	[PART_ROM_HDR] = {
+		.name		= "ROM-Header",
+		.read_only	= true
+	},
 	[PART_PRELOADER] = {
 		.name		= "Preloader",
 #ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
@@ -323,8 +328,14 @@ static uint32_t parts_size_default_get(enum part part,
 	 * Todo: MLC NAND layout support.
 	 */
 	switch (part) {
+	case PART_ROM_HDR:
+		size = master->erasesize;
+		break;
 	case PART_PRELOADER:
-		size = (master->type == MTD_NORFLASH) ? 0x40000 : 0x80000;
+		if (master->type == MTD_NORFLASH)
+			size = 0x40000 - master->erasesize;
+		else
+			size = 0x80000 - master->erasesize;
 		break;
 	case PART_ATF:
 		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x40000;
@@ -693,6 +704,9 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 #if defined(CONFIG_MACH_MT7622)
 	/* Fill known fields */
+	parts[PART_ROM_HDR].size = parts_size_default_get(PART_ROM_HDR, m);
+
+	parts[PART_PRELOADER].offset = parts_offset_end(PART_ROM_HDR);
 	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
 
 	parts[PART_ATF].offset = parts_offset_end(PART_PRELOADER);

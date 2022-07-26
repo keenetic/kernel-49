@@ -41,7 +41,7 @@
 #include <linux/kernel.h>
 #include <linux/serial_8250.h>
 #include <linux/delay.h>
-#include <asm/bootinfo.h>
+#include <asm/fw/fw.h>
 #include <asm/io.h>
 
 #if defined(CONFIG_RALINK_MT7621)
@@ -69,59 +69,9 @@ u32 mips_cpu_feq;
 u32 surfboard_sysclk;
 u32 ralink_asic_rev_id;
 
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-/* Environment variable */
-typedef struct {
-	char *name;
-	char *val;
-} t_env_var;
-
-int prom_argc;
-int *_prom_argv, *_prom_envp;
-
-/*
- * YAMON (32-bit PROM) pass arguments and environment as 32-bit pointer.
- * This macro take care of sign extension, if running in 64-bit mode.
- */
-#define prom_envp(index) ((char *)(((int *)(int)_prom_envp)[(index)]))
-#endif
-
-char *prom_getenv(char *envname)
-{
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-	/*
-	 * Return a pointer to the given environment variable.
-	 * In 64-bit mode: we're using 64-bit pointers, but all pointers
-	 * in the PROM structures are only 32-bit, so we need some
-	 * workarounds, if we are running in 64-bit mode.
-	 */
-	int i, index=0;
-	char *p, *q;
-
-	i = strlen(envname);
-	while (prom_envp(index)) {
-		p = (char*) KSEG0ADDR(prom_envp(index));
-		if(!strncmp(envname, p, i)) {
-			q = strchr(p, '=');
-			if (q)
-				q++;
-			return q;
-		}
-		index++;
-	}
-#endif
-	return NULL;
-}
-
 static inline void prom_show_pstat(void)
 {
-	unsigned long status;
-	const char *const s = prom_getenv("pstat");
-
-	if (!s)
-		return;
-
-	status = simple_strtoul(s, NULL, 0);
+	unsigned long status = fw_getenvl("pstat");
 
 	switch (status) {
 	default:
@@ -543,7 +493,7 @@ int __init prom_get_ttysnum(void)
 	int ttys_num = 0;  /* default UART Lite */
 
 	/* get ttys_num to use with the fake console/prom_printf */
-	argptr = prom_getcmdline();
+	argptr = fw_getcmdline();
 
 	if ((argptr = strstr(argptr, "console=ttyS")) != NULL) {
 		argptr += strlen("console=ttyS");
@@ -558,12 +508,6 @@ int __init prom_get_ttysnum(void)
 
 void __init prom_init(void)
 {
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-	prom_argc = fw_arg0;
-	_prom_argv = (int*) fw_arg1;
-	_prom_envp = (int*) fw_arg2;
-#endif
-
 	set_io_port_base(KSEG1);
 
 	/* remove all wired TLB entries */

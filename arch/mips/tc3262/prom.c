@@ -15,50 +15,13 @@
 #include <asm/tc3162/launch.h>
 #endif
 
+#include <asm/fw/fw.h>
 #include <asm/tc3162/prom.h>
 #include <asm/tc3162/rt_mmap.h>
 #include <asm/tc3162/tc3162.h>
 
 unsigned int surfboard_sysclk;
 unsigned int tc_mips_cpu_freq;
-
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-int prom_argc;
-int *_prom_argv, *_prom_envp;
-
-/*
- * YAMON (32-bit PROM) pass arguments and environment as 32-bit pointer.
- * This macro take care of sign extension, if running in 64-bit mode.
- */
-#define prom_envp(index) ((char *)(((int *)(int)_prom_envp)[(index)]))
-#endif
-
-char *prom_getenv(char *envname)
-{
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-	/*
-	 * Return a pointer to the given environment variable.
-	 * In 64-bit mode: we're using 64-bit pointers, but all pointers
-	 * in the PROM structures are only 32-bit, so we need some
-	 * workarounds, if we are running in 64-bit mode.
-	 */
-	int i, index=0;
-	char *p, *q;
-
-	i = strlen(envname);
-	while (prom_envp(index)) {
-		p = (char*) KSEG0ADDR(prom_envp(index));
-		if(!strncmp(envname, p, i)) {
-			q = strchr(p, '=');
-			if (q)
-				q++;
-			return q;
-		}
-		index++;
-	}
-#endif
-	return NULL;
-}
 
 const char *get_system_type(void)
 {
@@ -95,13 +58,7 @@ const char *get_system_type(void)
 
 static inline void prom_show_pstat(void)
 {
-	unsigned long status;
-	const char *const s = prom_getenv("pstat");
-
-	if (!s)
-		return;
-
-	status = simple_strtoul(s, NULL, 0);
+	unsigned long status = fw_getenvl("pstat");
 
 	switch (status) {
 	default:
@@ -339,12 +296,6 @@ void __init prom_init(void)
 	if (!isEN7528)
 #endif
 		BUG();
-
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-	prom_argc = fw_arg0;
-	_prom_argv = (int*) fw_arg1;
-	_prom_envp = (int*) fw_arg2;
-#endif
 
 	set_io_port_base(KSEG1);
 

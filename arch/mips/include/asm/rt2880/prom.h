@@ -26,8 +26,6 @@
 #ifndef _MIPS_PROM_H
 #define _MIPS_PROM_H
 
-extern char *prom_getcmdline(void);
-extern char *prom_getenv(char *name);
 extern void prom_printf(char *fmt, ...);
 extern void prom_init_printf(int tty_no);
 extern void prom_init_cmdline(void);

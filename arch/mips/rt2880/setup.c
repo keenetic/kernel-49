@@ -95,17 +95,10 @@ static void __init plat_setup_iocoherency(void)
 
 void __init plat_mem_setup(void)
 {
-	char *argptr;
-
 	iomem_resource.start = 0;
 	iomem_resource.end = ~0;
 	ioport_resource.start = 0;
 	ioport_resource.end = 0x1fffffff;
-
-	argptr = prom_getcmdline();
-
-	if ((argptr = strstr(argptr, "nofpu")) != NULL)
-		cpu_data[0].options &= ~MIPS_CPU_FPU;
 
 #ifdef CONFIG_DMA_MAYBE_COHERENT
 	plat_setup_iocoherency();

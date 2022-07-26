@@ -1346,20 +1346,9 @@ static int u_state_commit(void)
 	return ret;
 }
 
-#ifdef CONFIG_MIPS
 static bool di_is_enabled(void)
 {
-	char *s;
-
-	s = prom_getenv("dual_image");
-	if (s && !strcmp(s, "0"))
-		return false;
-
-	return true;
-}
-#else
-static bool di_is_enabled(void)
-{
+#if defined(CONFIG_OF_FLATTREE)
 	const unsigned char *val;
 	void *fdt = initial_boot_params;
 	const int off = fdt_path_offset(fdt, "/chosen");
@@ -1371,9 +1360,15 @@ static bool di_is_enabled(void)
 	if (val	&& *val)
 		return true;
 
+#elif defined(CONFIG_MIPS)
+	extern int env_dual_image;
+
+	if (env_dual_image > 0)
+		return true;
+#endif
+
 	return false;
 }
-#endif /* CONFIG_MIPS */
 #endif
 
 module_init(ndm_parser_init);

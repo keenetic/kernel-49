@@ -41,9 +41,9 @@
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
-#include <asm/bootinfo.h>
-#include <asm/page.h>
 
+#include <asm/fw/fw.h>
+#include <asm/page.h>
 #include <asm/rt2880/prom.h>
 
 //#define DEBUG
@@ -60,13 +60,10 @@
 
 #define PFN_ALIGN(x)		(((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
 
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
 static unsigned int __init prom_get_ramsize(void)
 {
-	char *argptr;
+	char *argptr = fw_getcmdline();
 	unsigned int ramsize = 0;
-
-	argptr = prom_getcmdline();
 
 	if ((argptr = strstr(argptr, "ramsize=")) != NULL) {
 		argptr += strlen("ramsize=");
@@ -75,15 +72,11 @@ static unsigned int __init prom_get_ramsize(void)
 
 	return ramsize;
 }
-#endif
 
 void __init prom_meminit(void)
 {
-	phys_addr_t ramsize = 0;
+	phys_addr_t ramsize = (phys_addr_t)prom_get_ramsize();
 
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-	ramsize = (phys_addr_t)prom_get_ramsize();
-#endif
 	if (ramsize < RAM_SIZE_MIN || ramsize > RAM_SIZE_MAX)
 		ramsize = RAM_SIZE;
 

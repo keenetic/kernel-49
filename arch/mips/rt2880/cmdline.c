@@ -38,8 +38,9 @@
 
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/module.h>
 
-#include <asm/bootinfo.h>
+#include <asm/fw/fw.h>
 
 #if defined(CONFIG_RT2880_UART_115200)
 #define TTY_UART_CONSOLE	"console=ttyS0,115200n8"
@@ -47,40 +48,18 @@
 #define TTY_UART_CONSOLE	"console=ttyS0,57600n8"
 #endif
 
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-extern int prom_argc;
-extern int *_prom_argv;
+int env_dual_image;
+EXPORT_SYMBOL(env_dual_image);
 
-/*
- * YAMON (32-bit PROM) pass arguments and environment as 32-bit pointer.
- * This macro take care of sign extension.
- */
-#define prom_argv(index) ((char *)(((int *)(int)_prom_argv)[(index)]))
-#endif
-
-extern char arcs_cmdline[COMMAND_LINE_SIZE];
-
-char * __init prom_getcmdline(void)
+static inline void fixup_env(void)
 {
-	return &(arcs_cmdline[0]);
+	const char *s = fw_getenv("dual_image");
+
+	if (s && strcmp(s, "0") == 0)
+		env_dual_image = 0;
+	else
+		env_dual_image = 1;
 }
-
-#ifdef CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER
-void __init uboot_cmdline(char *s, size_t size)
-{
-	int i;
-
-	for (i = 1; i < prom_argc; i++) { /* Skip argv[0] */
-		strlcat(s, prom_argv(i), size);
-
-		/* Prevent last space */
-		if (i != prom_argc - 1)
-			strlcat(s, " ", size);
-	}
-}
-#else
-static inline void uboot_cmdline(char *s, size_t size) {}
-#endif
 
 static inline void fixup_cmdline(char *s, size_t size)
 {
@@ -97,6 +76,7 @@ static inline void fixup_cmdline(char *s, size_t size)
 
 void  __init prom_init_cmdline(void)
 {
-	uboot_cmdline(arcs_cmdline, sizeof(arcs_cmdline));
+	fw_init_cmdline();
 	fixup_cmdline(arcs_cmdline, sizeof(arcs_cmdline));
+	fixup_env();
 }

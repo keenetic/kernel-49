@@ -52,6 +52,11 @@ void (*prebind_from_nat46tx)(struct sk_buff *skb,
 			     struct ipv6hdr *ip6) = NULL;
 EXPORT_SYMBOL(prebind_from_nat46tx);
 
+void (*prebind_from_encap46tx)(struct sk_buff *skb,
+			       const struct iphdr *ip4,
+			       const struct ipv6hdr *ip6) = NULL;
+EXPORT_SYMBOL(prebind_from_encap46tx);
+
 void (*prebind_from_ct_mark)(struct nf_conn *ct);
 EXPORT_SYMBOL(prebind_from_ct_mark);
 

@@ -59,6 +59,10 @@
 #include <net/netns/generic.h>
 #include <net/dst_metadata.h>
 
+#ifdef CONFIG_FAST_NAT_V2
+#include <net/fast_vpn.h>
+#endif
+
 MODULE_AUTHOR("Ville Nuorvala");
 MODULE_DESCRIPTION("IPv6 tunneling device");
 MODULE_LICENSE("GPL");
@@ -1043,7 +1047,7 @@ EXPORT_SYMBOL_GPL(ip6_tnl_xmit_ctl);
 
 int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 		 struct flowi6 *fl6, int encap_limit, __u32 *pmtu,
-		 __u8 proto)
+		 __u8 proto, const struct iphdr *ipv4h)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net *net = t->net;
@@ -1219,6 +1223,30 @@ route_lookup:
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;
 	ipv6h->daddr = fl6->daddr;
+
+
+#if IS_ENABLED(CONFIG_FAST_NAT)
+	if (likely(!SWNAT_KA_CHECK_MARK(skb) && ipv4h != NULL)) {
+		if (SWNAT_PPP_CHECK_MARK(skb)) {
+			/* We already have PPP encap, do skip it */
+			SWNAT_RESET_MARKS(skb);
+		} else
+		if (SWNAT_FNAT_CHECK_MARK(skb)) {
+			typeof(prebind_from_encap46tx) swnat_prebind;
+
+			rcu_read_lock();
+			swnat_prebind = rcu_dereference(prebind_from_encap46tx);
+			if (likely(swnat_prebind != NULL)) {
+				swnat_prebind(skb, ipv4h, ipv6h);
+
+				SWNAT_RESET_MARKS(skb);
+				SWNAT_ENCAP46_SET_MARK(skb);
+			}
+			rcu_read_unlock();
+		}
+	}
+#endif
+
 	ip6tunnel_xmit(NULL, skb, dev);
 	return 0;
 tx_err_link_failure:
@@ -1291,7 +1319,7 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_set_inner_ipproto(skb, IPPROTO_IPIP);
 
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
-			   IPPROTO_IPIP);
+			   IPPROTO_IPIP, iph);
 	if (err != 0) {
 		/* XXX: send ICMP error even if DF is not set. */
 		if (err == -EMSGSIZE)
@@ -1379,7 +1407,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_set_inner_ipproto(skb, IPPROTO_IPV6);
 
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
-			   IPPROTO_IPV6);
+			   IPPROTO_IPV6, NULL);
 	if (err != 0) {
 		if (err == -EMSGSIZE)
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);

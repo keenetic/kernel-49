@@ -99,7 +99,4 @@ EXPORT_SYMBOL(ppe_dev_register_hook);
 
 void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
 EXPORT_SYMBOL(ppe_dev_unregister_hook);
-
-void (*ppe_enable_hook)(int do_ppe_enable) = NULL;
-EXPORT_SYMBOL(ppe_enable_hook);
 #endif

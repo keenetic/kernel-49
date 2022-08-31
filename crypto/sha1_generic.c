@@ -66,7 +66,7 @@ int crypto_sha1_finup(struct shash_desc *desc, const u8 *data,
 }
 EXPORT_SYMBOL(crypto_sha1_finup);
 
-static struct shash_alg alg = {
+static struct shash_alg sha1_algs[2] = { {
 	.digestsize	=	SHA1_DIGEST_SIZE,
 	.init		=	sha1_base_init,
 	.update		=	crypto_sha1_update,
@@ -80,16 +80,30 @@ static struct shash_alg alg = {
 		.cra_blocksize	=	SHA1_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
-};
+}, {
+	.digestsize	=	SHA1_DIGEST_SIZE,
+	.init		=	sha1_base_init,
+	.update		=	crypto_sha1_update,
+	.final		=	sha1_final,
+	.finup		=	crypto_sha1_finup,
+	.descsize	=	sizeof(struct sha1_state),
+	.base		=	{
+		.cra_name	=	"sha1-soft",
+		.cra_driver_name=	"sha1-soft-generic",
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	SHA1_BLOCK_SIZE,
+		.cra_module	=	THIS_MODULE,
+	}
+} };
 
 static int __init sha1_generic_mod_init(void)
 {
-	return crypto_register_shash(&alg);
+	return crypto_register_shashes(sha1_algs, ARRAY_SIZE(sha1_algs));
 }
 
 static void __exit sha1_generic_mod_fini(void)
 {
-	crypto_unregister_shash(&alg);
+	crypto_unregister_shashes(sha1_algs, ARRAY_SIZE(sha1_algs));
 }
 
 module_init(sha1_generic_mod_init);

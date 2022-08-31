@@ -97,7 +97,7 @@ static inline void sha_pad_init(struct sha_pad *shapad)
  */
 struct ppp_mppe_state {
 	struct crypto_skcipher *arc4;
-	struct crypto_ahash *sha1;
+	struct crypto_shash *sha1;
 	unsigned char *sha1_digest;
 	unsigned char master_key[MPPE_MAX_KEY_LEN];
 	unsigned char session_key[MPPE_MAX_KEY_LEN];
@@ -137,25 +137,20 @@ struct ppp_mppe_state {
  */
 static void get_new_key_from_sha(struct ppp_mppe_state * state)
 {
-	AHASH_REQUEST_ON_STACK(req, state->sha1);
-	struct scatterlist sg[4];
-	unsigned int nbytes;
+	SHASH_DESC_ON_STACK(desc, state->sha1);
 
-	sg_init_table(sg, 4);
+	desc->tfm = state->sha1;
 
-	nbytes = setup_sg(&sg[0], state->master_key, state->keylen);
-	nbytes += setup_sg(&sg[1], sha_pad->sha_pad1,
-			   sizeof(sha_pad->sha_pad1));
-	nbytes += setup_sg(&sg[2], state->session_key, state->keylen);
-	nbytes += setup_sg(&sg[3], sha_pad->sha_pad2,
-			   sizeof(sha_pad->sha_pad2));
-
-	ahash_request_set_tfm(req, state->sha1);
-	ahash_request_set_callback(req, 0, NULL, NULL);
-	ahash_request_set_crypt(req, sg, state->sha1_digest, nbytes);
-
-	crypto_ahash_digest(req);
-	ahash_request_zero(req);
+	if (crypto_shash_init(desc) ||
+		crypto_shash_update(desc, state->master_key, state->keylen) ||
+		crypto_shash_update(desc, sha_pad->sha_pad1,
+				    sizeof(sha_pad->sha_pad1)) ||
+		crypto_shash_update(desc, state->session_key, state->keylen) ||
+		crypto_shash_finup(desc, sha_pad->sha_pad2,
+				   sizeof(sha_pad->sha_pad2),
+				   state->sha1_digest) ) {
+		printk(KERN_WARNING "mppe_rekey: shash failed\n");
+	}
 }
 
 /*
@@ -218,13 +213,13 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 		goto out_free;
 	}
 
-	state->sha1 = crypto_alloc_ahash("sha1", 0, CRYPTO_ALG_ASYNC);
+	state->sha1 = crypto_alloc_shash("sha1-soft", 0, 0);
 	if (IS_ERR(state->sha1)) {
 		state->sha1 = NULL;
 		goto out_free;
 	}
 
-	digestsize = crypto_ahash_digestsize(state->sha1);
+	digestsize = crypto_shash_digestsize(state->sha1);
 	if (digestsize < MPPE_MAX_KEY_LEN)
 		goto out_free;
 
@@ -247,7 +242,7 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 
 out_free:
 	kfree(state->sha1_digest);
-	crypto_free_ahash(state->sha1);
+	crypto_free_shash(state->sha1);
 	crypto_free_skcipher(state->arc4);
 	kfree(state);
 out:
@@ -262,7 +257,7 @@ static void mppe_free(void *arg)
 	struct ppp_mppe_state *state = (struct ppp_mppe_state *) arg;
 	if (state) {
 		kfree(state->sha1_digest);
-		crypto_free_ahash(state->sha1);
+		crypto_free_shash(state->sha1);
 		crypto_free_skcipher(state->arc4);
 		kfree(state);
 	}
@@ -732,8 +727,7 @@ static struct compressor ppp_mppe = {
 static int __init ppp_mppe_init(void)
 {
 	int answer;
-	if (!(crypto_has_skcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC) &&
-	      crypto_has_ahash("sha1", 0, CRYPTO_ALG_ASYNC)))
+	if (!crypto_has_skcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC))
 		return -ENODEV;
 
 	sha_pad = kmalloc(sizeof(struct sha_pad), GFP_KERNEL);

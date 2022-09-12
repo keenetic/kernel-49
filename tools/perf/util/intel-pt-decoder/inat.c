@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  */
-#include "insn.h"
+#include <asm/insn.h>
 
 /* Attribute tables are generated from opcode map */
 #include "inat-tables.c"
@@ -94,3 +94,4 @@ insn_attr_t inat_get_avx_attribute(insn_byte_t opcode, insn_byte_t vex_m,
 	}
 	return table[opcode];
 }
+

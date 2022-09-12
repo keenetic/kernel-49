@@ -77,10 +77,10 @@ static inline const char *perf_reg_name(int id)
 		return "R15";
 #endif /* HAVE_ARCH_X86_64_SUPPORT */
 	default:
-		return NULL;
+		break;
 	}
 
-	return NULL;
+	return "???";
 }
 
 #endif /* ARCH_PERF_REGS_H */

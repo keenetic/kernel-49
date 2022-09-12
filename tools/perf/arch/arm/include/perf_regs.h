@@ -50,10 +50,10 @@ static inline const char *perf_reg_name(int id)
 	case PERF_REG_ARM_PC:
 		return "pc";
 	default:
-		return NULL;
+		break;
 	}
 
-	return NULL;
+	return "???";
 }
 
 #endif /* ARCH_PERF_REGS_H */

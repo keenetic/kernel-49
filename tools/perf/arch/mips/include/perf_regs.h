@@ -78,7 +78,7 @@ static inline const char *perf_reg_name(int id)
 	default:
 		break;
 	}
-	return NULL;
+	return "???";
 }
 
 #endif /* ARCH_PERF_REGS_H */

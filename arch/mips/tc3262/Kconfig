@@ -24,6 +24,7 @@ if !MIPS_TC3262_1004K
 
 config TC3262_IMEM
 	bool "Enable SPRAM IMEM"
+	depends on !FUNCTION_GRAPH_TRACER
 	default y
 
 endif

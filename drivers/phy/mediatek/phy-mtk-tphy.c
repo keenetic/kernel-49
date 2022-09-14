@@ -506,11 +506,9 @@ static void u2_phy_instance_init(struct mtk_tphy *tphy,
 	tmp &= ~PA5_RG_U2_HS_100U_U3_EN;
 	writel(tmp, com + U3P_USBPHYACR5);
 
-	if (!index) {
-		tmp = readl(com + U3P_U2PHYACR4);
-		tmp &= ~P2C_U2_GPIO_CTR_MSK;
-		writel(tmp, com + U3P_U2PHYACR4);
-	}
+	tmp = readl(com + U3P_U2PHYACR4);
+	tmp &= ~P2C_U2_GPIO_CTR_MSK;
+	writel(tmp, com + U3P_U2PHYACR4);
 
 	if (tphy->pdata->avoid_rx_sen_degradation) {
 		if (!index) {

@@ -87,9 +87,17 @@ ntc_shaper_hooks_set(ntc_shaper_hook_fn *ingress_hook,
 
 /* Must be no more than 128 bits long */
 struct nf_ct_ext_ntc_label {
-	int wan_iface;
-	int lan_iface;
+	int32_t wan_iface;
+	int32_t lan_iface;
+	char mac[ETH_ALEN];
+	uint8_t flags;
 };
+
+#define NF_CT_EXT_NTC_MAC_SET			0x1
+#define NF_CT_EXT_NTC_FROM_LAN			0x2
+
+_Static_assert(sizeof(struct nf_ct_ext_ntc_label) <= 16,
+	       "invalid struct nf_ct_ext_ntc_label size");
 
 extern enum nf_ct_ext_id nf_ct_ext_id_ntc;
 
@@ -122,6 +130,8 @@ static inline struct nf_ct_ext_ntc_label *nf_ct_ext_add_ntc(struct nf_conn *ct)
 
 	lbl->wan_iface = 0;
 	lbl->lan_iface = 0;
+	lbl->flags = 0;
+	memset(&lbl->mac, 0, sizeof(lbl->mac));
 
 	return lbl;
 }
@@ -129,6 +139,16 @@ static inline struct nf_ct_ext_ntc_label *nf_ct_ext_add_ntc(struct nf_conn *ct)
 static inline bool nf_ct_ext_ntc_filled(struct nf_ct_ext_ntc_label *lbl)
 {
 	return lbl != NULL && lbl->wan_iface > 0 && lbl->lan_iface > 0;
+}
+
+static inline bool nf_ct_ext_ntc_mac_isset(struct nf_ct_ext_ntc_label *lbl)
+{
+	return lbl != NULL && (lbl->flags & NF_CT_EXT_NTC_MAC_SET);
+}
+
+static inline bool nf_ct_ext_ntc_from_lan(struct nf_ct_ext_ntc_label *lbl)
+{
+	return lbl != NULL && (lbl->flags & NF_CT_EXT_NTC_FROM_LAN);
 }
 
 #endif

@@ -1622,9 +1622,32 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
 #ifdef CONFIG_NDM_SECURITY_LEVEL
 
+static inline bool
+nf_conntrack_update_mac(struct sk_buff *skb, struct nf_ct_ext_ntc_label *lbl)
+{
+	if (nf_ct_ext_ntc_mac_isset(lbl))
+		return false;
+
+	if (skb->dev == NULL || skb->dev->type != ARPHRD_ETHER)
+		return false;
+
+	if (skb_mac_header(skb) < skb->head)
+		return false;
+
+	if (skb_mac_header(skb) + ETH_HLEN > skb->data)
+		return false;
+
+	memcpy(&lbl->mac, eth_hdr(skb)->h_source, sizeof(lbl->mac));
+	lbl->flags |= NF_CT_EXT_NTC_MAC_SET;
+
+	return true;
+}
+
 static inline void
 nf_conntrack_update_ntc_ifaces(struct net *net, struct sk_buff *skb,
-			       struct nf_conn *ct, unsigned int hooknum)
+			       struct nf_conn *ct,
+			       const enum ip_conntrack_info ctinfo,
+			       unsigned int hooknum)
 {
 	struct nf_ct_ext_ntc_label *lbl;
 	struct net_device *dev;
@@ -1672,6 +1695,10 @@ nf_conntrack_update_ntc_ifaces(struct net *net, struct sk_buff *skb,
 				xt_ndmmark_kernel_set_wan(skb);
 			} else {
 				lbl->lan_iface = idx;
+
+				if (nf_conntrack_update_mac(skb, lbl) &&
+				    CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL)
+					lbl->flags |= NF_CT_EXT_NTC_FROM_LAN;
 			}
 		}
 	}
@@ -1830,7 +1857,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
 	if (pf == PF_INET || pf == PF_INET6)
-		nf_conntrack_update_ntc_ifaces(net, skb, ct, hooknum);
+		nf_conntrack_update_ntc_ifaces(net, skb, ct, ctinfo, hooknum);
 #endif
 
 #if IS_ENABLED(CONFIG_FAST_NAT)

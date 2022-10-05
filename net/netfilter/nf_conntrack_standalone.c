@@ -230,6 +230,16 @@ static void ct_show_ndm_ifaces(struct seq_file *s, const struct nf_conn *ct)
 			seq_printf(s, "ifl=%d ", lbl->lan_iface);
 			ctr++;
 		}
+
+		if (nf_ct_ext_ntc_mac_isset(lbl))
+			seq_printf(s, "mac=%pM ", &lbl->mac);
+		else
+			seq_printf(s, "nomac ");
+
+		if (nf_ct_ext_ntc_from_lan(lbl))
+			seq_printf(s, "slan ");
+		else
+			seq_printf(s, "swan ");
 	}
 
 	if (ctr == 0)

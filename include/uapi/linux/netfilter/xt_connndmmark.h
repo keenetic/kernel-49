@@ -6,7 +6,7 @@
 /* Must be in-sync with ndm/Netfilter/Typedefs.h */
 
 enum xt_connndmmark_list {
-	XT_CONNNDMMARK_DNAT          = 0x80,
+	XT_CONNNDMMARK_FWD           = 0x80,
 	XT_CONNNDMMARK_DNS           = 0x40,
 	XT_CONNNDMMARK_TLS           = 0x20,
 	XT_CONNNDMMARK_CS_MASK       = 0x1C,

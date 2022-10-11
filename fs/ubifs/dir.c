@@ -1314,6 +1314,10 @@ static int ubifs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 
 	ubifs_assert(fst_inode && snd_inode);
 
+	err = ubifs_budget_space(c, &req);
+	if (err)
+		return err;
+
 	lock_4_inodes(old_dir, new_dir, NULL, NULL);
 
 	time = ubifs_current_time(old_dir);

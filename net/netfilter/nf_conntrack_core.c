@@ -1784,8 +1784,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 	NF_CT_ASSERT(skb->nfct);
 
-	nf_ntce_rst_bypass(skb);
-	nf_ntce_rst_enqueue(skb);
+	nf_ntce_rst_bypass(pf, skb);
+	nf_ntce_rst_enqueue(pf, skb);
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	if (!ct->fast_bind_reached) {
@@ -1811,7 +1811,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 				  pkt_r > limit_half))
 				ct->fast_bind_reached = 1;
 
-			nf_ntce_check_limit(skb, pkt_r + pkt_o);
+			nf_ntce_check_limit(pf, skb, pkt_r + pkt_o);
 		}
 	}
 #endif
@@ -1913,7 +1913,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			goto out;
 		}
 
-		ntce_skip_swnat = nf_ntce_enqueue_in(hooknum, ct, skb);
+		ntce_skip_swnat = nf_ntce_enqueue_in(pf, hooknum, ct, skb);
 
 		ret = fast_nat_do_bind(ct, skb, l3proto, l4proto, ctinfo);
 
@@ -2037,7 +2037,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 				skb->ndm_mark = ct->ndm_mark;
 #endif
 #endif
-			nf_ntce_enqueue_in(hooknum, ct, skb);
+			nf_ntce_enqueue_in(pf, hooknum, ct, skb);
 
 			/* Change skb owner to output device */
 			skb->dev = skb_dst(skb)->dev;
@@ -2051,7 +2051,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 fast_nat_exit:
 
-	nf_ntce_enqueue_in(hooknum, ct, skb);
+	nf_ntce_enqueue_in(pf, hooknum, ct, skb);
 
 fast_nat_exit_no_ntce:
 

@@ -23,12 +23,15 @@ struct net;
 #define NF_NTCE_IPCB_BYPASS			BIT(14)
 #define NF_NTCE_IPCB_ENQUEUE			BIT(15)
 
+#define NF_NTCE_IP6CB_BYPASS		1024
+#define NF_NTCE_IP6CB_ENQUEUE		2048
+
 #define NF_NTCE_HARD_PACKET_LIMIT		750
 
 struct seq_file;
 
 bool nf_ntce_if_pass(const int ifidx);
-void nf_ntce_enq_packet(struct sk_buff *skb);
+void nf_ntce_enq_packet(const struct nf_conn *ct, struct sk_buff *skb);
 bool nf_ntce_is_enabled(void);
 
 int nf_ntce_init_proc(struct net *net);
@@ -38,41 +41,70 @@ int nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct);
 size_t nf_ntce_ctnetlink_size(const struct nf_conn *ct);
 void nf_ntce_update_sc_ct(struct nf_conn *ct);
 
-static inline void nf_ntce_rst_bypass(struct sk_buff *skb)
+static inline void nf_ntce_rst_bypass(const u8 pf, struct sk_buff *skb)
 {
-	IPCB(skb)->flags &= ~(NF_NTCE_IPCB_BYPASS);
+	if (pf == PF_INET)
+		IPCB(skb)->flags &= ~(NF_NTCE_IPCB_BYPASS);
+	else
+	if (pf == PF_INET6)
+		IP6CB(skb)->flags &= ~(NF_NTCE_IP6CB_BYPASS);
 }
 
-static inline void nf_ntce_set_bypass(struct sk_buff *skb)
+static inline void nf_ntce_set_bypass(const u8 pf, struct sk_buff *skb)
 {
-	IPCB(skb)->flags |= NF_NTCE_IPCB_BYPASS;
+	if (pf == PF_INET)
+		IPCB(skb)->flags |= NF_NTCE_IPCB_BYPASS;
+	else
+	if (pf == PF_INET6)
+		IP6CB(skb)->flags |= NF_NTCE_IP6CB_BYPASS;
 }
 
-static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
+static inline bool nf_ntce_is_bypass(const u8 pf, struct sk_buff *skb)
 {
-	return !!(IPCB(skb)->flags & NF_NTCE_IPCB_BYPASS);
+	if (pf == PF_INET)
+		return !!(IPCB(skb)->flags & NF_NTCE_IPCB_BYPASS);
+
+	if (pf == PF_INET6)
+		return !!(IP6CB(skb)->flags & NF_NTCE_IP6CB_BYPASS);
+
+	return true;
 }
 
-static inline void nf_ntce_rst_enqueue(struct sk_buff *skb)
+static inline void nf_ntce_rst_enqueue(const u8 pf, struct sk_buff *skb)
 {
-	IPCB(skb)->flags &= ~(NF_NTCE_IPCB_ENQUEUE);
+	if (pf == PF_INET)
+		IPCB(skb)->flags &= ~(NF_NTCE_IPCB_ENQUEUE);
+	else
+	if (pf == PF_INET6)
+		IP6CB(skb)->flags &= ~(NF_NTCE_IP6CB_ENQUEUE);
 }
 
-static inline void nf_ntce_set_enqueue(struct sk_buff *skb)
+static inline void nf_ntce_set_enqueue(const u8 pf, struct sk_buff *skb)
 {
-	IPCB(skb)->flags |= NF_NTCE_IPCB_ENQUEUE;
+	if (pf == PF_INET)
+		IPCB(skb)->flags |= NF_NTCE_IPCB_ENQUEUE;
+	else
+	if (pf == PF_INET6)
+		IP6CB(skb)->flags |= NF_NTCE_IP6CB_ENQUEUE;
 }
 
-static inline bool nf_ntce_is_enqueue(struct sk_buff *skb)
+static inline bool nf_ntce_is_enqueue(const u8 pf, struct sk_buff *skb)
 {
-	return !!(IPCB(skb)->flags & NF_NTCE_IPCB_ENQUEUE);
+	if (pf == PF_INET)
+		return !!(IPCB(skb)->flags & NF_NTCE_IPCB_ENQUEUE);
+
+	if (pf == PF_INET6)
+		return !!(IP6CB(skb)->flags & NF_NTCE_IP6CB_ENQUEUE);
+
+	return false;
 }
 
-static inline int nf_ntce_check_limit(struct sk_buff *skb,
+static inline int nf_ntce_check_limit(const u8 pf,
+				      struct sk_buff *skb,
 				      const unsigned long long packets)
 {
 	if (packets > NF_NTCE_HARD_PACKET_LIMIT) {
-		nf_ntce_set_bypass(skb);
+		nf_ntce_set_bypass(pf, skb);
 
 		return 1;
 	}
@@ -170,7 +202,8 @@ nf_ct_ntce_append(int hooknum, struct nf_conn *ct)
 		pr_err_ratelimited("unable to allocate NTCE ct label");
 }
 
-static inline int nf_ntce_enqueue__(struct nf_conn *ct, struct sk_buff *skb,
+static inline int nf_ntce_enqueue__(const u8 pf, struct nf_conn *ct,
+				    struct sk_buff *skb,
 				    const bool mark)
 {
 	const struct nf_conn_counter *counters;
@@ -211,14 +244,15 @@ static inline int nf_ntce_enqueue__(struct nf_conn *ct, struct sk_buff *skb,
 #endif
 
 	if (mark)
-		nf_ntce_set_enqueue(skb);
+		nf_ntce_set_enqueue(pf, skb);
 	else
-		nf_ntce_enq_packet(skb);
+		nf_ntce_enq_packet(ct, skb);
 
 	return 1;
 }
 
-static inline int nf_ntce_enqueue_(struct nf_conn *ct,
+static inline int nf_ntce_enqueue_(const u8 pf,
+				   struct nf_conn *ct,
 				   struct sk_buff *skb,
 				   const int ifindex,
 				   const bool mark)
@@ -228,17 +262,20 @@ static inline int nf_ntce_enqueue_(struct nf_conn *ct,
 		return 0;
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
-	if (ct->fast_ext && !nf_ntce_has_helper(ct))
-		return 0;
+	if (pf == PF_INET)
+	{
+		if (ct->fast_ext && !nf_ntce_has_helper(ct))
+			return 0;
 
-	if (!is_nf_connection_ipv4_tcpudp(ct))
-		return 0;
+		if (!is_nf_connection_ipv4_tcpudp(ct))
+			return 0;
+	}
 #endif
 
 	if (!nf_ntce_if_pass(ifindex)) 
 		return 0;
 
-	return nf_ntce_enqueue__(ct, skb, mark);
+	return nf_ntce_enqueue__(pf, ct, skb, mark);
 }
 
 static inline void nf_ntce_enqueue_out_(struct sk_buff *skb)
@@ -249,7 +286,7 @@ static inline void nf_ntce_enqueue_out_(struct sk_buff *skb)
 	if (ct == NULL)
 		return;
 
-	nf_ntce_enqueue_(ct, skb, skb->dev->ifindex, false);
+	nf_ntce_enqueue_(nf_ct_l3num(ct), ct, skb, skb->dev->ifindex, false);
 }
 
 static inline void nf_ntce_enqueue_out(struct sk_buff *skb)
@@ -263,24 +300,32 @@ static inline void nf_ntce_enqueue_out(struct sk_buff *skb)
 	nf_ntce_enqueue_out_(skb);
 }
 
-static inline int nf_ntce_enqueue_in(int hooknum,
+static inline int nf_ntce_enqueue_in(const u8 pf, int hooknum,
 				     struct nf_conn *ct, struct sk_buff *skb)
 {
 	if (hooknum != NF_INET_PRE_ROUTING)
 		return 0;
 
-	if (nf_ntce_is_bypass(skb))
+	if (nf_ntce_is_bypass(pf, skb))
 		return 0;
 
-	nf_ntce_set_bypass(skb);
+	nf_ntce_set_bypass(pf, skb);
 
-	return nf_ntce_enqueue_(ct, skb, skb->skb_iif, true);
+	return nf_ntce_enqueue_(pf, ct, skb, skb->skb_iif, true);
 }
 
 static inline void nf_ntce_enqueue_fwd(struct sk_buff *skb)
 {
-	if (unlikely(nf_ntce_is_enqueue(skb)))
-		nf_ntce_enq_packet(skb);
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+
+	if (ct == NULL)
+		return;
+
+	if (likely(!nf_ntce_is_enqueue(nf_ct_l3num(ct), skb)))
+		return;
+
+	return nf_ntce_enq_packet(ct, skb);
 }
 
 #else
@@ -301,20 +346,20 @@ nf_ct_ntce_append(int hooknum, struct nf_conn *ct)
 {
 }
 
-static inline void nf_ntce_rst_bypass(struct sk_buff *skb)
+static inline void nf_ntce_rst_bypass(const u8 pf, struct sk_buff *skb)
 {
 }
 
-static inline void nf_ntce_set_bypass(struct sk_buff *skb)
+static inline void nf_ntce_set_bypass(const u8 pf, struct sk_buff *skb)
 {
 }
 
-static inline bool nf_ntce_is_bypass(struct sk_buff *skb)
+static inline bool nf_ntce_is_bypass(const u8 pf, struct sk_buff *skb)
 {
 	return true;
 }
 
-static inline void nf_ntce_rst_enqueue(struct sk_buff *skb)
+static inline void nf_ntce_rst_enqueue(const u8 pf, struct sk_buff *skb)
 {
 }
 
@@ -322,7 +367,8 @@ static inline void nf_ntce_update_sc_ct(struct nf_conn *ct)
 {
 }
 
-static inline int nf_ntce_check_limit(struct sk_buff *skb,
+static inline int nf_ntce_check_limit(const u8 pf, 
+				      struct sk_buff *skb,
 				      const unsigned long long packets)
 {
 	return 1;

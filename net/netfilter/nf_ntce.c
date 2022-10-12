@@ -654,10 +654,17 @@ void nf_ntce_update_sc_ct(struct nf_conn *ct)
 }
 EXPORT_SYMBOL(nf_ntce_update_sc_ct);
 
-void nf_ntce_enq_packet(struct sk_buff *skb)
+struct mac_trailer {
+	u8 l3proto;
+	u8 flags;
+	u8 mac[ETH_ALEN];
+};
+
+static void nf_ntce_enq_packet_(struct sk_buff *skb, const u8 l3, const u8 *mac)
 {
 	struct net_device *dev;
 	struct sk_buff *nskb;
+	struct mac_trailer *mt;
 
 	rcu_read_lock();
 
@@ -670,18 +677,37 @@ void nf_ntce_enq_packet(struct sk_buff *skb)
 	if (dev == NULL)
 		return;
 
-	nskb = skb_copy(skb, GFP_ATOMIC | __GFP_NOWARN);
+	nskb = skb_copy_expand(skb, 0, sizeof(*mt), GFP_ATOMIC | __GFP_NOWARN);
 	if (nskb == NULL)
 		goto exit_put;
 
 	if (nskb->mac_len > 0)
 		skb_push(nskb, nskb->mac_len);
 
+	mt = (struct mac_trailer *)skb_put(nskb, sizeof(*mt));
+
+	memcpy(mt->mac, mac, sizeof(mt->mac));
+	mt->l3proto = l3;
+
 	nskb->dev = dev;
 	dev_queue_xmit(nskb);
 
 exit_put:
 	dev_put(dev);
+}
+
+void nf_ntce_enq_packet(const struct nf_conn *ct, struct sk_buff *skb)
+{
+	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
+	const u8 pf = nf_ct_l3num(ct);
+
+	if (unlikely(pf != PF_INET && pf != PF_INET6))
+		return;
+
+	if (unlikely(!nf_ct_ext_ntc_mac_isset(lbl)))
+		return;
+
+	return nf_ntce_enq_packet_(skb, pf, lbl->mac);
 }
 
 #endif

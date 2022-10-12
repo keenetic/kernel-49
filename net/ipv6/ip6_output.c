@@ -59,6 +59,8 @@
 #include <net/l3mdev.h>
 #include <net/lwtunnel.h>
 
+#include <net/netfilter/nf_ntce.h>
+
 static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
@@ -564,6 +566,8 @@ int ip6_forward(struct sk_buff *skb)
 	/* Mangling hops number delayed to point after skb COW */
 
 	hdr->hop_limit--;
+
+	nf_ntce_enqueue_fwd(skb);
 
 	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD,
 		       net, NULL, skb, skb->dev, dst->dev,

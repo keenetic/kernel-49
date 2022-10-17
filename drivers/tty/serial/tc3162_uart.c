@@ -21,9 +21,11 @@
 #define TC3162_UART_NR_PORTS			(1)
 #define TC3162_UART_SIZE			(0x30)
 #define TC3162_UART_PORT			(3162)
+#define TC3162_UART_CLK				(115200)
 #define TC3162_UART_TX_BUF_SIZE			UART_XMIT_SIZE
 #define TC3162_UART_TX_BUF_STOP_POLL		(1024)
 #define TC3162_UART_THREAD_NICE			(-20)
+#define TC3162_UART_THREAD_TX_THRESHOLD		(TC3162_UART_CLK / 9)
 
 static DECLARE_WAIT_QUEUE_HEAD(tc3162_uart_tx_wq);
 static DEFINE_SPINLOCK(tc3162_uart_tx_lock);
@@ -88,8 +90,10 @@ static inline int tc3162_uart_tx_buf_full(void)
 	return (wr_idx + 1) % sizeof(tc3162_uart_tx_buf) == rd_idx;
 }
 
-static inline void tc3162_uart_tx_buf_flush(unsigned int count)
+static inline unsigned int tc3162_uart_tx_buf_flush(unsigned int count)
 {
+	unsigned int tx_count = 0;
+
 	while (count > 0 && !tc3162_uart_tx_buf_empty()) {
 		int rd_idx = atomic_read(&tc3162_uart_tx_rd_idx);
 
@@ -101,7 +105,10 @@ static inline void tc3162_uart_tx_buf_flush(unsigned int count)
 		smp_wmb(); /* notify writers */
 
 		count--;
+		tx_count++;
 	}
+
+	return tx_count;
 }
 
 static void tc3162_uart_start_tx(struct uart_port *port);
@@ -134,7 +141,7 @@ static int tc3162_uart_thread_fn(void *data)
 	set_user_nice(current, TC3162_UART_THREAD_NICE);
 
 	for (;;) {
-		unsigned long flags;
+		unsigned long flags, tx_count;
 
 		wait_event_interruptible(tc3162_uart_tx_wq,
 				         tc3162_uart_thread_proceed());
@@ -146,11 +153,17 @@ static int tc3162_uart_thread_fn(void *data)
 		atomic_inc(&tc3162_uart_tx_thread_flushing);
 		spin_unlock_irqrestore(&tc3162_uart_tx_thread_lock, flags);
 
+		tx_count = 0;
 		while (!tc3162_uart_tx_buf_empty()) {
-			tc3162_uart_tx_buf_flush(TC3162_UART_TX_BUF_STOP_POLL);
+			tx_count += tc3162_uart_tx_buf_flush(TC3162_UART_TX_BUF_STOP_POLL);
 
 			if (kthread_should_stop())
 				break;
+
+			if (tx_count >= TC3162_UART_THREAD_TX_THRESHOLD) {
+				tx_count = 0;
+				schedule();
+			}
 		}
 
 		atomic_dec(&tc3162_uart_tx_thread_flushing);
@@ -328,7 +341,7 @@ static void tc3162_uart_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	uart_update_timeout(port, termios->c_cflag, 115200);
+	uart_update_timeout(port, termios->c_cflag, TC3162_UART_CLK);
 	port->ignore_status_mask = 0;
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -463,7 +476,7 @@ static struct uart_port tc3162_uart_ports[TC3162_UART_NR_PORTS] = {
 	{
 		.iobase		= CR_UART_BASE + CR_UART_OFFSET,
 		.irq		= UART_INT,
-		.uartclk	= 115200,
+		.uartclk	= TC3162_UART_CLK,
 		.fifosize	= 1,
 		.ops		= &tc3162_uart_ops,
 		.line		= 0,

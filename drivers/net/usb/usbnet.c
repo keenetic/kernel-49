@@ -48,6 +48,7 @@
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/fast_vpn.h>
+#include <linux/netfilter/xt_ndmmark.h>
 #endif
 
 #define DRIVER_VERSION		"22-Aug-2005"
@@ -349,17 +350,10 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 		return;
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
-	{
-		typeof(go_swnat) swnat;
+	xt_ndmmark_kernel_set_usbmac(skb);
 
-		rcu_read_lock();
-		swnat = rcu_dereference(go_swnat);
-		if (swnat && swnat(skb, SWNAT_ORIGIN_USB_MAC)) {
-			rcu_read_unlock();
-			return;
-		}
-		rcu_read_unlock();
-	}
+	if (swnat_rx(skb))
+		return;
 #endif
 
 	status = netif_rx (skb);
@@ -1393,15 +1387,8 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 		if (unlikely(SWNAT_KA_CHECK_MARK(skb)))
 			goto not_drop;
 
-		if (SWNAT_PPP_CHECK_MARK(skb) || SWNAT_FNAT_CHECK_MARK(skb)) {
-			typeof(prebind_from_usb_mac) swnat_prebind;
-
-			rcu_read_lock();
-			swnat_prebind = rcu_dereference(prebind_from_usb_mac);
-			if (likely(swnat_prebind != NULL))
-				swnat_prebind(skb);
-			rcu_read_unlock();
-		}
+		xt_ndmmark_kernel_set_usbmac(skb);
+		swnat_tx(skb);
 #endif
 	}
 

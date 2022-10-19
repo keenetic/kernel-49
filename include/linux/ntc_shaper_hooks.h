@@ -9,28 +9,19 @@ struct sock;
 struct sk_buff;
 struct nf_conn;
 
-struct swnat_ntc_privdata_t {
-	u8			 origin;
-	u8			 set_ce;
-};
-
 struct ntc_shaper_fwd_t {
-	uint32_t	 saddr_ext;
-	uint32_t	 daddr_ext;
-	int		 (*okfn_nf)(struct net *,
-				    struct sock *,
-				    struct sk_buff *);
-	int		 (*okfn_custom)(struct sk_buff *, void *);
-	void		*data;
+	int		 (*okfn)(struct net *,
+				 struct sock *,
+				 struct sk_buff *);
 	struct net	*net;
 	struct sock	*sk;
+
+	bool		is_ipv4;
+	bool		is_swnat;
 };
 
 typedef bool
-ntc_shaper_bound_hook_fn(
-	uint32_t ipaddr,
-	const uint8_t *const mac,
-	const struct nf_conn *const ct);
+ntc_shaper_bound_hook_fn(const struct nf_conn *const ct);
 
 extern ntc_shaper_bound_hook_fn *ntc_shaper_check_bound_hook;
 

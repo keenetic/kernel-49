@@ -123,11 +123,7 @@ int fast_nat_path(struct net *net, struct sock *sk, struct sk_buff *skb)
 	shaper_egress = ntc_shaper_egress_hook_get();
 	if (shaper_egress) {
 		const struct ntc_shaper_fwd_t fwd = {
-			.saddr_ext	= 0,
-			.daddr_ext	= 0,
-			.okfn_nf	= fast_nat_path_egress,
-			.okfn_custom	= NULL,
-			.data		= NULL,
+			.okfn		= fast_nat_path_egress,
 			.net		= net,
 			.sk		= sk
 		};

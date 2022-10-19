@@ -7,14 +7,11 @@
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 /* fastvpn */
-int (*go_swnat)(struct sk_buff *skb, u8 origin) = NULL;
+int (*go_swnat)(struct sk_buff *skb) = NULL;
 EXPORT_SYMBOL(go_swnat);
 
-void (*prebind_from_raeth)(struct sk_buff *skb) = NULL;
-EXPORT_SYMBOL(prebind_from_raeth);
-
-void (*prebind_from_usb_mac)(struct sk_buff *skb) = NULL;
-EXPORT_SYMBOL(prebind_from_usb_mac);
+void (*prebind_from_eth)(struct sk_buff *skb) = NULL;
+EXPORT_SYMBOL(prebind_from_eth);
 
 void (*prebind_from_fastnat)(struct sk_buff *skb,
 			     __be32 orig_saddr,

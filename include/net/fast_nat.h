@@ -121,11 +121,7 @@ fast_nat_ntc_ingress(struct net *net, struct sk_buff *skb, __be32 saddr)
 
 	if (ntc_ingress) {
 		const struct ntc_shaper_fwd_t fwd = {
-			.saddr_ext	= ntohl(saddr),
-			.daddr_ext	= 0,
-			.okfn_nf	= fast_nat_path,
-			.okfn_custom	= NULL,
-			.data		= NULL,
+			.okfn		= fast_nat_path,
 			.net		= net,
 			.sk		= skb->sk
 		};

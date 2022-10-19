@@ -24,7 +24,9 @@ enum xt_ndmmark_kernel_list {
 	XT_NDMMARK_KERNEL_NTC       = 0x01,
 	XT_NDMMARK_KERNEL_CS_MASK   = 0x1C,
 	XT_NDMMARK_KERNEL_CS_SHIFT  = 0x02,
-	XT_NDMMARK_KERNEL_WAN       = 0x20
+	XT_NDMMARK_KERNEL_WAN       = 0x20,
+	XT_NDMMARK_KERNEL_USBMAC    = 0x40,
+	XT_NDMMARK_KERNEL_SET_CE    = 0x80
 };
 
 struct xt_ndmmark_tginfo {
@@ -72,6 +74,38 @@ static inline bool xt_ndmmark_kernel_is_wan(struct sk_buff *skb)
 {
 	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_WAN) ==
 		XT_NDMMARK_KERNEL_WAN;
+}
+
+static inline void xt_ndmmark_kernel_set_usbmac(struct sk_buff *skb)
+{
+	skb->ndm_mark_kernel |= XT_NDMMARK_KERNEL_USBMAC;
+}
+
+static inline void xt_ndmmark_kernel_rst_usbmac(struct sk_buff *skb)
+{
+	skb->ndm_mark_kernel &= ~XT_NDMMARK_KERNEL_USBMAC;
+}
+
+static inline bool xt_ndmmark_is_usbmac(struct sk_buff *skb)
+{
+	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_USBMAC) ==
+		XT_NDMMARK_KERNEL_USBMAC;
+}
+
+static inline void xt_ndmmark_kernel_set_ce(struct sk_buff *skb)
+{
+	skb->ndm_mark_kernel |= XT_NDMMARK_KERNEL_SET_CE;
+}
+
+static inline void xt_ndmmark_kernel_rst_ce(struct sk_buff *skb)
+{
+	skb->ndm_mark_kernel &= ~XT_NDMMARK_KERNEL_SET_CE;
+}
+
+static inline bool xt_ndmmark_is_set_ce(struct sk_buff *skb)
+{
+	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_SET_CE) ==
+		XT_NDMMARK_KERNEL_SET_CE;
 }
 
 #endif /* _XT_NDMMARK_H */

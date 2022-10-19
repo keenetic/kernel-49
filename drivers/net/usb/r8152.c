@@ -113,44 +113,12 @@
 
 static inline bool rtl_swnat_rx(struct sk_buff *skb)
 {
-	int rx_done = 0;
-	typeof(go_swnat) swnat;
-
-	rcu_read_lock();
-
-	swnat = rcu_dereference(go_swnat);
-	if (likely(swnat != NULL))
-		rx_done = swnat(skb, SWNAT_ORIGIN_RAETH);
-
-	rcu_read_unlock();
-
-	return !!rx_done;
+	return swnat_rx(skb);
 }
 
 static inline bool rtl_swnat_tx(struct sk_buff *skb)
 {
-	if (unlikely(SWNAT_KA_CHECK_MARK(skb))) {
-		consume_skb(skb);
-
-		return true;
-	}
-
-	if (unlikely(SWNAT_PPP_CHECK_MARK(skb) ||
-		     SWNAT_FNAT_CHECK_MARK(skb))) {
-		typeof(prebind_from_raeth) swnat_prebind;
-
-		rcu_read_lock();
-
-		swnat_prebind = rcu_dereference(prebind_from_raeth);
-		if (likely(swnat_prebind != NULL))
-			swnat_prebind(skb);
-
-		rcu_read_unlock();
-
-		return false;
-	}
-
-	return false;
+	return swnat_tx_consume(skb);
 }
 #else
 static inline bool rtl_swnat_rx(struct sk_buff *skb)

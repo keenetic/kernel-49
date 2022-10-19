@@ -16,10 +16,6 @@ enum ip_conntrack_info;
 
 /* SWNAT section */
 
-#define SWNAT_ORIGIN_RAETH		0x10
-#define SWNAT_ORIGIN_RT2860		0x20
-#define SWNAT_ORIGIN_USB_MAC		0x30
-
 #define SWNAT_CB_OFFSET			47
 
 #define SWNAT_FNAT_MARK			0x01
@@ -106,11 +102,9 @@ do { \
 /* End of KA mark */
 
 /* prebind hooks */
-extern int (*go_swnat)(struct sk_buff *skb, u8 origin);
+extern int (*go_swnat)(struct sk_buff *skb);
 
-extern void (*prebind_from_raeth)(struct sk_buff *skb);
-
-extern void (*prebind_from_usb_mac)(struct sk_buff * skb);
+extern void (*prebind_from_eth)(struct sk_buff *skb);
 
 extern void (*prebind_from_fastnat)(struct sk_buff *skb,
 				    __be32 orig_saddr,
@@ -164,5 +158,60 @@ struct new_mc_streams {
 	struct list_head list;
 };
 
+static inline bool __attribute__((always_inline))
+swnat_rx(struct sk_buff *skb)
+{
+	typeof(go_swnat) swnat;
+
+	rcu_read_lock();
+	swnat = rcu_dereference(go_swnat);
+	if (likely(swnat != NULL)) {
+		const bool res = !!swnat(skb);
+		rcu_read_unlock();
+
+		return res;
+	}
+
+	rcu_read_unlock();
+
+	return false;
+}
+
+static inline void __attribute__((always_inline))
+swnat_tx(struct sk_buff *skb)
+{
+	typeof(prebind_from_eth) swnat_prebind;
+
+	if (likely(!SWNAT_PPP_CHECK_MARK(skb) &&
+		   !SWNAT_FNAT_CHECK_MARK(skb) &&
+		   !SWNAT_NAT46_CHECK_MARK(skb) &&
+		   !SWNAT_ENCAP46_CHECK_MARK(skb) &&
+		   !SWNAT_RTCACHE_CHECK_MARK(skb)))
+		return;
+
+	rcu_read_lock();
+
+	swnat_prebind = rcu_dereference(prebind_from_eth);
+	if (likely(swnat_prebind != NULL))
+		swnat_prebind(skb);
+
+	rcu_read_unlock();
+}
+
+static inline bool __attribute__((always_inline))
+swnat_tx_consume(struct sk_buff *skb)
+{
+#if defined(SWNAT_KA_CHECK_MARK)
+	if (unlikely(SWNAT_KA_CHECK_MARK(skb))) {
+		consume_skb(skb);
+
+		return true;
+	}
+#endif
+
+	swnat_tx(skb);
+
+	return false;
+}
 
 #endif /*__FAST_VPN_H_ */

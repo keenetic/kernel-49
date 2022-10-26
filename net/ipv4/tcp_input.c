@@ -5488,7 +5488,8 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 	FOE_ALG_MARK(skb);
 #endif
-	if (unlikely(!sk->sk_rx_dst))
+
+	if (unlikely(!rcu_access_pointer(sk->sk_rx_dst)))
 		inet_csk(sk)->icsk_af_ops->sk_rx_dst_set(sk, skb);
 	/*
 	 *	Header prediction.

@@ -91,6 +91,7 @@ do { \
 
 /* KA mark */
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
 #define SWNAT_KA_SET_MARK(skb_) \
 do { \
 	(skb_)->swnat_ka_mark = 1; \
@@ -98,6 +99,10 @@ do { \
 
 #define SWNAT_KA_CHECK_MARK(skb_) \
 	((skb_)->swnat_ka_mark != 0)
+#else
+#define SWNAT_KA_SET_MARK(skb_)
+#define SWNAT_KA_CHECK_MARK(skb_) (0)
+#endif
 
 /* End of KA mark */
 

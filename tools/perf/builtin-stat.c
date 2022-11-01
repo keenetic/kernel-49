@@ -1903,8 +1903,11 @@ static int topdown_filter_events(const char **attr, char **str, bool use_group)
 	if (use_group) {
 		s[-1] = '}';
 		*s = 0;
-	} else
+	} else if (s > *str)
 		s[-1] = 0;
+	else
+		s[0] = 0;
+
 	return 0;
 }
 

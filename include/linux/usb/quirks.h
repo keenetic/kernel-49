@@ -62,4 +62,7 @@
 /* device has blacklisted endpoints */
 #define USB_QUIRK_ENDPOINT_BLACKLIST		BIT(15)
 
+/* device can't handle lang id request */
+#define USB_QUIRK_LANG_ID		BIT(16)
+
 #endif /* __LINUX_USB_QUIRKS_H */

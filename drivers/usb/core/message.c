@@ -770,13 +770,20 @@ static int usb_get_langid(struct usb_device *dev, unsigned char *tbuf)
 	if (dev->string_langid < 0)
 		return -EPIPE;
 
-	err = usb_string_sub(dev, 0, 0, tbuf);
+	if (dev->quirks & USB_QUIRK_LANG_ID)
+		err = -ENODATA;
+	else
+		err = usb_string_sub(dev, 0, 0, tbuf);
 
 	/* If the string was reported but is malformed, default to english
 	 * (0x0409) */
 	if (err == -ENODATA || (err > 0 && err < 4)) {
 		dev->string_langid = 0x0409;
 		dev->have_langid = 1;
+
+		if (dev->quirks & USB_QUIRK_LANG_ID)
+			return 0;
+
 		dev_err(&dev->dev,
 			"language id specifier not provided by device, defaulting to English\n");
 		return 0;

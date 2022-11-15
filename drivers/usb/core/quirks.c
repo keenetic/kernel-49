@@ -358,6 +358,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Brovi E3372-325 */
 	{ USB_DEVICE(0x3566, 0x2001), .driver_info = USB_QUIRK_LANG_ID },
 
+	/* HP lt4120 T77W595 */
+	{ USB_DEVICE(0x03f0, 0x9d1d), .driver_info = USB_QUIRK_DELAY_INIT },
+
 	{ }  /* terminating entry must be last */
 };
 

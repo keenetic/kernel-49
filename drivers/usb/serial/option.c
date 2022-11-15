@@ -2180,6 +2180,8 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, 0xff, 0x06, 0x1b) },
 	{ USB_DEVICE_INTERFACE_CLASS(0x03f0, 0x0857, 0xff),
 	  .driver_info = RSVD(0) | RSVD(1) },				/* HP lt4220 */
+	{ USB_DEVICE_INTERFACE_CLASS(0x03f0, 0x9d1d, 0xff), /* HP lt4120 (QMI) T77W595 */
+	  .driver_info = RSVD(0) | RSVD(1) },
 	{ USB_DEVICE(0x0489, 0xe0b4),						/* Foxconn T77W968 */
 	  .driver_info = RSVD(0) | RSVD(1) | RSVD(6) },
 	{ USB_DEVICE(0x0489, 0xe0b5),						/* Foxconn T77W968 ESIM */

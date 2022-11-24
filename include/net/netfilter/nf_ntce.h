@@ -262,17 +262,16 @@ static inline int nf_ntce_enqueue_(const u8 pf,
 		return 0;
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
-	if (pf == PF_INET)
-	{
+	if (pf == PF_INET) {
 		if (ct->fast_ext && !nf_ntce_has_helper(ct))
 			return 0;
 
-		if (!is_nf_connection_ipv4_tcpudp(ct))
+		if (!is_nf_connection_ipv4_tcpudpgre(ct))
 			return 0;
 	}
 #endif
 
-	if (!nf_ntce_if_pass(ifindex)) 
+	if (!nf_ntce_if_pass(ifindex))
 		return 0;
 
 	return nf_ntce_enqueue__(pf, ct, skb, mark);

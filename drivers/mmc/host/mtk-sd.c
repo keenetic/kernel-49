@@ -2187,6 +2187,7 @@ static int msdc_of_clock_parse(struct platform_device *pdev,
 	ret = devm_clk_bulk_get_optional(&pdev->dev, MSDC_NR_CLOCKS,
 					 host->bulk_clks);
 	if (ret) {
+		clk_disable_unprepare(host->sys_clk_cg);
 		dev_err(&pdev->dev, "Cannot get pclk/axi/ahb clock gates\n");
 		return ret;
 	}

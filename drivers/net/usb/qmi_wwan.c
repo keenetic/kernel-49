@@ -974,6 +974,7 @@ static const struct usb_device_id products[] = {
 	{QMI_QUIRK_SET_DTR(0x1bc7, 0x1900, 1)},	/* Telit LN940 series */
 	{QMI_QUIRK_SET_DTR(0x1bc7, 0x1905, 1)},	/* Telit LN941 */
 	{QMI_QUIRK_SET_DTR(0x1bc7, 0x1910, 0)},	/* Telit LN960 series */
+	{QMI_QUIRK_SET_DTR(0x1bc7, 0x1915, 0)},	/* Telit LN960A9 */
 	{QMI_FIXED_INTF(0x1c9e, 0x9801, 3)},	/* Telewell TW-3G HSPA+ */
 	{QMI_FIXED_INTF(0x1c9e, 0x9803, 4)},	/* Telewell TW-3G HSPA+ */
 	{QMI_FIXED_INTF(0x1c9e, 0x9b01, 3)},	/* XS Stick W100-2 from 4G Systems */

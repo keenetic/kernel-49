@@ -368,6 +368,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->stp_choke = BR_PORT_STP_PASS;
 	p->loop_detect = BR_PORT_NO_LOOP;
 	p->port_type = BR_PORT_TYPE_NORMAL;
+	p->broadcast_limit = BR_PORT_BCAST_LIMIT_ENABLED;
 	br_init_port(p);
 	br_set_state(p, BR_STATE_DISABLED);
 	br_stp_port_timer_init(p);

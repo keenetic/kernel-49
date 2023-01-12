@@ -276,6 +276,11 @@ struct net_bridge_port
 		BR_PORT_LOOP_DETECTED,
 	} loop_detect;
 
+	enum {
+		BR_PORT_BCAST_LIMIT_DISABLED,
+		BR_PORT_BCAST_LIMIT_ENABLED,
+	} broadcast_limit;
+
 	unsigned long 			flags;
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING

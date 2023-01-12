@@ -256,6 +256,34 @@ static ssize_t show_loop_detect(struct net_bridge_port *p, char *buf)
 static BRPORT_ATTR(loop_detect, S_IWUSR | S_IRUGO,
 		   show_loop_detect, store_loop_detect);
 
+static int store_broadcast_limiter(struct net_bridge_port *p, unsigned long v)
+{
+	if (netif_running(p->br->dev)) {
+		const unsigned int broadcast_limit =
+			(v != 0 ?
+				BR_PORT_BCAST_LIMIT_ENABLED :
+				BR_PORT_BCAST_LIMIT_DISABLED);
+
+		if (broadcast_limit != p->broadcast_limit) {
+			br_info(p->br, "%s broadcast limiter on port %u(%s)\n",
+				broadcast_limit ?
+					"enabled" :
+					"disabled",
+				(unsigned int) p->port_no, p->dev->name);
+			p->broadcast_limit = broadcast_limit;
+		}
+	}
+
+	return 0;
+}
+
+static ssize_t show_broadcast_limiter(struct net_bridge_port *p, char *buf)
+{
+	return sprintf(buf, "%d\n", p->broadcast_limit);
+}
+static BRPORT_ATTR(broadcast_limiter, S_IWUSR | S_IRUGO,
+		   show_broadcast_limiter, store_broadcast_limiter);
+
 BRPORT_ATTR_FLAG(hairpin_mode, BR_HAIRPIN_MODE);
 BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
@@ -303,6 +331,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_stp_choke,
 	&brport_attr_port_type,
 	&brport_attr_loop_detect,
+	&brport_attr_broadcast_limiter,
 	&brport_attr_hairpin_mode,
 	&brport_attr_bpdu_guard,
 	&brport_attr_root_block,

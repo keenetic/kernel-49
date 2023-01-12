@@ -459,7 +459,9 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 			}
 		}
 
-		if (unlikely(skb->pkt_type == PACKET_BROADCAST)) {
+		if (unlikely(skb->pkt_type == PACKET_BROADCAST &&
+			     p->broadcast_limit ==
+				BR_PORT_BCAST_LIMIT_ENABLED)) {
 			switch (br_enqueue(&p->queue, skb)) {
 			case NF_ACCEPT:
 				break;

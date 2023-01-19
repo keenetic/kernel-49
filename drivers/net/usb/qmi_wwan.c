@@ -1022,6 +1022,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x0489, 0xe0b5, 0)},	/* Foxconn T77W968 LTE with eSIM support */
 
 	{QMI_QUIRK_SET_DTR(0x31b7, 0x0011, 0)}, /* Keenetic LTE MDM9207 */
+	{QMI_QUIRK_SET_DTR(0x2dee, 0x4d22, 5)},	/* MeigLink SRM815, SLM828 */
 
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */

@@ -96,6 +96,9 @@ static void option_instat_callback(struct urb *urb);
 #define QUANTA_PRODUCT_GLE			0xEA06
 #define QUANTA_PRODUCT_1K3			0xEA26
 
+#define MEIG_VENDOR_ID				0x2DEE
+#define MEIG_PRODUCT_SRM815			0x4D22
+
 #define NOVATELWIRELESS_VENDOR_ID		0x1410
 
 /* YISO PRODUCTS */
@@ -1192,6 +1195,9 @@ static const struct usb_device_id option_ids[] = {
 	  .driver_info = NCTRL(0) | NCTRL(2) | RSVD(8) | RSVD(10) | RSVD(11) }, /* MC73xx */
 	{ USB_DEVICE_INTERFACE_CLASS(SIERRA_VENDOR_ID, 0x9041, 0xff),
 	  .driver_info = NCTRL(0) | NCTRL(2) | RSVD(8) | RSVD(10) | RSVD(11) }, /* MC7305/MC7355 */
+
+	{ USB_DEVICE(MEIG_VENDOR_ID, MEIG_PRODUCT_SRM815),
+	  .driver_info = RSVD(4) | RSVD(5) },
 
 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6001) },
 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_CMU_300) },

@@ -83,9 +83,10 @@ static int mx35lf1ge4ab_ecc_get_status(struct spinand_device *spinand,
 		 * in order to avoid forcing the wear-leveling layer to move
 		 * data around if it's not necessary.
 		 */
-		if (mx35lf1ge4ab_get_eccsr(spinand, &eccsr))
+		if (mx35lf1ge4ab_get_eccsr(spinand, spinand->scratchbuf))
 			return nand->eccreq.strength;
 
+		eccsr = *spinand->scratchbuf;
 		if (eccsr > nand->eccreq.strength || !eccsr)
 			return nand->eccreq.strength;
 

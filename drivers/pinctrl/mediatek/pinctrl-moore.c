@@ -38,6 +38,12 @@ static const struct pin_config_item mtk_conf_items[] = {
 };
 #endif
 
+void __iomem *mtk_pinctrl_base;
+EXPORT_SYMBOL(mtk_pinctrl_base);
+
+spinlock_t *mtk_pinctrl_lock;
+EXPORT_SYMBOL(mtk_pinctrl_lock);
+
 static int mtk_pinmux_set_mux(struct pinctrl_dev *pctldev,
 			      unsigned int selector, unsigned int group)
 {
@@ -702,6 +708,9 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 		dev_err(&pdev->dev, "Failed to add gpio_chip\n");
 		return err;
 	}
+
+	mtk_pinctrl_base = hw->base[0];
+	mtk_pinctrl_lock = &hw->lock;
 
 	platform_set_drvdata(pdev, hw);
 

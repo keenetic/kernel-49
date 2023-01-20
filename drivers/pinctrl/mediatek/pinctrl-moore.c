@@ -501,23 +501,19 @@ static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 	return mtk_eint_find_irq(hw->eint, desc->eint.eint_n);
 }
 
-static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
-			       unsigned long config)
+static int mtk_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
+				 unsigned debounce)
 {
 	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
 	const struct mtk_pin_desc *desc;
-	u32 debounce;
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[offset];
 	if (!desc->name)
 		return -ENOTSUPP;
 
 	if (!hw->eint ||
-	    pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE ||
 	    desc->eint.eint_n == (u16)EINT_NA)
 		return -ENOTSUPP;
-
-	debounce = pinconf_to_config_argument(config);
 
 	return mtk_eint_set_debounce(hw->eint, desc->eint.eint_n, debounce);
 }
@@ -536,7 +532,7 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	chip->get		= mtk_gpio_get;
 	chip->set		= mtk_gpio_set;
 	chip->to_irq		= mtk_gpio_to_irq;
-	chip->set_config	= mtk_gpio_set_config;
+	chip->set_debounce	= mtk_gpio_set_debounce;
 	chip->base		= -1;
 	chip->ngpio		= hw->soc->npins;
 	chip->of_node		= np;

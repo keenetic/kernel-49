@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/regmap.h>
-#include <linux/module.h>
 #include <linux/mfd/syscon.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -64,9 +63,6 @@ static const struct mtk_pin_info *mtk_pinctrl_get_gpio_array(int pin, int size,
 	}
 	return NULL;
 }
-
-struct regmap *mtk_pinctrl_regmap = NULL;
-EXPORT_SYMBOL(mtk_pinctrl_regmap);
 
 int mtk_pinctrl_set_gpio_value(struct mtk_pinctrl *pctl, int pin,
 	bool value, int size, const struct mtk_pin_info pin_info[])
@@ -1267,8 +1263,6 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	ret = mtk_eint_init(pctl, pdev);
 	if (ret)
 		goto chip_error;
-
-	mtk_pinctrl_regmap = pctl->regmap1;
 
 	return 0;
 

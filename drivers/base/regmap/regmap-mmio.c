@@ -363,13 +363,4 @@ struct regmap *__devm_regmap_init_mmio_clk(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_mmio_clk);
 
-void __iomem *regmap_get_iomem(struct regmap *map)
-{
-	if (map->bus != &regmap_mmio)
-		return ERR_PTR(-EINVAL);
-
-	return ((struct regmap_mmio_context *)map->bus_context)->regs;
-}
-EXPORT_SYMBOL(regmap_get_iomem);
-
 MODULE_LICENSE("GPL v2");

@@ -12,13 +12,12 @@
  * GNU General Public License for more details.
  */
 
-#include <dt-bindings/clock/mt7622-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/mt7622-clk.h>
 #include <dt-bindings/power/mt7622-power.h>
 #include <dt-bindings/reset/mt7622-resets.h>
 #include <dt-bindings/phy/phy.h>
-#include "mt7622-pinfunc.h"
 
 / {
 	compatible = "mediatek,mt7622";
@@ -344,21 +343,18 @@
 		#clock-cells = <1>;
 	};
 
-	syscfg_pctl_a: syscfg_pctl_a@10211000 {
-			compatible = "mediatek,mt7622-pctl-a-syscfg", "syscon";
-			reg = <0 0x10211000 0 0x1000>;
-	};
-
 	pio: pinctrl@10211000 {
-			compatible = "mediatek,mt7622-pinctrl";
-			reg = <0 0x10005000 0 0x1000>;
-			mediatek,pctl-regmap = <&syscfg_pctl_a>;
-			pins-are-numbered;
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
+		compatible = "mediatek,mt7622-pinctrl";
+		reg = <0 0x10211000 0 0x1000>,
+		      <0 0x10005000 0 0x1000>;
+		reg-names = "base", "eint";
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&pio 0 0 103>;
+		interrupt-controller;
+		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		#interrupt-cells = <2>;
 	};
 
 	watchdog: watchdog@10212000 {

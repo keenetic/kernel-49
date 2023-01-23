@@ -15,6 +15,7 @@
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/mt65xx.h>
 #include "mt7622.dtsi"
 #include "mt6380.dtsi"
 
@@ -135,17 +136,21 @@
 };
 
 &i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
 	status = "okay";
 };
 
 &i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
 	status = "okay";
 };
 
 &mmc0 {
 	pinctrl-names = "default", "state_uhs";
-	pinctrl-0 = <&mmc0_pins_default>;
-	pinctrl-1 = <&mmc0_pins_uhs>;
+	pinctrl-0 = <&emmc_pins_default>;
+	pinctrl-1 = <&emmc_pins_uhs>;
 	status = "okay";
 	bus-width = <8>;
 	max-frequency = <50000000>;
@@ -160,8 +165,8 @@
 
 &mmc1 {
 	pinctrl-names = "default", "state_uhs";
-	pinctrl-0 = <&mmc1_pins_default>;
-	pinctrl-1 = <&mmc1_pins_uhs>;
+	pinctrl-0 = <&sd0_pins_default>;
+	pinctrl-1 = <&sd0_pins_uhs>;
 	status = "okay";
 	bus-width = <4>;
 	max-frequency = <50000000>;
@@ -182,6 +187,8 @@
 };
 
 &nor_flash {
+	pinctrl-names = "default";
+	pinctrl-0 = <&snor_pins_default>;
 	status = "disabled";
 	compatible = "jedec,spi-nor";
 	#address-cells = <1>;
@@ -189,153 +196,169 @@
 };
 
 &pio {
-	pinctrl-names = "default";
-	pinctrl-0 = <&state_default>;
-	state_default:pinconf_default {
-	};
-
 	aud_pins_default: audiodefault {
-		pins_cmd_dat {
-			pinmux = <MT7622_PIN_3_I2S_BCLK__FUNC_I2S_BCLK_OUT>,
-				<MT7622_PIN_4_I2S_WS__FUNC_I2S_WS_OUT>,
-				<MT7622_PIN_5_I2S_MCLK__FUNC_I2S_MCLK>,
-				<MT7622_PIN_2_I2S1_OUT__FUNC_I2S1_OUT>,
-				<MT7622_PIN_1_I2S1_IN__FUNC_I2S1_IN>;
+		mux {
+			function = "i2s";
+			groups =  "i2s_out_mclk_bclk_ws",
+				  "i2s1_in_data",
+				  "i2s1_out_data";
+		};
+
+		conf {
+			pins = "I2S1_IN", "I2S1_OUT", "I2S_BCLK",
+			       "I2S_WS", "I2S_MCLK";
 			drive-strength = <MTK_DRIVE_12mA>;
 			bias-pull-down;
 		};
 	};
 
 	i2c0_pins: i2c0-pins {
-		pins_bus {
-			pinmux = <MT7622_PIN_14_I2C_SDA__FUNC_I2C0_SDA>,
-				 <MT7622_PIN_15_I2C_SCL__FUNC_I2C0_SCL>;
-			bias-disable;
+		mux {
+			function = "i2c";
+			groups = "i2c0";
 		};
 	};
 
-	mmc0_pins_default: mmc0default {
-		pins_cmd_dat {
-			pinmux = <MT7622_PIN_47_NDL0__FUNC_EMMC_DATA0>,
-			       <MT7622_PIN_48_NDL1__FUNC_EMMC_DATA1>,
-			       <MT7622_PIN_49_NDL2__FUNC_EMMC_DATA2>,
-			       <MT7622_PIN_50_NDL3__FUNC_EMMC_DATA3>,
-			       <MT7622_PIN_40_NDL4__FUNC_EMMC_DATA4>,
-			       <MT7622_PIN_41_NDL5__FUNC_EMMC_DATA5>,
-			       <MT7622_PIN_42_NDL6__FUNC_EMMC_DATA6>,
-			       <MT7622_PIN_43_NDL7__FUNC_EMMC_DATA7>,
-			       <MT7622_PIN_44_NRB__FUNC_EMMC_CMD>;
+	i2c1_pins: i2c1-pins {
+		mux {
+			function = "i2c";
+			groups = "i2c1_0";
+		};
+	};
+
+	i2c2_pins: i2c2-pins {
+		mux {
+			function = "i2c";
+			groups = "i2c2_0";
+		};
+	};
+
+	emmc_pins_default: emmc-pins-default {
+		mux {
+			function = "emmc", "emmc_rst";
+			groups = "emmc";
+		};
+
+		conf-cmd-dat {
+			pins = "NDL0", "NDL1", "NDL2",
+			       "NDL3", "NDL4", "NDL5",
+			       "NDL6", "NDL7", "NRB";
 			input-enable;
 			bias-pull-up;
 		};
 
-		pins_clk {
-			pinmux = <MT7622_PIN_45_NCLE__FUNC_EMMC_CK>;
+		conf-clk {
+			pins = "NCLE";
 			bias-pull-down;
 		};
 	};
 
-	mmc0_pins_uhs: mmc0-pins-uhs {
-		pins_cmd_dat {
-			pinmux = <MT7622_PIN_47_NDL0__FUNC_EMMC_DATA0>,
-			       <MT7622_PIN_48_NDL1__FUNC_EMMC_DATA1>,
-			       <MT7622_PIN_49_NDL2__FUNC_EMMC_DATA2>,
-			       <MT7622_PIN_50_NDL3__FUNC_EMMC_DATA3>,
-			       <MT7622_PIN_40_NDL4__FUNC_EMMC_DATA4>,
-			       <MT7622_PIN_41_NDL5__FUNC_EMMC_DATA5>,
-			       <MT7622_PIN_42_NDL6__FUNC_EMMC_DATA6>,
-			       <MT7622_PIN_43_NDL7__FUNC_EMMC_DATA7>,
-			       <MT7622_PIN_44_NRB__FUNC_EMMC_CMD>;
-			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
-			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+	emmc_pins_uhs: emmc-pins-uhs {
+		mux {
+			function = "emmc";
+			groups = "emmc";
 		};
 
-		pins_clk {
-			pinmux = <MT7622_PIN_45_NCLE__FUNC_EMMC_CK>;
+		conf-cmd-dat {
+			pins = "NDL0", "NDL1", "NDL2",
+			       "NDL3", "NDL4", "NDL5",
+			       "NDL6", "NDL7", "NRB";
+			input-enable;
 			drive-strength = <MTK_DRIVE_4mA>;
-			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+			bias-pull-up;
+		};
+
+		conf-clk {
+			pins = "NCLE";
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-down;
 		};
 	};
 
-	mmc1_pins_default: mmc1default {
-		pins_cmd_dat {
-			pinmux = <MT7622_PIN_19_I2S2_OUT__FUNC_SD_D0>,
-			       <MT7622_PIN_18_I2S4_IN__FUNC_SD_D1>,
-			       <MT7622_PIN_17_I2S3_IN__FUNC_SD_D2>,
-			       <MT7622_PIN_16_I2S2_IN__FUNC_SD_D3>,
-			       <MT7622_PIN_21_I2S4_OUT__FUNC_SD_CMD>;
+	sd0_pins_default: sd0-pins-default {
+		mux {
+			function = "sd";
+			groups = "sd_0";
+		};
+
+		conf-cmd-data {
+			pins = "I2S2_OUT", "I2S4_IN", "I2S3_IN",
+			       "I2S2_IN","I2S4_OUT";
 			input-enable;
 			drive-strength = <MTK_DRIVE_8mA>;
-			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+			bias-pull-up;
 		};
 
-		pins_clk {
-			pinmux = <MT7622_PIN_20_I2S3_OUT__FUNC_SD_CLK>;
+		conf-clk {
+			pins = "I2S3_OUT";
 			drive-strength = <MTK_DRIVE_12mA>;
-			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+			bias-pull-down;
 		};
 
-		pins_insert {
-			pinmux = <MT7622_PIN_81_TXD3__FUNC_GPIO81>;
+		conf-cd {
+			pins = "TXD3";
 			bias-pull-up;
 		};
 	};
 
-	mmc1_pins_uhs: mmc1-pins-uhs {
-		pins_cmd_dat {
-			pinmux = <MT7622_PIN_19_I2S2_OUT__FUNC_SD_D0>,
-			       <MT7622_PIN_18_I2S4_IN__FUNC_SD_D1>,
-			       <MT7622_PIN_17_I2S3_IN__FUNC_SD_D2>,
-			       <MT7622_PIN_16_I2S2_IN__FUNC_SD_D3>,
-			       <MT7622_PIN_21_I2S4_OUT__FUNC_SD_CMD>;
-			input-enable;
-			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+	sd0_pins_uhs: sd0-pins-uhs {
+		mux {
+			function = "sd";
+			groups = "sd_0";
 		};
 
-		pins_clk {
-			pinmux = <MT7622_PIN_20_I2S3_OUT__FUNC_SD_CLK>;
-			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		conf-cmd-data {
+			pins = "I2S2_OUT", "I2S4_IN", "I2S3_IN",
+			       "I2S2_IN","I2S4_OUT";
+			input-enable;
+			bias-pull-up;
+		};
+
+		conf-clk {
+			pins = "I2S3_OUT";
+			bias-pull-down;
 		};
 	};
 
 	nand_pins_default: nanddefault {
-		pins_dat {
-			pinmux = <MT7622_PIN_37_NCEB__FUNC_ND_CS_N>,
-				 <MT7622_PIN_38_NWEB__FUNC_ND_WE_N>,
-				 <MT7622_PIN_39_NREB__FUNC_ND_RE_N>,
-				 <MT7622_PIN_40_NDL4__FUNC_ND_D4>,
-				 <MT7622_PIN_41_NDL5__FUNC_ND_D5>,
-				 <MT7622_PIN_42_NDL6__FUNC_ND_D6>,
-				 <MT7622_PIN_43_NDL7__FUNC_ND_D7>,
-				 <MT7622_PIN_44_NRB__FUNC_ND_RB_N>,
-				 <MT7622_PIN_45_NCLE__FUNC_ND_CLE>,
-				 <MT7622_PIN_46_NALE__FUNC_ND_ALE>,
-				 <MT7622_PIN_47_NDL0__FUNC_ND_D0>,
-				 <MT7622_PIN_48_NDL1__FUNC_ND_D1>,
-				 <MT7622_PIN_49_NDL2__FUNC_ND_D2>,
-				 <MT7622_PIN_50_NDL3__FUNC_ND_D3>;
-			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
-			bias-pull-up;
+		mux {
+			function = "flash";
+			groups = "par_nand";
 		};
 	};
 
 	snand_pins_default: snand-pins-default {
-		pins_cmd_dat {
-			pinmux = <MT7622_PIN_8_SPI_WP__FUNC_SNFI_WP>,
-				 <MT7622_PIN_9_SPI_HOLD__FUNC_SNFI_HOLD>,
-				 <MT7622_PIN_11_SPI_MOSI__FUNC_SNFI_MOSI>,
-				 <MT7622_PIN_12_SPI_MISO__FUNC_SNFI_MISO>,
-				 <MT7622_PIN_13_SPI_CS__FUNC_SNFI_CS>;
+		mux {
+			function = "flash";
+			groups = "snfi";
+		};
+
+		conf-cmd-dat {
+			pins = "SPI_WP", "SPI_HOLD", "SPI_MOSI",
+			       "SPI_MISO", "SPI_CS";
 			input-enable;
 			drive-strength = <MTK_DRIVE_16mA>;
-			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+			bias-pull-up;
 		};
-		pins_clk {
-			pinmux = <MT7622_PIN_10_SPI_CLK__FUNC_SNFI_CLK>;
+
+		conf-clk {
+			pins = "SPI_CLK";
 			drive-strength = <MTK_DRIVE_16mA>;
-			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+			bias-pull-down;
+		};
+	};
+
+	snor_pins_default: snor-pins-default {
+		mux {
+			function = "flash";
+			groups = "spi_nor";
+		};
+	};
+
+	uart0_pins: uart0-pins {
+		mux {
+			function = "uart";
+			groups = "uart0_0_tx_rx" ;
 		};
 	};
 
@@ -343,23 +366,12 @@
 	};
 
 	wbsys_pins_epa: wbsysepa {
-		pins_cmd_dat {
-			pinmux = <MT7622_PIN_91_TXD4__FUNC_ANTSEL0>,
-			       <MT7622_PIN_92_RXD4__FUNC_ANTSEL1>,
-			       <MT7622_PIN_93_RTS4_N__FUNC_ANTSEL2>,
-			       <MT7622_PIN_94_CTS4_N__FUNC_ANTSEL3>,
-			       <MT7622_PIN_95_PWM1__FUNC_ANTSEL4>,
-			       <MT7622_PIN_96_PWM2__FUNC_ANTSEL5>,
-			       <MT7622_PIN_97_PWM3__FUNC_ANTSEL6>,
-			       <MT7622_PIN_98_PWM4__FUNC_ANTSEL7>,
-			       <MT7622_PIN_99_PWM5__FUNC_ANTSEL8>,
-			       <MT7622_PIN_100_PWM6__FUNC_ANTSEL9>,
-			       <MT7622_PIN_73_SPIC1_CLK__FUNC_ANTSEL12>,
-			       <MT7622_PIN_74_SPIC1_MOSI__FUNC_ANTSEL13>,
-			       <MT7622_PIN_75_SPIC1_MISO__FUNC_ANTSEL14>,
-			       <MT7622_PIN_76_SPIC1_CS__FUNC_ANTSEL15>,
-			       <MT7622_PIN_77_GPIO_D__FUNC_ANTSEL16>,
-			       <MT7622_PIN_22_GPIO_B__FUNC_ANTSEL17>;
+		mux {
+			function = "antsel";
+			groups = "antsel0", "antsel1", "antsel2", "antsel3",
+				 "antsel4", "antsel5", "antsel6", "antsel7",
+				 "antsel8", "antsel9", "antsel12", "antsel13",
+				 "antsel14", "antsel15", "antsel16", "antsel17";
 		};
 	};
 };
@@ -369,6 +381,7 @@
 };
 
 &snand {
+	pinctrl-names = "default";
 	pinctrl-0 = <&snand_pins_default>;
 	status = "okay";
 };
@@ -378,6 +391,8 @@
 };
 
 &uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
 	status = "okay";
 };
 

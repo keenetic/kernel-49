@@ -54,7 +54,7 @@ config PINCTRL_MT7622
 	depends on OF
 	depends on MACH_MT7622 || COMPILE_TEST
 	default MACH_MT7622
-	select PINCTRL_MTK
+	select PINCTRL_MTK_MOORE
 
 config PINCTRL_MT7981
 	bool "Mediatek MT7981 pin control"

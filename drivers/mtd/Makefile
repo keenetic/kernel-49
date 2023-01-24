@@ -35,9 +35,11 @@ inftl-objs		:= inftlcore.o inftlmount.o
 
 obj-y		+= chips/ lpddr/ maps/ devices/ nand/ onenand/ tests/
 
+obj-$(CONFIG_MTD_RALINK)	+= ralink/
+
 obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor/
 obj-$(CONFIG_MTD_UBI)		+= ubi/
 
-obj-$(CONFIG_MTD_RALINK)	+= ralink/
+obj-$(CONFIG_NMBM)		+= nmbm/
 
 obj-m						+= ndm_storage.o

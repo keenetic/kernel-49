@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/mtk-rbus.h>
 
 int rbus_driver_register(struct platform_driver *drv, struct module *owner)
@@ -74,3 +75,14 @@ void rbus_set_dma_coherent(struct device *dev, bool coherent)
 }
 EXPORT_SYMBOL(rbus_set_dma_coherent);
 
+int rbus_pinctrl_get_select(struct device *dev, const char *name)
+{
+	struct pinctrl *pinctrl;
+
+	pinctrl = devm_pinctrl_get_select(dev, name);
+	if (IS_ERR(pinctrl))
+		return PTR_ERR(pinctrl);
+
+	return 0;
+}
+EXPORT_SYMBOL(rbus_pinctrl_get_select);

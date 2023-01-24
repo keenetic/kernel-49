@@ -86,8 +86,8 @@ struct mtk_spi_compatible {
 	bool need_pad_sel;
 	/* Must explicitly send dummy Tx bytes to do Rx only transfer */
 	bool must_tx;
-	/* some IC design adjust register define */
-	bool adjust_reg;
+	/* some IC design adjust cfg register to enhance time accuracy */
+	bool enhance_timing;
 };
 
 struct mtk_spi {
@@ -107,7 +107,7 @@ static const struct mtk_spi_compatible mtk_common_compat;
 
 static const struct mtk_spi_compatible mt7622_compat = {
 	.must_tx = true,
-	.adjust_reg = true,
+	.enhance_timing = true,
 };
 
 static const struct mtk_spi_compatible mt8173_compat = {
@@ -120,8 +120,6 @@ static const struct mtk_spi_compatible mt8173_compat = {
  * supplies it.
  */
 static const struct mtk_chip_config mtk_default_chip_info = {
-	.rx_mlsb = 1,
-	.tx_mlsb = 1,
 	.cs_pol = 0,
 	.sample_sel = 0,
 };
@@ -133,11 +131,11 @@ static const struct of_device_id mtk_spi_of_match[] = {
 	{ .compatible = "mediatek,mt6589-spi",
 		.data = (void *)&mtk_common_compat,
 	},
-	{ .compatible = "mediatek,mt8135-spi",
-		.data = (void *)&mtk_common_compat,
-	},
 	{ .compatible = "mediatek,mt7622-spi",
 		.data = (void *)&mt7622_compat,
+	},
+	{ .compatible = "mediatek,mt8135-spi",
+		.data = (void *)&mtk_common_compat,
 	},
 	{ .compatible = "mediatek,mt8173-spi",
 		.data = (void *)&mt8173_compat,
@@ -200,12 +198,11 @@ static int mtk_spi_prepare_message(struct spi_master *master,
 	reg_val |= SPI_CMD_RX_ENDIAN;
 #endif
 
-	if (mdata->dev_comp->adjust_reg) {
+	if (mdata->dev_comp->enhance_timing) {
 		if (chip_config->cs_pol)
 			reg_val |= SPI_CMD_CS_POL;
 		else
 			reg_val &= ~SPI_CMD_CS_POL;
-
 		if (chip_config->sample_sel)
 			reg_val |= SPI_CMD_SAMPLE_SEL;
 		else
@@ -263,8 +260,9 @@ static void mtk_spi_prepare_transfer(struct spi_master *master,
 	sck_time = (div + 1) / 2;
 	cs_time = sck_time * 2;
 
-	if (mdata->dev_comp->adjust_reg) {
-		reg_val |= (((sck_time - 1) & 0xffff) << SPI_CFG0_SCK_HIGH_OFFSET);
+	if (mdata->dev_comp->enhance_timing) {
+		reg_val |= (((sck_time - 1) & 0xffff)
+			   << SPI_CFG0_SCK_HIGH_OFFSET);
 		reg_val |= (((sck_time - 1) & 0xffff)
 			   << SPI_ADJUST_CFG0_SCK_LOW_OFFSET);
 		writel(reg_val, mdata->base + SPI_CFG2_REG);
@@ -274,7 +272,8 @@ static void mtk_spi_prepare_transfer(struct spi_master *master,
 			   << SPI_ADJUST_CFG0_CS_SETUP_OFFSET);
 		writel(reg_val, mdata->base + SPI_CFG0_REG);
 	} else {
-		reg_val |= (((sck_time - 1) & 0xff) << SPI_CFG0_SCK_HIGH_OFFSET);
+		reg_val |= (((sck_time - 1) & 0xff)
+			   << SPI_CFG0_SCK_HIGH_OFFSET);
 		reg_val |= (((sck_time - 1) & 0xff) << SPI_CFG0_SCK_LOW_OFFSET);
 		reg_val |= (((cs_time - 1) & 0xff) << SPI_CFG0_CS_HOLD_OFFSET);
 		reg_val |= (((cs_time - 1) & 0xff) << SPI_CFG0_CS_SETUP_OFFSET);

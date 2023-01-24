@@ -21,4 +21,6 @@ void rbus_pm_runtime_enable(struct device *dev, bool enable);
 
 void rbus_set_dma_coherent(struct device *dev, bool coherent);
 
+int rbus_pinctrl_get_select(struct device *dev, const char *name);
+
 #endif /* _MTK_RBUS_H_ */

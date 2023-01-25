@@ -128,6 +128,7 @@ struct mtk_spi_compatible {
 	bool dma_ext;
 	/* IPM design adjust and extend register to support more features */
 	bool ipm_design;
+	bool support_quad;
 };
 
 struct mtk_spi {
@@ -151,10 +152,19 @@ struct mtk_spi {
 
 static const struct mtk_spi_compatible mtk_common_compat;
 
-static const struct mtk_spi_compatible mtk_ipm_compat = {
+static const struct mtk_spi_compatible mtk_ipm_compat_single = {
+	.must_tx = true,
 	.enhance_timing = true,
 	.dma_ext = true,
 	.ipm_design = true,
+};
+
+static const struct mtk_spi_compatible mtk_ipm_compat_quad = {
+	.must_tx = true,
+	.enhance_timing = true,
+	.dma_ext = true,
+	.ipm_design = true,
+	.support_quad = true,
 };
 
 static const struct mtk_spi_compatible mt7622_compat = {
@@ -177,8 +187,11 @@ static const struct mtk_chip_config mtk_default_chip_info = {
 };
 
 static const struct of_device_id mtk_spi_of_match[] = {
-	{ .compatible = "mediatek,spi-ipm",
-		.data = (void *)&mtk_ipm_compat,
+	{ .compatible = "mediatek,ipm-spi-single",
+		.data = (void *)&mtk_ipm_compat_single,
+	},
+	{ .compatible = "mediatek,ipm-spi-quad",
+		.data = (void *)&mtk_ipm_compat_quad,
 	},
 	{ .compatible = "mediatek,mt2701-spi",
 		.data = (void *)&mtk_common_compat,
@@ -720,6 +733,9 @@ static int mtk_spi_mem_adjust_op_size(struct spi_mem *mem,
 {
 	int opcode_len;
 
+	if (!op->data.nbytes)
+		return 0;
+
 	if (op->data.dir != SPI_MEM_NO_DATA) {
 		opcode_len = 1 + op->addr.nbytes + op->dummy.nbytes;
 		if (opcode_len + op->data.nbytes > MTK_SPI_IPM_PACKET_SIZE) {
@@ -1025,9 +1041,13 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	if (mdata->dev_comp->ipm_design)
 		master->mode_bits |= SPI_LOOP;
 
-	if (mdata->dev_comp->ipm_design) {
+	if (mdata->dev_comp->ipm_design &&
+	    mdata->dev_comp->support_quad) {
 		mdata->dev = &pdev->dev;
 		master->mem_ops = &mtk_spi_mem_ops;
+		master->mode_bits |= SPI_RX_DUAL | SPI_TX_DUAL |
+				     SPI_RX_QUAD | SPI_TX_QUAD;
+
 		init_completion(&mdata->spimem_done);
 	}
 

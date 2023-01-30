@@ -66,3 +66,4 @@ nandcore-objs := core/core.o core/bbt.o
 obj-$(CONFIG_MTD_NAND_CORE) += nandcore.o
 
 obj-y  += spi/
+obj-y  += snfi/

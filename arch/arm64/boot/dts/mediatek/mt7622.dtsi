@@ -839,7 +839,7 @@
 		status = "disabled";
 	};
 
-	u3phy1: usb-phy@1a0c4000 {
+	u3phy1: t-phy@1a0c4000 {
 		compatible = "mediatek,mt7622-u3phy", "mediatek,generic-tphy-v1";
 		reg = <0 0x1a0c4000 0 0x700>;
 		#address-cells = <2>;
@@ -953,20 +953,20 @@
 		};
 	};
 
-	pciephy: pcie-phy@1a148000 {
+	pcie_phy: t-phy-pcie {
 		compatible = "mediatek,generic-tphy-v2";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
 
-		pcieport0: port0phy {
+		pcieport0: pcie-phy@1a148000 {
 			reg = <0 0x1a148000 0 0x1000>;
 			clocks = <&clk25m>;
 			clock-names = "ref";
 			#phy-cells = <1>;
 		};
 
-		pcieport1: port1phy {
+		pcieport1: pcie-phy@1a14a000 {
 			reg = <0 0x1a14a000 0 0x1000>;
 			clocks = <&clk25m>;
 			clock-names = "ref";
@@ -998,7 +998,7 @@
 		mediatek,phy-mode = <&pciesys>;
 	};
 
-	sata_phy: sata-phy@1a242000 {
+	sata_phy: t-phy@1a242000 {
 		compatible = "mediatek,generic-tphy-v1";
 		reg = <0 0x1a242000 0 0x0100>;
 		#address-cells = <2>;
@@ -1029,7 +1029,7 @@
 		#reset-cells = <1>;
 	};
 
-	gsw: gsw@1b100000 {
+	gsw: gsw-sgmii0 {
 		compatible = "mediatek,rtk-gsw",
 			     "mediatek,mt753x";
 		mediatek,ethsys = <&ethsys>;

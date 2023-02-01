@@ -178,7 +178,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&nand_pins_default>;
 	status = "disabled";
-	reg = <0>;
 	nand-ecc-mode = "hw";
 };
 

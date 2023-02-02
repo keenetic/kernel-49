@@ -1,0 +1,398 @@
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/mt65xx.h>
+#include <dt-bindings/input/input.h>
+#include "mt7986b.dtsi"
+/ {
+	model = "MediaTek MT7986B RFB";
+	compatible = "mediatek,mt7986b-spim-snand-rfb", "mediatek,mt7986b";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8 earlycon=uart8250,mmio32,0x11002000";
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x20000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 9 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&pio 10 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	nmbm_spim_nand {
+		compatible = "generic,nmbm";
+		lower-mtd-device = <&spi_nand>;
+		forced-create;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "BL2";
+				reg = <0x00000 0x0100000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "u-boot-env";
+				reg = <0x0100000 0x0080000>;
+			};
+
+			factory: partition@180000 {
+				label = "Factory";
+				reg = <0x180000 0x0200000>;
+			};
+
+			partition@380000 {
+				label = "FIP";
+				reg = <0x380000 0x0200000>;
+			};
+
+			partition@580000 {
+				label = "ubi";
+				reg = <0x580000 0x4000000>;
+			};
+		};
+	};
+
+	gsw: gsw-sgmii0 {
+		compatible = "mediatek,mt753x";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		mediatek,ethsys = <&ethsys>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+/* Warning: pins shared with &snand */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins_g1>;
+	status = "disabled";
+};
+
+/* Warning: pins shared with &spi1 */
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins_g0>;
+	status = "disabled";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c_pins>;
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&eth {
+	status = "okay";
+	mediatek,gsw = <&gsw>;
+
+	gmac0: mac@0 {
+		compatible = "mediatek,eth-mac";
+		reg = <0>;
+		phy-mode = "2500base-x";
+
+		fixed-link {
+			speed = <2500>;
+			full-duplex;
+			pause;
+			link-gpio = <&pio 47 0>;
+			phy-handle = <&phy5>;
+			label = "lan5";
+		};
+	};
+
+	gmac1: mac@1 {
+		compatible = "mediatek,eth-mac";
+		reg = <1>;
+		phy-mode = "2500base-x";
+		phy-handle = <&phy6>;
+	};
+
+	mdio: mdio-bus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset-gpios = <&pio 6 1>;
+		reset-assert-us = <1000>;
+		reset-deassert-us = <20000>;
+
+		phy5: phy@5 {
+			compatible = "ethernet-phy-id67c9.de0a";
+			reg = <5>;
+		};
+
+		phy6: phy@6 {
+			compatible = "ethernet-phy-ieee802.3-c45";
+			reg = <6>;
+		};
+	};
+};
+
+&hnat {
+	mtketh-wan = "eth1";
+	mtketh-lan = "eth0";
+	mtketh-max-gmac = <2>;
+	status = "okay";
+};
+
+&gsw {
+	mediatek,mdio = <&mdio>;
+	mediatek,portmap = "lllll";
+	mediatek,mdio_master_pinmux = <1>;
+	reset-gpios = <&pio 5 0>;
+	interrupt-parent = <&pio>;
+	interrupts = <66 IRQ_TYPE_LEVEL_HIGH>;
+	status = "okay";
+
+	port5: port@5 {
+		compatible = "mediatek,mt753x-port";
+		reg = <5>;
+		phy-mode = "sgmii";
+
+		fixed-link {
+			speed = <2500>;
+			full-duplex;
+		};
+	};
+
+	port6: port@6 {
+		compatible = "mediatek,mt753x-port";
+		/* mediatek,ssc-on; */
+		reg = <6>;
+		phy-mode = "sgmii";
+		fixed-link {
+			speed = <2500>;
+			full-duplex;
+		};
+	};
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_flash_pins>;
+	cs-gpios = <0>, <0>;
+	status = "okay";
+
+	spi_nor@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+
+	spi_nand: spi_nand@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spi-nand";
+		reg = <1>;
+		spi-max-frequency = <52000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+};
+
+/* Warning: pins shared with &uart2 */
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spic_pins_g2>;
+	status = "okay";
+};
+
+&usb_phy {
+	status = "okay";
+};
+
+&xhci {
+	status = "okay";
+};
+
+&wbsys {
+	pinctrl-names = "default", "dbdc";
+	pinctrl-0 = <&wf_2g_5g_pins>;
+	pinctrl-1 = <&wf_dbdc_pins>;
+	mediatek,mtd-eeprom = <&factory 0x0000>;
+	status = "okay";
+};
+
+&wed {
+	status = "okay";
+};
+
+&wed2 {
+	status = "okay";
+};
+
+&pio {
+	wf_led_pins: wf-led-pins-1-2 {
+		mux {
+			function = "led";
+			groups = "wf2g_led", "wf5g_led";
+		};
+	};
+
+	i2c_pins: i2c-pins-3-4 {
+		mux {
+			function = "i2c";
+			groups = "i2c";
+		};
+	};
+
+	uart1_pins_g0: uart1-pins-7-to-10 {
+		mux {
+			function = "uart";
+			groups = "uart1_0";
+		};
+	};
+
+	spic_pins_g0: spic-pins-11-to-14 {
+		mux {
+			function = "spi";
+			groups = "spi1_0";
+		};
+	};
+
+	jtag_pins: jtag-pins-11-to-15 {
+		mux {
+			function = "jtag";
+			groups = "jtag";
+		};
+	};
+
+	pwm1_pin_g1: pwm1-pin-20 {
+		mux {
+			function = "pwm";
+			groups = "pwm1_1";
+		};
+	};
+
+	pwm0_pin: pwm0-pin-21 {
+		mux {
+			function = "pwm";
+			groups = "pwm0";
+		};
+	};
+
+	pwm1_pin_g0: pwm1-pin-22 {
+		mux {
+			function = "pwm";
+			groups = "pwm1_0";
+		};
+	};
+
+	spic_pins_g1: spic-pins-23-to-26 {
+		mux {
+			function = "spi";
+			groups = "spi1_1";
+		};
+	};
+
+	uart1_pins_g1: uart1-pins-23-to-26 {
+		mux {
+			function = "uart";
+			groups = "uart1_1";
+		};
+	};
+
+	spic_pins_g2: spic-pins-29-to-32 {
+		mux {
+			function = "spi";
+			groups = "spi1_2";
+		};
+	};
+
+	uart1_pins_g2: uart1-pins-29-to-32 {
+		mux {
+			function = "uart";
+			groups = "uart1_2_rx_tx", "uart1_2_cts_rts";
+		};
+	};
+
+	uart2_pins_g0: uart2-pins-29-to-32 {
+		mux {
+			function = "uart";
+			groups = "uart2_0_rx_tx", "uart2_0_cts_rts";
+		};
+	};
+
+	spi_flash_pins: spi0-flash-pins-33-to-38 {
+		mux {
+			function = "spi";
+			groups = "spi0", "spi0_wp_hold";
+		};
+
+		conf-pu {
+			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
+			drive-strength = <MTK_DRIVE_8mA>;
+			mediatek,pull-up-adv = <3>;	/* pull-up 75k */
+		};
+
+		conf-pd {
+			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
+			drive-strength = <MTK_DRIVE_8mA>;
+			mediatek,pull-down-adv = <3>;	/* pull-down 75k */
+		};
+	};
+
+	wf_2g_5g_pins: wf-2g-5g-pins {
+		mux {
+			function = "wifi";
+			groups = "wf_2g", "wf_5g";
+		};
+
+		conf {
+			pins = "WF0_HB1", "WF0_HB2", "WF0_HB3", "WF0_HB4",
+			       "WF0_HB0", "WF0_HB0_B", "WF0_HB5", "WF0_HB6",
+			       "WF0_HB7", "WF0_HB8", "WF0_HB9", "WF0_HB10",
+			       "WF0_TOP_CLK", "WF0_TOP_DATA", "WF1_HB1",
+			       "WF1_HB2", "WF1_HB3", "WF1_HB4", "WF1_HB0",
+			       "WF1_HB5", "WF1_HB6", "WF1_HB7", "WF1_HB8",
+			       "WF1_TOP_CLK", "WF1_TOP_DATA";
+			drive-strength = <MTK_DRIVE_4mA>;
+		};
+	};
+
+	wf_dbdc_pins: wf-dbdc-pins {
+		mux {
+			function = "wifi";
+			groups = "wf_dbdc";
+		};
+
+		conf {
+			pins = "WF0_HB1", "WF0_HB2", "WF0_HB3", "WF0_HB4",
+			       "WF0_HB0", "WF0_HB0_B", "WF0_HB5", "WF0_HB6",
+			       "WF0_HB7", "WF0_HB8", "WF0_HB9", "WF0_HB10",
+			       "WF0_TOP_CLK", "WF0_TOP_DATA", "WF1_HB1",
+			       "WF1_HB2", "WF1_HB3", "WF1_HB4", "WF1_HB0",
+			       "WF1_HB5", "WF1_HB6", "WF1_HB7", "WF1_HB8",
+			       "WF1_TOP_CLK", "WF1_TOP_DATA";
+			drive-strength = <MTK_DRIVE_4mA>;
+		};
+	};
+};

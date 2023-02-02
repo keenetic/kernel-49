@@ -1,0 +1,50 @@
+/*
+ * Copyright (c) 2020 MediaTek Inc.
+ * Author: Sam.Shih <sam.shih@mediatek.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "mt7986a.dtsi"
+/ {
+	compatible = "mediatek,mt7986b";
+
+	/delete-node/ t-phy-pcie;
+	/delete-node/ pcie@11280000;
+	/delete-node/ wed_pcie@10003000;
+	/delete-node/ audio-controller@11210000;
+
+	thermal-zones {
+		cpu-thermal {
+			/delete-node/ trips;
+			/delete-node/ cooling-maps;
+		};
+	};
+
+	efuse@11d00000 {
+		/delete-node/ pcie-rx-imp@8d0;
+		/delete-node/ pcie-tx-imp@8d0;
+		/delete-node/ pcie-rx-imp@8d2;
+		/delete-node/ pcie-tx-imp@8d2;
+		/delete-node/ pcie-intr@8d1;
+		/delete-node/ pcie-intr@8d3;
+		/delete-node/ pcie-ln0-alv@8d4;
+		/delete-node/ pcie-ln1-alv@8d4;
+	};
+};
+
+&xhci {
+	phys = <&u3port0 PHY_TYPE_USB3>,
+	       <&u2port1 PHY_TYPE_USB2>;
+};
+
+&u2port0 {
+	status = "disabled";
+};

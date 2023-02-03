@@ -755,6 +755,7 @@
 			"top_audio_apll",
 			"top_audio_a1sys",
 			"top_audio_a2sys";
+		status = "disabled";
 	};
 
 	mmc0: mmc@11230000 {
@@ -966,6 +967,7 @@
 			 <&pciesys MT7622_SATA_PHY_REG_RST>;
 		reset-names = "axi", "sw", "reg";
 		mediatek,phy-mode = <&pciesys>;
+		status = "disabled";
 	};
 
 	sata_phy: t-phy@1a242000 {

@@ -441,7 +441,6 @@
 		clocks = <&pericfg CLK_PERI_AUXADC_PD>;
 		clock-names = "main";
 		#io-channel-cells = <1>;
-		status = "disabled";
 	};
 
 	uart0: serial@11002000 {

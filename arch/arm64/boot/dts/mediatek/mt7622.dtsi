@@ -172,40 +172,10 @@
 		clock-output-names = "clksrc_pll";
 	};
 
-	flash_peri_clk: dummy133m {
-		compatible = "fixed-clocks";
-		clock-frequency = <133000000>;
-		#clock-cells = <0>;
-	};
-
-	nfiecc_top_clk: dummy98m {
-		compatible = "fixed-clocks";
-		clock-frequency = <48000000>;
-		#clock-cells = <0>;
-	};
-
-	flash_top_clk: dummy48m {
-		compatible = "fixed-clocks";
-		clock-frequency = <48000000>;
-		#clock-cells = <0>;
-	};
-
-	system_clk: dummy13m {
-		compatible = "fixed-clock";
-		clock-frequency = <12500000>;
-		#clock-cells = <0>;
-	};
-
-	rtc_clk: dummy32k {
-		compatible = "fixed-clock";
-		clock-frequency = <32000>;
-		#clock-cells = <0>;
-	};
-
 	pwrap_clk: dummy40m {
 		compatible = "fixed-clock";
-		clock-frequency = <40000000>;
 		#clock-cells = <0>;
+		clock-frequency = <40000000>;
 	};
 
 	chipid: chipid@08000000 {

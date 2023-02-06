@@ -22,6 +22,7 @@
 #include <linux/kmsg_dump.h>
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <asm/irq_regs.h>
 #include <asm/stacktrace.h>
@@ -64,7 +65,6 @@
 #define MT_WDT_MODE				  (0x00)
 #define MT_WDT_MODE_KEY				  (0x22 << 24)
 #define MT_WDT_MODE_WDT_RESET			  (1 << 8)
-#define MT_WDT_MODE_DDR_RESERVE			  (1 << 7)
 #define MT_WDT_MODE_DUAL_EN			  (1 << 6)
 #define MT_WDT_MODE_IRQ_EN			  (1 << 3)
 #define MT_WDT_MODE_EXT_RST_EN			  (1 << 2)
@@ -93,9 +93,6 @@
 	(MT_WDT_STATUS_HW_WDT_RST |		  \
 	 MT_WDT_STATUS_IRQ_WDT_RST)
 
-/* preloader preserved status register */
-#define MT_WDT_GPT4_COMPARE			  (0x4c)
-
 #define MT_WDT_BACKTRACE_POLL_RETRIES		  (20)
 #define MT_WDT_BACKTRACE_POLL_DELAY_MSECS	  (50)
 
@@ -103,45 +100,41 @@
 #define mt_wdt_warn(wdt, fmt, arg...) dev_warn(wdt->dev, fmt, ##arg)
 #define mt_wdt_err(wdt, fmt, arg...) dev_err(wdt->dev, fmt, ##arg)
 
-/* GPT timer number to use (1-6) */
-#define MT_WDT_GPT_TIMER			  (3)
 #define MT_WDT_GPT_NODE				  "mediatek,timer"
-
-#define MT_WDT_GPT_REG_SIZE			  (0x10)
 
 #define MT_WDT_GPT_CON				  (0x00)
 #define MT_WDT_GPT_CLK				  (0x04)
 #define MT_WDT_GPT_COUNT			  (0x08)
 #define MT_WDT_GPT_COMPARE			  (0x0c)
 
-#define MT_WDT_GPT_CON_MODE_ONE_SHOT		  (0U  << 4)
-#define MT_WDT_GPT_CON_MODE_REPEAT		  (1U  << 4)
-#define MT_WDT_GPT_CON_MODE_KEEP_GO		  (2U  << 4)
-#define MT_WDT_GPT_CON_MODE_FREERUN		  (3U  << 4)
+#define MT_WDT_GPT_CON_MODE_ONE_SHOT		  (0U)
+#define MT_WDT_GPT_CON_MODE_REPEAT		  (1U)
+#define MT_WDT_GPT_CON_MODE_KEEP_GO		  (2U)
+#define MT_WDT_GPT_CON_MODE_FREERUN		  (3U)
 
-#define MT_WDT_GPT_CON_CLR			  (1U  << 1)
+#define MT_WDT_GPT_CON_CLR			  (1U << 1)
 
-#define MT_WDT_GPT_CON_ENABLE			  (1U  << 0)
+#define MT_WDT_GPT_CON_ENABLE			  (1U << 0)
 
-#define MT_WDT_GPT_CLK_32KHZ			  (1U  << 4)
-#define MT_WDT_GPT_CLK_13MHZ			  (0U  << 4)
+#define MT_WDT_GPT_CLK_32KHZ			  (1U)
+#define MT_WDT_GPT_CLK_13MHZ			  (0U)
 
-#define MT_WDT_GPT_CLK_DIV_1			  (0U  << 0)
-#define MT_WDT_GPT_CLK_DIV_2			  (1U  << 0)
-#define MT_WDT_GPT_CLK_DIV_3			  (2U  << 0)
-#define MT_WDT_GPT_CLK_DIV_4			  (3U  << 0)
-#define MT_WDT_GPT_CLK_DIV_5			  (4U  << 0)
-#define MT_WDT_GPT_CLK_DIV_6			  (5U  << 0)
-#define MT_WDT_GPT_CLK_DIV_7			  (6U  << 0)
-#define MT_WDT_GPT_CLK_DIV_8			  (7U  << 0)
-#define MT_WDT_GPT_CLK_DIV_9			  (8U  << 0)
-#define MT_WDT_GPT_CLK_DIV_10			  (9U  << 0)
-#define MT_WDT_GPT_CLK_DIV_11			  (10U << 0)
-#define MT_WDT_GPT_CLK_DIV_12			  (11U << 0)
-#define MT_WDT_GPT_CLK_DIV_13			  (12U << 0)
-#define MT_WDT_GPT_CLK_DIV_16			  (13U << 0)
-#define MT_WDT_GPT_CLK_DIV_32			  (14U << 0)
-#define MT_WDT_GPT_CLK_DIV_64			  (15U << 0)
+#define MT_WDT_GPT_CLK_DIV_1			  (0U)
+#define MT_WDT_GPT_CLK_DIV_2			  (1U)
+#define MT_WDT_GPT_CLK_DIV_3			  (2U)
+#define MT_WDT_GPT_CLK_DIV_4			  (3U)
+#define MT_WDT_GPT_CLK_DIV_5			  (4U)
+#define MT_WDT_GPT_CLK_DIV_6			  (5U)
+#define MT_WDT_GPT_CLK_DIV_7			  (6U)
+#define MT_WDT_GPT_CLK_DIV_8			  (7U)
+#define MT_WDT_GPT_CLK_DIV_9			  (8U)
+#define MT_WDT_GPT_CLK_DIV_10			  (9U)
+#define MT_WDT_GPT_CLK_DIV_11			  (10U)
+#define MT_WDT_GPT_CLK_DIV_12			  (11U)
+#define MT_WDT_GPT_CLK_DIV_13			  (12U)
+#define MT_WDT_GPT_CLK_DIV_16			  (13U)
+#define MT_WDT_GPT_CLK_DIV_32			  (14U)
+#define MT_WDT_GPT_CLK_DIV_64			  (15U)
 
 struct mt_wdt;
 
@@ -161,6 +154,16 @@ struct mt_wdt_gpt {
 	u8 __iomem			 *count;
 };
 
+struct mt_wdt_data {
+	u8 gpt_status_reg;
+	u8 gpt_num;
+	u8 gpt_reg_size;
+	u8 gpt_mode_clk_div_reg;
+	u8 gpt_mode_offset;
+	u8 gpt_clk_offset;
+	u8 gpt_clk_div_offset;
+};
+
 struct mt_wdt {
 	spinlock_t			  lock;
 	cpumask_t			  alive_cpus;
@@ -174,28 +177,50 @@ struct mt_wdt {
 	struct irq_affinity_notify	  affinity_notify;
 	struct mt_wdt_cpu		  cpu[NR_CPUS];
 	struct mt_wdt_gpt		  gpt;
+	const struct mt_wdt_data	 *data;
+};
+
+static const struct mt_wdt_data mt7622_data = {
+	.gpt_status_reg		= 0x4c,
+	.gpt_num		= 3,
+	.gpt_reg_size		= 0x10,
+	.gpt_mode_clk_div_reg	= MT_WDT_GPT_CLK,
+	.gpt_mode_offset	= 4,
+	.gpt_clk_offset		= 4,
+	.gpt_clk_div_offset	= 0,
+};
+
+static const struct mt_wdt_data mt7986_data = {
+	.gpt_status_reg		= 0x6c,
+	.gpt_num		= 2,
+	.gpt_reg_size		= 0x20,
+	.gpt_mode_clk_div_reg	= MT_WDT_MODE,
+	.gpt_mode_offset	= 5,
+	.gpt_clk_offset		= 2,
+	.gpt_clk_div_offset	= 10,
 };
 
 static inline void
 mt_wdt_gpt_init(struct mt_wdt_gpt *gpt,
 		u8 __iomem *base,
-		const u32 timer)
+		const struct mt_wdt_data *data)
 {
-	u8 __iomem *gpt_base = base + timer * MT_WDT_GPT_REG_SIZE;
+	u8 __iomem *gpt_base = base + data->gpt_num * data->gpt_reg_size;
 
 	gpt->con = gpt_base + MT_WDT_GPT_CON;
 	gpt->count = gpt_base + MT_WDT_GPT_COUNT;
 
 	/* stop timer */
-	iowrite32(ioread32(gpt->con) & ~MT_WDT_GPT_CON_ENABLE, gpt->con);
+	iowrite32(0, gpt->con);
 
 	/* configure clock */
-	iowrite32(MT_WDT_GPT_CLK_13MHZ |
-		  MT_WDT_GPT_CLK_DIV_13,
-		  gpt_base + MT_WDT_GPT_CLK);
+	iowrite32((MT_WDT_GPT_CLK_13MHZ << data->gpt_clk_offset) |
+		  (MT_WDT_GPT_CLK_DIV_13 << data->gpt_clk_div_offset),
+		  gpt_base + data->gpt_mode_clk_div_reg);
 
 	/* start timer and clear counter */
-	iowrite32(MT_WDT_GPT_CON_MODE_FREERUN |
+	iowrite32(ioread32(gpt->con) |
+		  (MT_WDT_GPT_CON_MODE_FREERUN << data->gpt_mode_offset) |
 		  MT_WDT_GPT_CON_CLR |
 		  MT_WDT_GPT_CON_ENABLE,
 		  gpt->con);
@@ -726,7 +751,7 @@ mt_wdt_devm_ioremap_gpt_base(const struct mt_wdt *wdt)
 static int mt_wdt_show_power_status(const struct mt_wdt *wdt,
 				    u8 __iomem *gpt_base)
 {
-	const u32 status = ioread32(gpt_base + MT_WDT_GPT4_COMPARE);
+	const u32 status = ioread32(gpt_base + wdt->data->gpt_status_reg);
 	const char *status_text = mt_wdt_status_text(status);
 
 	if (status_text == NULL) {
@@ -754,8 +779,7 @@ static int mt_wdt_irq_init(struct mt_wdt *wdt, struct platform_device *pdev)
 	if (irq < 0)
 		return 0; /* not configured */
 
-	ret = request_irq(irq, mt_wdt_interrupt,
-			  IRQF_TRIGGER_LOW, "watchdog", wdt);
+	ret = request_irq(irq, mt_wdt_interrupt, 0, "watchdog", wdt);
 	if (ret < 0)
 		return 0; /* blocked for a non-secure mode */
 
@@ -826,6 +850,10 @@ static int mt_wdt_probe(struct platform_device *pdev)
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (wdt == NULL)
 		return -ENOMEM;
+
+	wdt->data = of_device_get_match_data(&pdev->dev);
+	if (wdt->data == NULL)
+		return -EINVAL;
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -916,7 +944,7 @@ static int mt_wdt_probe(struct platform_device *pdev)
 	mt_wdt_hw_configure(wdt, MT_WDT_SEC_TO_MSECS(timeout));
 	mt_wdt_hw_enable(wdt, wdt->affinity_notify.irq != MT_WDT_IRQ_NONE);
 	mt_wdt_hw_restart(wdt);
-	mt_wdt_gpt_init(&wdt->gpt, gpt_base, MT_WDT_GPT_TIMER);
+	mt_wdt_gpt_init(&wdt->gpt, gpt_base, wdt->data);
 
 	spin_unlock_irqrestore(&wdt->lock, flags);
 
@@ -947,7 +975,8 @@ static int mt_wdt_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id MT_WDT_DT_IDS[] = {
-	{ .compatible = "mediatek,mt7622-wdt" },
+	{ .compatible = "mediatek,mt7622-wdt", .data = &mt7622_data },
+	{ .compatible = "mediatek,mt7986-wdt", .data = &mt7986_data },
 	{ /* sentinel */		      }
 };
 MODULE_DEVICE_TABLE(of, MT_WDT_DT_IDS);

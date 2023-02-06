@@ -364,7 +364,6 @@
 		compatible = "mediatek,mt7986-wdt";
 		reg = <0 0x1001c000 0 0x1000>;
 		timeout-sec = <30>;
-		interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 		mediatek,timer = <&gpt_timer>;
 		#reset-cells = <1>;
 	};

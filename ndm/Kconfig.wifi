@@ -10,16 +10,30 @@ choice
 	bool "None"
 
 	config FIRST_IF_MT7628
-	bool "MT7628/MT7688"
+	bool "MT7628/MT7688 integrated radio"
 	depends on RALINK_MT7628
 	select MT_MAC
 
 	config FIRST_IF_MT7622
-	bool "MT7622"
+	bool "MT7622 integrated radio"
 	depends on MACH_MT7622
 	select MT_MAC
 	select WIFI_MT_MAC
 	select CHIP_MT7622
+
+	config FIRST_IF_MT7981
+	bool "MT7981 integrated radio"
+	depends on MACH_MT7981
+	select MT_MAC
+	select WIFI_MT_MAC
+	select CHIP_MT7981
+
+	config FIRST_IF_MT7986
+	bool "MT7986 integrated radio"
+	depends on MACH_MT7986
+	select MT_MAC
+	select WIFI_MT_MAC
+	select CHIP_MT7986
 
 	config FIRST_IF_MT7602E
 	bool "MT7602E"
@@ -47,6 +61,14 @@ choice
 	select MT_MAC
 	select WIFI_MT_MAC
 	select CHIP_MT7915
+
+	config FIRST_IF_MT7916
+	bool "MT7916AN"
+	depends on (MACH_EN7523 || MACH_MT7622 || MACH_MT7623)
+	select MT_MAC
+	select WIFI_MT_MAC
+	select CHIP_MT7916
+
 endchoice
 
 choice
@@ -65,7 +87,7 @@ endchoice
 
 choice
 	prompt "PA & LNA type of 1st card"
-	depends on (FIRST_IF_MT7615E || FIRST_IF_MT7622 || FIRST_IF_MT7915)
+	depends on !(FIRST_IF_NONE || FIRST_IF_MT7628 || FIRST_IF_MT7602E || FIRST_IF_MT7603E)
 
 	config FIRST_IF_EPAELNA
 	bool "ePA/eLNA"
@@ -85,31 +107,44 @@ choice
 
 	config SECOND_IF_MT7610E
 	bool "MT7610E"
+	depends on PCI
 	select RLT_MAC
 	select RALINK_MT7610E
 
 	config SECOND_IF_MT7612E
 	bool "MT7612E"
+	depends on PCI
 	select RLT_MAC
 	select RALINK_MT7612E
 
 	config SECOND_IF_MT7613E
 	bool "MT7613E"
+	depends on PCI
 	select MT_MAC
 	select WIFI_MT_MAC
 	select CHIP_MT7663E
 
 	config SECOND_IF_MT7615E
 	bool "MT7615D/N"
+	depends on PCI
 	select MT_MAC
 	select WIFI_MT_MAC
 	select CHIP_MT7615E
 
 	config SECOND_IF_MT7915
 	bool "MT7915D/A"
+	depends on PCI
 	select MT_MAC
 	select WIFI_MT_MAC
 	select CHIP_MT7915
+
+	config SECOND_IF_MT7916
+	bool "MT7916AN"
+	depends on PCI
+	select MT_MAC
+	select WIFI_MT_MAC
+	select CHIP_MT7916
+
 endchoice
 
 choice
@@ -128,7 +163,7 @@ endchoice
 
 choice
 	prompt "PA & LNA type of 2nd card"
-	depends on (SECOND_IF_MT7613E || SECOND_IF_MT7615E || SECOND_IF_MT7915)
+	depends on !(SECOND_IF_NONE || SECOND_IF_MT7610E || SECOND_IF_MT7612E || SECOND_IF_MT7613E)
 
 	config SECOND_IF_EPAELNA
 	bool "ePA/eLNA"
@@ -145,10 +180,13 @@ config RT_FIRST_CARD
 	depends on ! FIRST_IF_NONE
 	default 7628 if FIRST_IF_MT7628
 	default 7622 if FIRST_IF_MT7622
+	default 7981 if FIRST_IF_MT7981
+	default 7986 if FIRST_IF_MT7986
 	default 7602 if FIRST_IF_MT7602E
 	default 7603 if FIRST_IF_MT7603E
 	default 7615 if FIRST_IF_MT7615E
 	default 7915 if FIRST_IF_MT7915
+	default 7916 if FIRST_IF_MT7916
 
 config RT_SECOND_CARD
 	int
@@ -158,6 +196,7 @@ config RT_SECOND_CARD
 	default 7613 if SECOND_IF_MT7613E
 	default 7615 if SECOND_IF_MT7615E
 	default 7915 if SECOND_IF_MT7915
+	default 7916 if SECOND_IF_MT7916
 
 config RT_FIRST_IF_RF_OFFSET
 	hex "EEPROM offset of 1st card"
@@ -229,7 +268,19 @@ config CHIP_MT7915
 	bool
 	select RTMP_PCI_SUPPORT
 
+config CHIP_MT7916
+	bool
+	select RTMP_PCI_SUPPORT
+
 config CHIP_MT7622
+	bool
+	select RTMP_RBUS_SUPPORT
+
+config CHIP_MT7981
+	bool
+	select RTMP_RBUS_SUPPORT
+
+config CHIP_MT7986
 	bool
 	select RTMP_RBUS_SUPPORT
 
@@ -269,6 +320,11 @@ source "ndm/mt7915_ap/Kconfig"
 source "ndm/mt7915/Kconfig"
 endmenu
 
+menu "MediaTek MT7981/MT7986/MT7916AN RBUS/PCIe Wireless driver"
+source "ndm/mt7916_ap/Kconfig"
+source "ndm/mt7916/Kconfig"
+endmenu
+
 menu "Common Wi-Fi settings"
 config ATE_SUPPORT
 	bool "ATE/QA support"
@@ -302,4 +358,3 @@ config WIFI_WORK_QUEUE
 endmenu
 
 endif # WIFI_DRIVER
-

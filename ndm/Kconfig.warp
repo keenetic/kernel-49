@@ -1,0 +1,26 @@
+config MTK_WARP
+	tristate "MediaTek WARP v2 driver"
+	depends on (MACH_MT7981 || MACH_MT7986)
+
+if MTK_WARP
+
+config MTK_WARP_HW_RRO
+	bool "HW RX offload support"
+	default y
+
+config MTK_WARP_MEMORY_SHRINK
+	bool "Memory shrink for static BM"
+	default n
+	help
+	  Save RAM with static buffer management.
+
+config MTK_WARP_DBG
+	bool "WARP driver debug info support"
+	default n
+
+config MTK_WARP_DBG_MEMLEAK
+	bool "Memory leak debug"
+	depends on MTK_WARP_DBG && !MTK_WARP_MEMORY_SHRINK
+	default n
+
+endif

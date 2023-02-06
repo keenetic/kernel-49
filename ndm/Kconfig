@@ -16,6 +16,9 @@ endif
 comment "Wireless options"
 source "ndm/Kconfig.wifi"
 
+comment "Wireless offload options"
+source "ndm/Kconfig.warp"
+
 comment "HW crypto options"
 source "ndm/Kconfig.crypto"
 endmenu

@@ -133,8 +133,7 @@ config MT7915_SNIFFER_SUPPORT
 
 config MT7915_WHNAT_SUPPORT
 	tristate "Wifi Warp Hardware NAT support"
-	depends on CHIP_MT7622 || ECONET_EN7528
-	depends on CHIP_MT7915
+	depends on ECONET_EN7528 || MACH_EN7523 || MACH_MT7622 || MACH_MT7981 || MACH_MT7986
 	default m
 
 config MT7915_PCIE_ASPM_DYM_CTRL_SUPPORT

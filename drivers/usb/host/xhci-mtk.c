@@ -582,7 +582,7 @@ static void xhci_mtk_init_regs(struct usb_hcd *hcd, struct xhci_hcd_mtk *mtk)
 	}
 #endif
 
-#ifdef CONFIG_ARCH_MEDIATEK
+#if defined(CONFIG_MACH_MT7622) || defined(CONFIG_MACH_MT7623)
 	/* disable nump and enable retry behavior */
 	value = readl(hcd->regs + XHCI_MTK_HSCH_CFG1);
 	value &= ~XHCI_MTK_UPDATE_XACT_NUMP_INTIME;

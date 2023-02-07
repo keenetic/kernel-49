@@ -309,9 +309,8 @@ config PCIE_MEDIATEK_GEN3
 	  MediaTek SoCs.
 
 config RBUS_MEDIATEK
-	bool "MediaTek MT7622 RBUS to PCI wrapper"
-	depends on PCIE_MEDIATEK
-	depends on MACH_MT7622
+	bool "MediaTek RBUS to PCI wrapper"
+	depends on MACH_MT7622 || MACH_MT7981 || MACH_MT7986
 
 config VMD
 	depends on PCI_MSI && X86_64

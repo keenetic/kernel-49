@@ -47,6 +47,12 @@
 #define GPIO_G2_MISC_MASK 0xffffff00
 
 static char rbus_string[] = "rbus";
+int multi_intr_2nd = -ENXIO;
+int multi_intr_3rd = -ENXIO;
+int multi_intr_4th = -ENXIO;
+EXPORT_SYMBOL(multi_intr_2nd);
+EXPORT_SYMBOL(multi_intr_3rd);
+EXPORT_SYMBOL(multi_intr_4th);
 
 static const struct of_device_id rbus_of_ids[] = {
 	{ .compatible = OF_RBUS_NAME, },
@@ -186,7 +192,12 @@ static int
 rbus_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 		 int size, u32 *value)
 {
-	u32 *cr = (u32 *)&rbus_conf_space[where];
+	u32 *cr;
+
+	if ((size_t)where >= sizeof(rbus_conf_space))
+		return PCIBIOS_BUFFER_TOO_SMALL;
+
+	cr = (u32 *)&rbus_conf_space[where];
 
 	if (devfn == 0)
 		*value = *cr;
@@ -271,9 +282,16 @@ static int rbus_add_res(struct rbus_dev *rbus)
 	INIT_LIST_HEAD(&rbus->resources);
 
 	/* resource allocate */
-	rbus->res  = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rbus->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rbus->irq = platform_get_irq(pdev, 0);
 	rbus->base_addr = (unsigned int)rbus->res->start;
+
+	if (rbus->chip_id == 0x7981 ||
+	    rbus->chip_id == 0x7986) {
+		multi_intr_2nd = platform_get_irq(pdev, 1);
+		multi_intr_3rd = platform_get_irq(pdev, 2);
+		multi_intr_4th = platform_get_irq(pdev, 3);
+	}
 
 	pci_add_resource(&rbus->resources, rbus->res);
 

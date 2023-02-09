@@ -266,7 +266,7 @@ static inline int nf_ntce_enqueue_(const u8 pf,
 		if (ct->fast_ext && !nf_ntce_has_helper(ct))
 			return 0;
 
-		if (!is_nf_connection_ipv4_tcpudpgre(ct))
+		if (!is_nf_connection_ipv4_tcpudpgreicmp(ct))
 			return 0;
 	}
 #endif

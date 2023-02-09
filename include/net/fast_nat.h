@@ -112,7 +112,7 @@ is_nf_connection_ipv4_tcpudp(struct nf_conn *ct)
 }
 
 static inline bool
-is_nf_connection_ipv4_tcpudpgre(struct nf_conn *ct)
+is_nf_connection_ipv4_tcpudpgreicmp(struct nf_conn *ct)
 {
 	struct nf_conntrack_tuple *t1, *t2;
 
@@ -123,10 +123,14 @@ is_nf_connection_ipv4_tcpudpgre(struct nf_conn *ct)
 		(t1->src.l3num == PF_INET) && (t2->src.l3num == PF_INET) &&
 		(t1->dst.protonum == IPPROTO_UDP ||
 		 t1->dst.protonum == IPPROTO_TCP ||
-		 t1->dst.protonum == IPPROTO_GRE) &&
+		 t1->dst.protonum == IPPROTO_GRE ||
+		 t1->dst.protonum == IPPROTO_ICMP ||
+		 t1->dst.protonum == IPPROTO_ICMPV6) &&
 		(t2->dst.protonum == IPPROTO_UDP ||
 		 t2->dst.protonum == IPPROTO_TCP ||
-		 t2->dst.protonum == IPPROTO_GRE);
+		 t2->dst.protonum == IPPROTO_GRE ||
+		 t2->dst.protonum == IPPROTO_ICMP ||
+		 t2->dst.protonum == IPPROTO_ICMPV6);
 }
 
 static inline int

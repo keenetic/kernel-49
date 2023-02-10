@@ -1155,8 +1155,10 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
+#ifdef CONFIG_PM
 	clk_disable_unprepare(mdata->spi_clk);
 	clk_disable_unprepare(mdata->spi_hclk);
+#endif
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -1209,6 +1211,10 @@ static int mtk_spi_probe(struct platform_device *pdev)
 
 err_disable_runtime_pm:
 	pm_runtime_disable(&pdev->dev);
+#ifndef CONFIG_PM
+	clk_disable_unprepare(mdata->spi_clk);
+	clk_disable_unprepare(mdata->spi_hclk);
+#endif
 err_put_master:
 	spi_master_put(master);
 

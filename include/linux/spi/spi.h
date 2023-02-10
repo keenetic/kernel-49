@@ -542,9 +542,11 @@ struct spi_master {
 			       struct spi_message *message);
 	int (*unprepare_message)(struct spi_master *master,
 				 struct spi_message *message);
+#if IS_ENABLED(CONFIG_MTD_M25P80)
 	int (*spi_flash_read)(struct  spi_device *spi,
 			      struct spi_flash_read_message *msg);
 	bool (*flash_read_supported)(struct spi_device *spi);
+#endif
 
 	/*
 	 * These hooks are for drivers that use a generic implementation
@@ -1157,6 +1159,7 @@ static inline ssize_t spi_w8r16be(struct spi_device *spi, u8 cmd)
 	return be16_to_cpu(result);
 }
 
+#if IS_ENABLED(CONFIG_MTD_M25P80)
 /**
  * struct spi_flash_read_message - flash specific information for
  * spi-masters that provide accelerated flash read interfaces
@@ -1198,6 +1201,7 @@ static inline bool spi_flash_read_supported(struct spi_device *spi)
 
 int spi_flash_read(struct spi_device *spi,
 		   struct spi_flash_read_message *msg);
+#endif
 
 /*---------------------------------------------------------------------------*/
 

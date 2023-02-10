@@ -2864,6 +2864,7 @@ int spi_async_locked(struct spi_device *spi, struct spi_message *message)
 EXPORT_SYMBOL_GPL(spi_async_locked);
 
 
+#if IS_ENABLED(CONFIG_MTD_M25P80)
 int spi_flash_read(struct spi_device *spi,
 		   struct spi_flash_read_message *msg)
 
@@ -2919,6 +2920,7 @@ int spi_flash_read(struct spi_device *spi,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_flash_read);
+#endif
 
 /*-------------------------------------------------------------------------*/
 

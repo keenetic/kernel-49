@@ -1160,6 +1160,17 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	clk_disable_unprepare(mdata->spi_hclk);
 #endif
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	if (mdata->dev_comp->dma_ext)
+		addr_bits = DMA_ADDR_EXT_BITS;
+	else
+#endif
+		addr_bits = DMA_ADDR_DEF_BITS;
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(addr_bits));
+	if (ret)
+		dev_notice(&pdev->dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
+			   addr_bits, ret);
+
 	pm_runtime_enable(&pdev->dev);
 
 	ret = devm_spi_register_master(&pdev->dev, master);
@@ -1197,15 +1208,6 @@ static int mtk_spi_probe(struct platform_device *pdev)
 			}
 		}
 	}
-
-	if (mdata->dev_comp->dma_ext)
-		addr_bits = DMA_ADDR_EXT_BITS;
-	else
-		addr_bits = DMA_ADDR_DEF_BITS;
-	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(addr_bits));
-	if (ret)
-		dev_notice(&pdev->dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
-			   addr_bits, ret);
 
 	return 0;
 

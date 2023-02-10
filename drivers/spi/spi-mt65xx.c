@@ -1136,6 +1136,12 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
+	ret = clk_set_parent(mdata->sel_clk, mdata->parent_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to clk_set_parent (%d)\n", ret);
+		goto err_put_master;
+	}
+
 	ret = clk_prepare_enable(mdata->spi_hclk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to enable spi_hclk (%d)\n", ret);
@@ -1145,13 +1151,8 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(mdata->spi_clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to enable spi_clk (%d)\n", ret);
-		goto err_disable_spi_hclk;
-	}
-
-	ret = clk_set_parent(mdata->sel_clk, mdata->parent_clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to clk_set_parent (%d)\n", ret);
-		goto err_disable_spi_clk;
+		clk_disable_unprepare(mdata->spi_hclk);
+		goto err_put_master;
 	}
 
 	clk_disable_unprepare(mdata->spi_clk);
@@ -1208,10 +1209,6 @@ static int mtk_spi_probe(struct platform_device *pdev)
 
 err_disable_runtime_pm:
 	pm_runtime_disable(&pdev->dev);
-err_disable_spi_clk:
-	clk_disable_unprepare(mdata->spi_clk);
-err_disable_spi_hclk:
-	clk_disable_unprepare(mdata->spi_hclk);
 err_put_master:
 	spi_master_put(master);
 

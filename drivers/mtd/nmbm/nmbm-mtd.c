@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -27,6 +28,10 @@
 
 #define NMBM_MAX_RATIO_DEFAULT			1
 #define NMBM_MAX_BLOCKS_DEFAULT			256
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
+#define NEED_ERASE_CALLBACK
+#endif
 
 struct nmbm_mtd {
 	struct mtd_info upper;
@@ -148,6 +153,9 @@ static int nmbm_lower_erase_block(void *arg, uint64_t addr)
 
 	memset(&ei, 0, sizeof(ei));
 
+#ifdef NEED_ERASE_CALLBACK
+	ei.mtd = nm->lower;
+#endif
 	ei.addr = addr;
 	ei.len = nm->lower->erasesize;
 
@@ -246,13 +254,25 @@ static int nmbm_mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	nmbm_get_device(nm, FL_ERASING);
 
+#ifdef NEED_ERASE_CALLBACK
+	instr->state = MTD_ERASING;
+#endif
+
 	ret = nmbm_erase_block_range(nm->ni, instr->addr, instr->len,
 				     &instr->fail_addr);
 
+#ifdef NEED_ERASE_CALLBACK
+	instr->state = (ret == 0) ? MTD_ERASE_DONE : MTD_ERASE_FAILED;
+#endif
+
 	nmbm_release_device(nm);
 
-	if (!ret)
+	if (!ret) {
+#ifdef NEED_ERASE_CALLBACK
+		mtd_erase_callback(instr);
+#endif
 		return 0;
+	}
 
 	return -EIO;
 }
@@ -688,7 +708,7 @@ do_attach_mtd:
 
 	mtd->bitflip_threshold = lower->bitflip_threshold;
 
-	mtd->ooblayout = lower->ooblayout;
+	mtd_set_ooblayout(mtd, lower->ooblayout);
 
 	mtd->ecc_step_size = lower->ecc_step_size;
 	mtd->ecc_strength = lower->ecc_strength;

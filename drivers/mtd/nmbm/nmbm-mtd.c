@@ -45,11 +45,7 @@ struct nmbm_mtd {
 	wait_queue_head_t wq;
 
 	struct device *dev;
-	struct list_head node;
 };
-
-struct list_head nmbm_devs;
-static DEFINE_MUTEX(nmbm_devs_lock);
 
 static int nmbm_lower_read_page(void *arg, uint64_t addr, void *buf, void *oob,
 				enum nmbm_oob_mode mode)
@@ -676,7 +672,6 @@ do_attach_mtd:
 	nm->lower = lower;
 	nm->dev = &pdev->dev;
 
-	INIT_LIST_HEAD(&nm->node);
 	spin_lock_init(&nm->lock);
 	init_waitqueue_head(&nm->wq);
 
@@ -734,10 +729,6 @@ do_attach_mtd:
 
 	platform_set_drvdata(pdev, nm);
 
-	mutex_lock(&nmbm_devs_lock);
-	list_add_tail(&nm->node, &nmbm_devs);
-	mutex_unlock(&nmbm_devs_lock);
-
 	return 0;
 
 out:
@@ -760,10 +751,6 @@ static int nmbm_remove(struct platform_device *pdev)
 		return ret;
 
 	nmbm_detach(nm->ni);
-
-	mutex_lock(&nmbm_devs_lock);
-	list_add_tail(&nm->node, &nmbm_devs);
-	mutex_unlock(&nmbm_devs_lock);
 
 	devm_kfree(&pdev->dev, nm);
 
@@ -793,8 +780,6 @@ static struct platform_driver nmbm_driver = {
 static int __init nmbm_init(void)
 {
 	int ret;
-
-	INIT_LIST_HEAD(&nmbm_devs);
 
 	ret = platform_driver_register(&nmbm_driver);
 	if (ret) {

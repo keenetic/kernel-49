@@ -676,6 +676,9 @@ static int spinand_mtd_erase(struct mtd_info *mtd,
 	ret = nanddev_mtd_erase(mtd, einfo);
 	mutex_unlock(&spinand->lock);
 
+	if (ret == 0)
+		mtd_erase_callback(einfo);
+
 	return ret;
 }
 

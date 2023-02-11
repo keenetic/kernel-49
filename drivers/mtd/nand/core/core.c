@@ -156,6 +156,8 @@ int nanddev_mtd_erase(struct mtd_info *mtd, struct erase_info *einfo)
 	struct nand_pos pos, last;
 	int ret;
 
+	einfo->state = MTD_ERASING;
+
 	nanddev_offs_to_pos(nand, einfo->addr, &pos);
 	nanddev_offs_to_pos(nand, einfo->addr + einfo->len - 1, &last);
 	while (nanddev_pos_cmp(&pos, &last) <= 0) {

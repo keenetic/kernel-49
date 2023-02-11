@@ -102,12 +102,6 @@
 
 #define PART_SIZE_UNKNOWN		(~0)
 
-#if defined(CONFIG_FIRST_IF_MT7915) || \
-    defined(CONFIG_SECOND_IF_MT7915)
-/* MT7915 AX boards */
-#define PART_RF_EEPROM_AX_BOARD
-#endif
-
 #define PART_STORAGE_LEGACY		"Storage_Legacy"
 
 enum part {
@@ -116,7 +110,12 @@ enum part {
 	PART_ROM_HDR,
 	PART_PRELOADER,
 	PART_ATF,		/* ARM Trusted Firmware */
-#endif
+#endif /* CONFIG_MACH_MT7622 */
+#if defined(CONFIG_MACH_MT7981) || \
+    defined(CONFIG_MACH_MT7986)
+	PART_ROM_HDR,
+	PART_PRELOADER,
+#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
 	PART_U_BOOT,
 	PART_U_CONFIG,
 	PART_RF_EEPROM,
@@ -200,6 +199,17 @@ static struct part_dsc parts[PART_MAX] = {
 		.read_only	= true
 	},
 #endif /* CONFIG_MACH_MT7622 */
+#if defined(CONFIG_MACH_MT7981) || \
+    defined(CONFIG_MACH_MT7986)
+	[PART_ROM_HDR] = {
+		.name		= "ROM-Header",
+		.read_only	= true
+	},
+	[PART_PRELOADER] = {
+		.name		= "Preloader",
+		.read_only	= true
+	},
+#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
 	[PART_U_BOOT] = {
 		.name		= "U-Boot",
 #ifdef CONFIG_MTD_NDM_BOOT_UPDATE
@@ -312,49 +322,29 @@ static uint32_t parts_size_default_get(enum part part,
 				       struct mtd_info *master)
 {
 	uint32_t size = PART_SIZE_UNKNOWN;
+	bool is_nor = master->type == MTD_NORFLASH;
 
 #if defined(CONFIG_MACH_MT7622)
-
-#ifdef PART_RF_EEPROM_AX_BOARD
-/* AX boards */
-#define PART_RF_EEPROM_SIZE_NOR		0x080000
-#define PART_RF_EEPROM_SIZE_NAND	0x100000
-#else
-/* AC boards */
-#define PART_RF_EEPROM_SIZE_NOR		0x020000
-#define PART_RF_EEPROM_SIZE_NAND	0x040000
-#endif
-
-	/*
-	 * Partitions size hardcoded in MTK uboot, see "mt7622_evb.h".
-	 * We now support NOR and SLC NAND layouts.
-	 * Todo: eMMC & SD layouts (with GPT) support.
-	 * Todo: MLC NAND layout support.
-	 */
 	switch (part) {
 	case PART_ROM_HDR:
 		size = master->erasesize;
 		break;
 	case PART_PRELOADER:
-		if (master->type == MTD_NORFLASH)
-			size = 0x40000 - master->erasesize;
-		else
-			size = 0x80000 - master->erasesize;
+		size = is_nor ? PART_BL2_SIZE_NOR : PART_BL2_SIZE_NAND;
+		/* subtract ROM header */
+		size -= master->erasesize;
 		break;
 	case PART_ATF:
-		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x40000;
+		size = is_nor ? PART_ATF_SIZE_NOR : PART_ATF_SIZE_NAND;
 		break;
 	case PART_U_BOOT:
-		size = (master->type == MTD_NORFLASH) ? 0x40000 : 0x80000;
+		size = is_nor ? PART_BOOT_SIZE_NOR : PART_BOOT_SIZE_NAND;
 		break;
 	case PART_U_CONFIG:
-		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x80000;
+		size = is_nor ? PART_ENV_SIZE_NOR : PART_ENV_SIZE_NAND;
 		break;
 	case PART_RF_EEPROM:
-		if (master->type == MTD_NORFLASH)
-			size = PART_RF_EEPROM_SIZE_NOR;
-		else
-			size = PART_RF_EEPROM_SIZE_NAND;
+		size = is_nor ? PART_E2P_SIZE_NOR : PART_E2P_SIZE_NAND;
 		break;
 	case PART_CONFIG_1:
 		size = master->erasesize * 4;
@@ -363,16 +353,53 @@ static uint32_t parts_size_default_get(enum part part,
 		size = master->erasesize;
 		break;
 	case PART_RESERVE:
-		size = master->erasesize * 9;
+		size = is_nor ? PART_RSV_SIZE_NOR : PART_RSV_SIZE_NAND;
+		/* subtract U_STATE */
+		size -= master->erasesize;
+		break;
+	default:
+		break;
+	}
+#elif defined(CONFIG_MACH_MT7981) || \
+      defined(CONFIG_MACH_MT7986)
+	switch (part) {
+	case PART_ROM_HDR:
+		size = PART_HDR_SIZE;
+		break;
+	case PART_PRELOADER:
+		size = is_nor ? PART_BL2_SIZE_NOR : PART_BL2_SIZE_NAND;
+		/* subtract ROM header */
+		size -= PART_HDR_SIZE;
+		break;
+	case PART_U_BOOT:
+		size = is_nor ? PART_FIP_SIZE_NOR : PART_FIP_SIZE_NAND;
+		break;
+	case PART_U_CONFIG:
+		size = is_nor ? PART_ENV_SIZE_NOR : PART_ENV_SIZE_NAND;
+		break;
+	case PART_RF_EEPROM:
+		size = is_nor ? PART_E2P_SIZE_NOR : PART_E2P_SIZE_NAND;
+		break;
+	case PART_CONFIG_1:
+		size = master->erasesize * 4;
+		break;
+	case PART_U_STATE:
+		size = master->erasesize;
+		break;
+	case PART_RESERVE:
+		size = is_nor ? PART_RSV_SIZE_NOR : PART_RSV_SIZE_NAND;
+		/* subtract U_STATE */
+		size -= master->erasesize;
 		break;
 	default:
 		break;
 	}
 #else
+	/* MIPS boards */
 	switch (part) {
 	case PART_U_BOOT:
 	case PART_U_STATE:
-		if (master->type == MTD_NANDFLASH)
+		if (!is_nor)
 #ifdef NAND_BB_MODE_SKIP
 			size = master->erasesize << 2;
 #else
@@ -386,7 +413,7 @@ static uint32_t parts_size_default_get(enum part part,
 	case PART_CONFIG_1:
 		size = master->erasesize;
 #ifdef NAND_BB_MODE_SKIP
-		if (master->type == MTD_NANDFLASH)
+		if (!is_nor)
 			size = master->erasesize << 2;
 #endif
 		break;
@@ -399,7 +426,7 @@ static uint32_t parts_size_default_get(enum part part,
 
 #ifdef PART_RF_EEPROM_AX_BOARD
 	if (part == PART_RF_EEPROM) {
-		if (master->type == MTD_NANDFLASH)
+		if (!is_nor)
 #ifdef NAND_BB_MODE_SKIP
 			size = master->erasesize << 2;	/* 512K */
 #else
@@ -723,6 +750,17 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 	offs_uboot = parts_offset_end(PART_ATF);
 #endif /* CONFIG_MACH_MT7622 */
+
+#if defined(CONFIG_MACH_MT7981) || \
+    defined(CONFIG_MACH_MT7986)
+	/* Fill known fields */
+	parts[PART_ROM_HDR].size = parts_size_default_get(PART_ROM_HDR, m);
+
+	parts[PART_PRELOADER].offset = parts_offset_end(PART_ROM_HDR);
+	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
+
+	offs_uboot = parts_offset_end(PART_PRELOADER);
+#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
 
 	/* early fill partition info for NAND */
 	parts[PART_U_BOOT].offset = offs_uboot;

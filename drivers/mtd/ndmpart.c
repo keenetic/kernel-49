@@ -43,6 +43,10 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#ifdef CONFIG_NMBM_MTD
+#include <linux/mtd/nmbm/nmbm-mtd.h>
+#endif /* CONFIG_NMBM_MTD */
+
 #ifdef MTD_NDM_PARTITION_UPDATE
 #include <linux/crc32.h>
 #include <linux/reboot.h>
@@ -691,6 +695,11 @@ static int create_mtd_partitions(struct mtd_info *m,
 	uint32_t off, flash_size_lim;
 	struct mtd_partition *ndm_parts;
 	unsigned int ndm_parts_num;
+
+#ifdef CONFIG_NMBM_MTD
+	if (!is_nmbm_mtd(m))
+		return 0;
+#endif /* CONFIG_NMBM_MTD */
 
 	use_dump = use_storage = false;
 	if (CONFIG_MTD_NDM_DUMP_SIZE)

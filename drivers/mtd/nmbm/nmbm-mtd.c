@@ -581,6 +581,11 @@ static void nmbm_mtd_shutdown(struct mtd_info *mtd)
 	nmbm_get_device(nm, FL_PM_SUSPENDED);
 }
 
+bool is_nmbm_mtd(struct mtd_info *mtd)
+{
+	return mtd->_read_oob == nmbm_mtd_read_oob;
+}
+
 static int nmbm_probe(struct platform_device *pdev)
 {
 	struct device_node *mtd_np, *np = pdev->dev.of_node;

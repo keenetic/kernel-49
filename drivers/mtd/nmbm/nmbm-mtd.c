@@ -641,6 +641,12 @@ do_attach_mtd:
 	if (empty_page_ecc_ok)
 		nld.flags |= NMBM_F_EMPTY_PAGE_ECC_OK;
 
+	if (!lower->_erase ||
+	    !lower->_write_oob ||
+	    !lower->_block_markbad ||
+	    !(lower->flags & MTD_WRITEABLE))
+		nld.flags |= NMBM_F_READ_ONLY;
+
 	nld.max_ratio = max_ratio;
 	nld.max_reserved_blocks = max_reserved_blocks;
 

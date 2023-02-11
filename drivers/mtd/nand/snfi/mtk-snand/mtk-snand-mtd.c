@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
@@ -21,6 +22,10 @@
 
 #include "mtk-snand.h"
 #include "mtk-snand-os.h"
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
+#define NEED_ERASE_CALLBACK
+#endif
 
 struct mtk_snand_of_id {
 	enum mtk_snand_soc soc;
@@ -74,6 +79,10 @@ static int mtk_snand_mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	mutex_lock(&msm->lock);
 
+#ifdef NEED_ERASE_CALLBACK
+	instr->state = MTD_ERASING;
+#endif
+
 	while (start_addr < end_addr) {
 		if (mtk_snand_block_isbad(msm->snf, start_addr)) {
 			instr->fail_addr = start_addr;
@@ -90,7 +99,16 @@ static int mtk_snand_mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 		start_addr += mtd->erasesize;
 	}
 
+#ifdef NEED_ERASE_CALLBACK
+	instr->state = (ret == 0) ? MTD_ERASE_DONE : MTD_ERASE_FAILED;
+#endif
+
 	mutex_unlock(&msm->lock);
+
+#ifdef NEED_ERASE_CALLBACK
+	if (ret == 0)
+		mtd_erase_callback(instr);
+#endif
 
 	return ret;
 }
@@ -625,7 +643,7 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	mtd->erasesize_mask = (1 << mtd->erasesize_shift) - 1;
 	mtd->writesize_mask = (1 << mtd->writesize_shift) - 1;
 
-	mtd->ooblayout = &mtk_snand_ooblayout;
+	mtd_set_ooblayout(mtd, &mtk_snand_ooblayout);
 
 	mtd->ecc_strength = msm->cinfo.ecc_strength;
 	mtd->bitflip_threshold = (mtd->ecc_strength * 3) / 4;

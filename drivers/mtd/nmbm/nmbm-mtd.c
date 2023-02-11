@@ -23,6 +23,7 @@
 #include <linux/of_platform.h>
 #include <linux/kern_levels.h>
 
+#include <linux/mtd/nmbm/nmbm-mtd.h>
 #include "nmbm-private.h"
 #include "nmbm-debug.h"
 
@@ -45,12 +46,14 @@ struct nmbm_mtd {
 	wait_queue_head_t wq;
 
 	struct device *dev;
+	u32 lower_flags;
 };
 
 static int nmbm_lower_read_page(void *arg, uint64_t addr, void *buf, void *oob,
 				enum nmbm_oob_mode mode)
 {
 	struct nmbm_mtd *nm = arg;
+	struct mtd_info *lower = nm->lower;
 	struct mtd_oob_ops ops;
 	int ret;
 
@@ -73,17 +76,17 @@ static int nmbm_lower_read_page(void *arg, uint64_t addr, void *buf, void *oob,
 
 	if (buf) {
 		ops.datbuf = buf;
-		ops.len = nm->lower->writesize;
+		ops.len = lower->writesize;
 	}
 
 	if (oob) {
 		ops.oobbuf = oob;
-		ops.ooblen = mtd_oobavail(nm->lower, &ops);
+		ops.ooblen = mtd_oobavail(lower, &ops);
 	}
 
-	ret = mtd_read_oob(nm->lower, addr, &ops);
-	nm->upper.ecc_stats.corrected = nm->lower->ecc_stats.corrected;
-	nm->upper.ecc_stats.failed = nm->lower->ecc_stats.failed;
+	ret = mtd_read_oob(lower, addr, &ops);
+	nm->upper.ecc_stats.corrected = lower->ecc_stats.corrected;
+	nm->upper.ecc_stats.failed = lower->ecc_stats.failed;
 
 	/* Report error on failure (including ecc error) */
 	if (ret < 0 && ret != -EUCLEAN)
@@ -98,8 +101,8 @@ static int nmbm_lower_read_page(void *arg, uint64_t addr, void *buf, void *oob,
 	 */
 
 	if (ret == -EUCLEAN) {
-		return min_t(u32, nm->lower->bitflip_threshold + 1,
-			     nm->lower->ecc_strength);
+		return min_t(u32, lower->bitflip_threshold + 1,
+			     lower->ecc_strength);
 	}
 
 	/* For bitflips less than the threshold, return 0 */
@@ -110,7 +113,9 @@ static int nmbm_lower_write_page(void *arg, uint64_t addr, const void *buf,
 				 const void *oob, enum nmbm_oob_mode mode)
 {
 	struct nmbm_mtd *nm = arg;
+	struct mtd_info *lower = nm->lower;
 	struct mtd_oob_ops ops;
+	int ret;
 
 	memset(&ops, 0, sizeof(ops));
 
@@ -131,31 +136,39 @@ static int nmbm_lower_write_page(void *arg, uint64_t addr, const void *buf,
 
 	if (buf) {
 		ops.datbuf = (uint8_t *)buf;
-		ops.len = nm->lower->writesize;
+		ops.len = lower->writesize;
 	}
 
 	if (oob) {
 		ops.oobbuf = (uint8_t *)oob;
-		ops.ooblen = mtd_oobavail(nm->lower, &ops);
+		ops.ooblen = mtd_oobavail(lower, &ops);
 	}
 
-	return mtd_write_oob(nm->lower, addr, &ops);
+	ret = mtd_check_oob_ops(lower, addr, &ops);
+	if (ret)
+		return ret;
+
+	return lower->_write_oob(lower, addr, &ops);
 }
 
 static int nmbm_lower_erase_block(void *arg, uint64_t addr)
 {
 	struct nmbm_mtd *nm = arg;
+	struct mtd_info *lower = nm->lower;
 	struct erase_info ei;
 
 	memset(&ei, 0, sizeof(ei));
 
 #ifdef NEED_ERASE_CALLBACK
-	ei.mtd = nm->lower;
+	ei.mtd = lower;
 #endif
 	ei.addr = addr;
-	ei.len = nm->lower->erasesize;
+	ei.len = lower->erasesize;
 
-	return mtd_erase(nm->lower, &ei);
+	if (addr >= lower->size || ei.len > lower->size - addr)
+		return -EINVAL;
+
+	return lower->_erase(lower, &ei);
 }
 
 static int nmbm_lower_is_bad_block(void *arg, uint64_t addr)
@@ -168,8 +181,12 @@ static int nmbm_lower_is_bad_block(void *arg, uint64_t addr)
 static int nmbm_lower_mark_bad_block(void *arg, uint64_t addr)
 {
 	struct nmbm_mtd *nm = arg;
+	struct mtd_info *lower = nm->lower;
 
-	return mtd_block_markbad(nm->lower, addr);
+	if (addr >= lower->size)
+		return -EINVAL;
+
+	return lower->_block_markbad(lower, addr);
 }
 
 static void nmbm_lower_log(void *arg, enum nmbm_log_category level,
@@ -676,6 +693,7 @@ do_attach_mtd:
 	nm->ni = (void *)nm + sizeof(*nm);
 	nm->page_cache = (uint8_t *)nm->ni + alloc_size;
 	nm->lower = lower;
+	nm->lower_flags = lower->flags;
 	nm->dev = &pdev->dev;
 
 	spin_lock_init(&nm->lock);
@@ -733,6 +751,9 @@ do_attach_mtd:
 		goto out;
 	}
 
+	/* protect lower mtd device from write via mtd API */
+	lower->flags &= ~MTD_WRITEABLE;
+
 	platform_set_drvdata(pdev, nm);
 
 	return 0;
@@ -757,6 +778,9 @@ static int nmbm_remove(struct platform_device *pdev)
 		return ret;
 
 	nmbm_detach(nm->ni);
+
+	if (nm->lower_flags & MTD_WRITEABLE)
+		lower->flags |= MTD_WRITEABLE;
 
 	devm_kfree(&pdev->dev, nm);
 

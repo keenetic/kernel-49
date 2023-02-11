@@ -1154,7 +1154,10 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 }
 EXPORT_SYMBOL_GPL(mtd_panic_write);
 
-static int mtd_check_oob_ops(struct mtd_info *mtd, loff_t offs,
+#ifndef CONFIG_NMBM_MTD
+static
+#endif
+int mtd_check_oob_ops(struct mtd_info *mtd, loff_t offs,
 			     struct mtd_oob_ops *ops)
 {
 	/*

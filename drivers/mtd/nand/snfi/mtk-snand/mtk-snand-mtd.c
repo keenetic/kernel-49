@@ -191,7 +191,6 @@ static int mtk_snand_mtd_read_oob(struct mtd_info *mtd, loff_t from,
 				  struct mtd_oob_ops *ops)
 {
 	struct mtk_snand_mtd *msm = mtd_to_msm(mtd);
-	uint32_t maxooblen;
 	int ret;
 
 	if (!ops->oobbuf && !ops->datbuf) {
@@ -208,28 +207,6 @@ static int mtk_snand_mtd_read_oob(struct mtd_info *mtd, loff_t from,
 		break;
 	default:
 		dev_err(msm->pdev.dev, "unsupported oob mode: %u\n", ops->mode);
-		return -EINVAL;
-	}
-
-	maxooblen = mtd_oobavail(mtd, ops);
-
-	/* Do not allow read past end of device */
-	if (ops->datbuf && (from + ops->len) > mtd->size) {
-		dev_err(msm->pdev.dev,
-			"attempt to read beyond end of device\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(ops->ooboffs >= maxooblen)) {
-		dev_err(msm->pdev.dev, "attempt to start read outside oob\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(from >= mtd->size ||
-	    ops->ooboffs + ops->ooblen > ((mtd->size >> mtd->writesize_shift) -
-	    (from >> mtd->writesize_shift)) * maxooblen)) {
-		dev_err(msm->pdev.dev,
-			"attempt to read beyond end of device\n");
 		return -EINVAL;
 	}
 
@@ -318,7 +295,6 @@ static int mtk_snand_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 				   struct mtd_oob_ops *ops)
 {
 	struct mtk_snand_mtd *msm = mtd_to_msm(mtd);
-	uint32_t maxooblen;
 	int ret;
 
 	if (!ops->oobbuf && !ops->datbuf) {
@@ -335,29 +311,6 @@ static int mtk_snand_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 		break;
 	default:
 		dev_err(msm->pdev.dev, "unsupported oob mode: %u\n", ops->mode);
-		return -EINVAL;
-	}
-
-	maxooblen = mtd_oobavail(mtd, ops);
-
-	/* Do not allow write past end of device */
-	if (ops->datbuf && (to + ops->len) > mtd->size) {
-		dev_err(msm->pdev.dev,
-			"attempt to write beyond end of device\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(ops->ooboffs >= maxooblen)) {
-		dev_err(msm->pdev.dev,
-			"attempt to start write outside oob\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(to >= mtd->size ||
-	    ops->ooboffs + ops->ooblen > ((mtd->size >> mtd->writesize_shift) -
-	    (to >> mtd->writesize_shift)) * maxooblen)) {
-		dev_err(msm->pdev.dev,
-			"attempt to write beyond end of device\n");
 		return -EINVAL;
 	}
 

@@ -365,7 +365,6 @@ static int nmbm_mtd_read_oob(struct mtd_info *mtd, loff_t from,
 			     struct mtd_oob_ops *ops)
 {
 	struct nmbm_mtd *nm = container_of(mtd, struct nmbm_mtd, upper);
-	uint32_t maxooblen;
 	enum nmbm_oob_mode mode;
 	int ret;
 
@@ -391,15 +390,6 @@ static int nmbm_mtd_read_oob(struct mtd_info *mtd, loff_t from,
 		return -ENOTSUPP;
 	}
 
-	maxooblen = mtd_oobavail(mtd, ops);
-
-	/* Do not allow read past end of device */
-	if (ops->datbuf && (from + ops->len) > mtd->size) {
-		pr_debug("%s: attempt to read beyond end of device\n",
-			 __func__);
-		return -EINVAL;
-	}
-
 	if (!ops->oobbuf) {
 		nmbm_get_device(nm, FL_READING);
 
@@ -410,20 +400,6 @@ static int nmbm_mtd_read_oob(struct mtd_info *mtd, loff_t from,
 		nmbm_release_device(nm);
 
 		return ret;
-	}
-
-	if (unlikely(ops->ooboffs >= maxooblen)) {
-		pr_debug("%s: attempt to start read outside oob\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	if (unlikely(from >= mtd->size ||
-	    ops->ooboffs + ops->ooblen > ((mtd->size >> mtd->writesize_shift) -
-	    (from >> mtd->writesize_shift)) * maxooblen)) {
-		pr_debug("%s: attempt to read beyond end of device\n",
-				__func__);
-		return -EINVAL;
 	}
 
 	nmbm_get_device(nm, FL_READING);
@@ -503,7 +479,6 @@ static int nmbm_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 {
 	struct nmbm_mtd *nm = container_of(mtd, struct nmbm_mtd, upper);
 	enum nmbm_oob_mode mode;
-	uint32_t maxooblen;
 	int ret;
 
 	if (!ops->oobbuf && !ops->datbuf) {
@@ -529,15 +504,6 @@ static int nmbm_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 		return -ENOTSUPP;
 	}
 
-	maxooblen = mtd_oobavail(mtd, ops);
-
-	/* Do not allow write past end of device */
-	if (ops->datbuf && (to + ops->len) > mtd->size) {
-		pr_debug("%s: attempt to write beyond end of device\n",
-			 __func__);
-		return -EINVAL;
-	}
-
 	if (!ops->oobbuf) {
 		nmbm_get_device(nm, FL_WRITING);
 
@@ -548,20 +514,6 @@ static int nmbm_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 		nmbm_release_device(nm);
 
 		return ret;
-	}
-
-	if (unlikely(ops->ooboffs >= maxooblen)) {
-		pr_debug("%s: attempt to start write outside oob\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	if (unlikely(to >= mtd->size ||
-	    ops->ooboffs + ops->ooblen > ((mtd->size >> mtd->writesize_shift) -
-	    (to >> mtd->writesize_shift)) * maxooblen)) {
-		pr_debug("%s: attempt to write beyond end of device\n",
-				__func__);
-		return -EINVAL;
 	}
 
 	nmbm_get_device(nm, FL_WRITING);

@@ -2686,10 +2686,11 @@ int nmbm_read_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
  * @data: buffer contains main data. optional.
  * @oob: buffer contains oob data. optional.
  * @mode: write mode
+ * @oops: mtd_panic_write caller
  */
 static int nmbm_write_logic_page(struct nmbm_instance *ni, uint64_t addr,
 				  const void *data, const void *oob,
-				  enum nmbm_oob_mode mode)
+				  enum nmbm_oob_mode mode, bool oops)
 {
 	uint32_t lb, pb, offset;
 	uint64_t paddr;
@@ -2714,6 +2715,9 @@ static int nmbm_write_logic_page(struct nmbm_instance *ni, uint64_t addr,
 
 	/* Assemble new address */
 	paddr = ba2addr(ni, pb) + offset;
+
+	if (oops)
+		return ni->lower.panic_write_page(ni->lower.arg, paddr, data);
 
 	success = nmbm_write_phys_page(ni, paddr, data, oob, mode);
 	if (success)
@@ -2755,7 +2759,7 @@ int nmbm_write_single_page(struct nmbm_instance *ni, uint64_t addr,
 		return -EINVAL;
 	}
 
-	return nmbm_write_logic_page(ni, addr, data, oob, mode);
+	return nmbm_write_logic_page(ni, addr, data, oob, mode, false);
 }
 
 /*
@@ -2765,10 +2769,11 @@ int nmbm_write_single_page(struct nmbm_instance *ni, uint64_t addr,
  * @size: data size to write
  * @data: buffer contains data to be written
  * @mode: write mode
+ * @oops: mtd_panic_write caller
  * @retlen: return actual data size written
  */
 int nmbm_write_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
-		     const void *data, enum nmbm_oob_mode mode,
+		     const void *data, enum nmbm_oob_mode mode, bool oops,
 		     size_t *retlen)
 {
 	uint64_t off = addr;
@@ -2810,7 +2815,7 @@ int nmbm_write_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
 
 		if (chunksize == ni->lower.writesize) {
 			ret = nmbm_write_logic_page(ni, off - leading, ptr,
-							 NULL, mode);
+							 NULL, mode, oops);
 			if (ret)
 				break;
 		} else {
@@ -2819,7 +2824,7 @@ int nmbm_write_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
 
 			ret = nmbm_write_logic_page(ni, off - leading,
 							 ni->page_cache, NULL,
-							 mode);
+							 mode, oops);
 			if (ret)
 				break;
 		}

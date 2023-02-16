@@ -52,6 +52,7 @@ struct nmbm_lower_device {
 	 */
 	int (*read_page)(void *arg, uint64_t addr, void *buf, void *oob, enum nmbm_oob_mode mode);
 	int (*write_page)(void *arg, uint64_t addr, const void *buf, const void *oob, enum nmbm_oob_mode mode);
+	int (*panic_write_page)(void *arg, uint64_t addr, const void *buf);
 	int (*erase_block)(void *arg, uint64_t addr);
 
 	int (*is_bad_block)(void *arg, uint64_t addr);
@@ -89,7 +90,7 @@ int nmbm_write_single_page(struct nmbm_instance *ni, uint64_t addr,
 			   const void *data, const void *oob,
 			   enum nmbm_oob_mode mode);
 int nmbm_write_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
-		     const void *data, enum nmbm_oob_mode mode,
+		     const void *data, enum nmbm_oob_mode mode, bool oops,
 		     size_t *retlen);
 
 int nmbm_check_bad_block(struct nmbm_instance *ni, uint64_t addr);

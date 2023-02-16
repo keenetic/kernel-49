@@ -151,6 +151,19 @@ static int nmbm_lower_write_page(void *arg, uint64_t addr, const void *buf,
 	return lower->_write_oob(lower, addr, &ops);
 }
 
+static int nmbm_lower_panic_write_page(void *arg, uint64_t addr, const void *buf)
+{
+	struct nmbm_mtd *nm = arg;
+	struct mtd_info *lower = nm->lower;
+	size_t len = lower->writesize;
+	size_t retlen;
+
+	if (addr >= lower->size || len > lower->size - addr)
+		return -EINVAL;
+
+	return lower->_panic_write(lower, addr, len, &retlen, buf);
+}
+
 static int nmbm_lower_erase_block(void *arg, uint64_t addr)
 {
 	struct nmbm_mtd *nm = arg;
@@ -509,7 +522,7 @@ static int nmbm_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 
 		/* Optimized for writing data only */
 		ret = nmbm_write_range(nm->ni, to, ops->len, ops->datbuf,
-				       mode, &ops->retlen);
+				       mode, false, &ops->retlen);
 
 		nmbm_release_device(nm);
 
@@ -519,6 +532,20 @@ static int nmbm_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 	nmbm_get_device(nm, FL_WRITING);
 	ret = nmbm_mtd_write_data(nm, to, ops, mode);
 	nmbm_release_device(nm);
+
+	return ret;
+}
+
+static int nmbm_mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
+				size_t *retlen, const uint8_t *buf)
+{
+	struct nmbm_mtd *nm = container_of(mtd, struct nmbm_mtd, upper);
+	int ret;
+
+	nm->state = FL_WRITING;
+	ret = nmbm_write_range(nm->ni, to, len, buf, NMBM_MODE_PLACE_OOB, true,
+			       retlen);
+	nm->state = FL_READY;
 
 	return ret;
 }
@@ -627,6 +654,7 @@ do_attach_mtd:
 
 	nld.read_page = nmbm_lower_read_page;
 	nld.write_page = nmbm_lower_write_page;
+	nld.panic_write_page = nmbm_lower_panic_write_page;
 	nld.erase_block = nmbm_lower_erase_block;
 	nld.is_bad_block = nmbm_lower_is_bad_block;
 	nld.mark_bad_block = nmbm_lower_mark_bad_block;
@@ -693,6 +721,9 @@ do_attach_mtd:
 	mtd->_block_isbad = nmbm_mtd_block_isbad;
 	mtd->_block_markbad = nmbm_mtd_block_markbad;
 	mtd->_reboot = nmbm_mtd_shutdown;
+
+	if (lower->_panic_write)
+		mtd->_panic_write = nmbm_mtd_panic_write;
 
 	mtd_set_of_node(mtd, np);
 

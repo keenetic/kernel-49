@@ -27,6 +27,7 @@
 #else
 #define PART_E2P_SIZE_NOR		0x020000
 #define PART_E2P_SIZE_NAND		0x040000
+#endif
 
 #define PART_RSV_SIZE_NOR		(PART_BL2_SIZE_NOR + \
 					 PART_ATF_SIZE_NOR + \
@@ -34,7 +35,7 @@
 #define PART_RSV_SIZE_NAND		(PART_BL2_SIZE_NAND + \
 					 PART_ATF_SIZE_NAND + \
 					 PART_BOOT_SIZE_NAND)
-#endif
+
 #elif defined(CONFIG_MACH_MT7981) || \
       defined(CONFIG_MACH_MT7986)
 #define PART_HDR_SIZE			0x000800

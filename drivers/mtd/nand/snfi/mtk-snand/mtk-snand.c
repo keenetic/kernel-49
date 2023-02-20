@@ -472,6 +472,23 @@ int mtk_snand_set_feature(struct mtk_snand *snf, uint32_t addr, uint32_t val)
 	return mtk_snand_mac_io(snf, op, sizeof(op), NULL, 0);
 }
 
+static int mtk_snand_poll_atomic(struct mtk_snand *snf, uint32_t wait_us)
+{
+	uint32_t timeo;
+
+	for (timeo = 0; timeo < wait_us; timeo += 1000) {
+		int val = mtk_snand_get_feature(snf, SNAND_FEATURE_STATUS_ADDR);
+
+		if (!(val & SNAND_STATUS_OIP))
+			return val & (SNAND_STATUS_ERASE_FAIL |
+				      SNAND_STATUS_PROGRAM_FAIL);
+
+		udelay(1000);
+	}
+
+	return -ETIMEDOUT;
+}
+
 static int mtk_snand_poll_status(struct mtk_snand *snf, uint32_t wait_us)
 {
 	int val;
@@ -1082,8 +1099,14 @@ static int mtk_snand_program_load(struct mtk_snand *snf, uint32_t page,
 	nfi_write16(snf, NFI_STRDATA, STR_DATA);
 
 	/* Wait for operation finished */
-	ret = irq_completion_wait(snf->pdev, snf->nfi_base + SNF_STA_CTL1,
-				  CUS_PG_DONE, SNFI_POLL_INTERVAL);
+	if (in_interrupt() || oops_in_progress) {
+		mdelay(1);
+		ret = read32_poll_timeout(snf->nfi_base + SNF_STA_CTL1,
+			val, val & CUS_PG_DONE, 0, SNFI_POLL_INTERVAL);
+	} else
+		ret = irq_completion_wait(snf->pdev, snf->nfi_base + SNF_STA_CTL1,
+					  CUS_PG_DONE, SNFI_POLL_INTERVAL);
+
 	if (ret) {
 		snand_log_nfi(snf->pdev,
 			      "DMA timed out for program load\n");
@@ -1252,7 +1275,11 @@ static int mtk_snand_do_write_page(struct mtk_snand *snf, uint64_t addr,
 	if (ret)
 		return ret;
 
-	ret = mtk_snand_poll_status(snf, SNFI_POLL_INTERVAL);
+	if (in_interrupt() || oops_in_progress)
+		ret = mtk_snand_poll_atomic(snf, SNFI_POLL_INTERVAL);
+	else
+		ret = mtk_snand_poll_status(snf, SNFI_POLL_INTERVAL);
+
 	if (ret < 0) {
 		snand_log_chip(snf->pdev,
 			       "Page program command timed out on page %u\n",

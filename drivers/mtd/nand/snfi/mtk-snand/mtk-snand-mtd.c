@@ -321,6 +321,25 @@ static int mtk_snand_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 	return ret;
 }
 
+static int mtk_snand_mtd_panic_write(struct mtd_info *mtd, loff_t to,
+				     size_t len, size_t *retlen,
+				     const uint8_t *buf)
+{
+	struct mtk_snand_mtd *msm = mtd_to_msm(mtd);
+	struct mtd_oob_ops ops = {0};
+	int ret;
+
+	ops.len = len;
+	ops.datbuf = (uint8_t *) buf;
+	ops.mode = MTD_OPS_PLACE_OOB;
+
+	ret = mtk_snand_mtd_write_data(msm, to, &ops);
+
+	*retlen = ops.retlen;
+
+	return ret;
+}
+
 static int mtk_snand_mtd_block_isbad(struct mtd_info *mtd, loff_t offs)
 {
 	struct mtk_snand_mtd *msm = mtd_to_msm(mtd);
@@ -605,6 +624,7 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	mtd->_erase = mtk_snand_mtd_erase;
 	mtd->_read_oob = mtk_snand_mtd_read_oob;
 	mtd->_write_oob = mtk_snand_mtd_write_oob;
+	mtd->_panic_write = mtk_snand_mtd_panic_write;
 	mtd->_block_isbad = mtk_snand_mtd_block_isbad;
 	mtd->_block_markbad = mtk_snand_mtd_block_markbad;
 

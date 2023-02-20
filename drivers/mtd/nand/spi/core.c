@@ -11,6 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/jiffies.h>
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mtd/spinand.h>
@@ -343,7 +344,7 @@ static int spinand_erase_op(struct spinand_device *spinand,
 
 static int spinand_wait(struct spinand_device *spinand, u8 *s)
 {
-	unsigned long timeo =  jiffies + msecs_to_jiffies(400);
+	unsigned long timeo = jiffies + msecs_to_jiffies(400);
 	u8 status;
 	int ret;
 
@@ -360,6 +361,33 @@ static int spinand_wait(struct spinand_device *spinand, u8 *s)
 	 * Extra read, just in case the STATUS_READY bit has changed
 	 * since our last check
 	 */
+	ret = spinand_read_status(spinand, &status);
+	if (ret)
+		return ret;
+
+out:
+	if (s)
+		*s = status;
+
+	return status & STATUS_BUSY ? -ETIMEDOUT : 0;
+}
+
+static int spinand_panic_wait(struct spinand_device *spinand, u8 *s)
+{
+	int ret, timeo;
+	u8 status;
+
+	for (timeo = 0; timeo < 400; timeo++) {
+		ret = spinand_read_status(spinand, &status);
+		if (ret)
+			return ret;
+
+		if (!(status & STATUS_BUSY))
+			goto out;
+
+		mdelay(1);
+	}
+
 	ret = spinand_read_status(spinand, &status);
 	if (ret)
 		return ret;
@@ -474,7 +502,10 @@ static int spinand_write_page(struct spinand_device *spinand,
 	if (ret)
 		return ret;
 
-	ret = spinand_wait(spinand, &status);
+	if (in_interrupt() || oops_in_progress)
+		ret = spinand_panic_wait(spinand, &status);
+	else
+		ret = spinand_wait(spinand, &status);
 	if (!ret && (status & STATUS_PROG_FAILED))
 		ret = -EIO;
 
@@ -563,6 +594,44 @@ static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 	}
 
 	mutex_unlock(&spinand->lock);
+
+	return ret;
+}
+
+static int spinand_mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
+				   size_t *retlen, const uint8_t *buf)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	struct mtd_oob_ops ops = {0};
+	struct nand_io_iter iter;
+	bool enable_ecc = false;
+	int ret = 0;
+
+	if (mtd->ooblayout)
+		enable_ecc = true;
+
+	ops.len = len;
+	ops.datbuf = (uint8_t *) buf;
+	ops.mode = MTD_OPS_PLACE_OOB;
+
+	nanddev_io_for_each_page(nand, to, &ops, &iter) {
+		ret = spinand_select_target(spinand, iter.req.pos.target);
+		if (ret)
+			break;
+
+		ret = spinand_ecc_enable(spinand, enable_ecc);
+		if (ret)
+			break;
+
+		ret = spinand_write_page(spinand, &iter.req);
+		if (ret)
+			break;
+
+		ops.retlen += iter.req.datalen;
+	}
+
+	*retlen = ops.retlen;
 
 	return ret;
 }
@@ -1079,6 +1148,7 @@ static int spinand_init(struct spinand_device *spinand)
 	 */
 	mtd->_read_oob = spinand_mtd_read;
 	mtd->_write_oob = spinand_mtd_write;
+	mtd->_panic_write = spinand_mtd_panic_write;
 	mtd->_block_isbad = spinand_mtd_block_isbad;
 	mtd->_block_markbad = spinand_mtd_block_markbad;
 	mtd->_block_isreserved = spinand_mtd_block_isreserved;

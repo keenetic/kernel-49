@@ -13,6 +13,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -36,6 +37,7 @@
 #define SPI_RX_DATA_REG                   0x0014
 #define SPI_CMD_REG                       0x0018
 #define SPI_STATUS0_REG                   0x001c
+#define SPI_STATUS1_REG                   0x0020
 #define SPI_PAD_SEL_REG                   0x0024
 #define SPI_CFG2_REG                      0x0028
 #define SPI_TX_SRC_REG_64                 0x002c
@@ -789,7 +791,7 @@ static void mtk_spi_mem_setup_dma_xfer(struct spi_master *master,
 }
 
 static int mtk_spi_transfer_wait(struct spi_mem *mem,
-				 const struct spi_mem_op *op)
+				 const struct spi_mem_op *op, bool wait_atomic)
 {
 	struct mtk_spi *mdata = spi_master_get_devdata(mem->spi->master);
 	/*
@@ -809,6 +811,19 @@ static int mtk_spi_transfer_wait(struct spi_mem *mem,
 	if (ms > UINT_MAX)
 		ms = UINT_MAX;
 
+	if (wait_atomic) {
+		u32 to;
+
+		/* poll status register */
+		for (to = 0; to < ms; to++) {
+			mdelay(1);
+			if (readl(mdata->base + SPI_STATUS1_REG) & BIT(0))
+				return 0;
+		}
+
+		return -ETIMEDOUT;
+	}
+
 	if (!wait_for_completion_timeout(&mdata->spimem_done,
 					 msecs_to_jiffies(ms))) {
 		dev_err(mdata->dev, "spi-mem transfer timeout\n");
@@ -825,6 +840,13 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 	u32 reg_val, nio, tx_size;
 	char *tx_tmp_buf, *rx_tmp_buf;
 	int ret = 0;
+	gfp_t gfp_mask = GFP_DMA;
+	bool is_atomic = (in_interrupt() || oops_in_progress);
+
+	if (is_atomic)
+		gfp_mask |= GFP_ATOMIC;
+	else
+		gfp_mask |= GFP_KERNEL;
 
 	mdata->use_spimem = true;
 	reinit_completion(&mdata->spimem_done);
@@ -888,7 +910,7 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 
 	tx_size = max_t(u32, tx_size, 32);
 
-	tx_tmp_buf = kzalloc(tx_size, GFP_KERNEL | GFP_DMA);
+	tx_tmp_buf = kzalloc(tx_size, gfp_mask);
 	if (!tx_tmp_buf) {
 		mdata->use_spimem = false;
 		return -ENOMEM;
@@ -923,8 +945,7 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 
 	if (op->data.dir == SPI_MEM_DATA_IN) {
 		if (!IS_ALIGNED((size_t)op->data.buf.in, 4)) {
-			rx_tmp_buf = kzalloc(op->data.nbytes,
-					     GFP_KERNEL | GFP_DMA);
+			rx_tmp_buf = kzalloc(op->data.nbytes, gfp_mask);
 			if (!rx_tmp_buf) {
 				ret = -ENOMEM;
 				goto unmap_tx_dma;
@@ -954,7 +975,7 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 	mtk_spi_enable_transfer(mem->spi->master);
 
 	/* Wait for the interrupt. */
-	ret = mtk_spi_transfer_wait(mem, op);
+	ret = mtk_spi_transfer_wait(mem, op, is_atomic);
 	if (ret)
 		goto unmap_rx_dma;
 

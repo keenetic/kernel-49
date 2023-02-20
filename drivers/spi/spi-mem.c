@@ -281,6 +281,9 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		return -ENOTSUPP;
 
 	if (ctlr->mem_ops) {
+		if (in_interrupt() || oops_in_progress)
+			return ctlr->mem_ops->exec_op(mem, op);
+
 		ret = spi_mem_access_start(mem);
 		if (ret)
 			return ret;

@@ -430,7 +430,7 @@ retry_fw:
 			 */
 			ret = request_firmware(&fw[i], fw_name[i], priv->dev);
 			if (ret) {
-				dev_err(priv->dev,
+				dev_dbg(priv->dev,
 					"Failed to request firmware %s (%d)\n",
 					fw_name[i], ret);
 				goto release_fw;
@@ -468,7 +468,7 @@ release_fw:
 		goto retry_fw;
 	}
 
-	dev_dbg(priv->dev, "Firmware load failed.\n");
+	dev_err(priv->dev, "Firmware load failed.\n");
 
 	return ret;
 }

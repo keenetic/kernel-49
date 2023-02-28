@@ -30,7 +30,8 @@ ndmmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_ndmmark_tginfo *info = par->targinfo;
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
-	FOE_ALG_MARK(skb);
+	if (info->mark & info->mask != XT_NDMMARK_FWD)
+		FOE_ALG_MARK(skb);
 #endif
 
 	skb->ndm_mark = (skb->ndm_mark & ~info->mask) ^ info->mark;

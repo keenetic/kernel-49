@@ -22,7 +22,6 @@
 #define HW_NAT_INVALID_ENTRY		(0x07)
 #define HW_NAT_DEBUG			(0x08)
 
-#define HW_NAT_GET_AC_CNT		(0x09)
 #define HW_NAT_MCAST_INS		(0x20)
 #define HW_NAT_MCAST_DEL		(0x21)
 #define HW_NAT_MCAST_DUMP		(0x22)
@@ -30,7 +29,6 @@
 
 #define HW_NAT_BIND_THRESHOLD		(0x16)
 #define HW_NAT_MAX_ENTRY_LMT		(0x17)
-#define HW_NAT_RULE_SIZE		(0x18)
 #define HW_NAT_KA_INTERVAL		(0x19)
 #define HW_NAT_UB_LIFETIME		(0x1A)
 #define HW_NAT_BIND_LIFETIME		(0x1B)
@@ -111,30 +109,20 @@ struct hwnat_args {
 /* hnat config */
 struct hwnat_config_args {
 	unsigned int bind_threshold:16;
-	unsigned int foe_full_lmt:14;
-	unsigned int foe_half_lmt:14;
-	unsigned int foe_qut_lmt:14;
-	unsigned int pre_acl:9;
-	unsigned int pre_meter:9;
-	unsigned int pre_ac:9;
-	unsigned int post_meter:9;
-	unsigned int post_ac:9;
-	unsigned int foe_tcp_ka:8;	/*unit 4 sec */
-	unsigned int foe_udp_ka:8;	/*unit 4 sec */
-	unsigned int foe_unb_dlta:8;	/*unit 1 sec */
-	unsigned int foe_tcp_dlta:16;	/*unit 1 sec */
-	unsigned int foe_udp_dlta:16;	/*unit 1 sec */
-	unsigned int foe_fin_dlta:16;	/*unit 1 sec */
+	unsigned int foe_full_lmt:16;
+	unsigned int foe_half_lmt:16;
+	unsigned int foe_qut_lmt:16;
+	unsigned int foe_tcp_ka:8;	/* unit 1 sec */
+	unsigned int foe_udp_ka:8;	/* unit 1 sec */
+	unsigned int foe_ntu_ka:8;	/* unit 1 sec */
+	unsigned int foe_unb_dlta:8;	/* unit 1 sec */
+	unsigned int foe_tcp_dlta:16;	/* unit 1 sec */
+	unsigned int foe_udp_dlta:16;	/* unit 1 sec */
+	unsigned int foe_fin_dlta:16;	/* unit 1 sec */
+	unsigned int foe_ntu_dlta:16;	/* unit 1 sec */
 	unsigned int wan_vid:16;
 	unsigned int lan_vid:16;
 	unsigned int bind_dir:2;	/* 0=upstream, 1=downstream, 2=bi-direction */
-	enum hwnat_status result;
-};
-
-struct hwnat_ac_args {
-	unsigned int ag_index;
-	unsigned int ag_pkt_cnt;
-	unsigned long long ag_byte_cnt;
 	enum hwnat_status result;
 };
 

@@ -4,8 +4,22 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+#if defined(CONFIG_MACH_MT7981) || \
+    defined(CONFIG_MACH_MT7986)
+#define MTK_NETSYS_V2
+#endif
+
 struct PdmaRxDescInfo4 {
 	uint16_t MAGIC_TAG;
+#ifdef MTK_NETSYS_V2
+	uint32_t FOE_Entry:15;
+	uint32_t Rsv0:3;
+	uint32_t CRSN:5;
+	uint32_t Rsv1:3;
+	uint32_t SPORT:4;
+	uint32_t Rsv2:1;
+	uint32_t ALG:1;
+#else
 #ifdef __BIG_ENDIAN
 	uint32_t IF:8;
 	uint32_t ALG:1;
@@ -19,11 +33,18 @@ struct PdmaRxDescInfo4 {
 	uint32_t ALG:1;
 	uint32_t IF:8;
 #endif
+#endif
 }  __packed;
 
 /*
  * DEFINITIONS AND MACROS
  */
+
+#ifdef MTK_NETSYS_V2
+#define FOE_INV_ENTRY		0x7fff
+#else
+#define FOE_INV_ENTRY		0x3fff
+#endif
 
 /*
  *    2bytes         4bytes
@@ -39,10 +60,16 @@ struct PdmaRxDescInfo4 {
 #define FOE_MAGIC_WLAN			FOE_MAGIC_EXTIF
 #define FOE_MAGIC_GE			0x7275
 #define FOE_MAGIC_PPE			0x7276
-#ifdef __BIG_ENDIAN
-#define FOE_MAGIC_PPE_DWORD		0x7672ff3fUL	/* HNAT_V2: FOE_Entry=0x3fff */
+#define FOE_MAGIC_WED			0x7278
+
+#ifdef MTK_NETSYS_V2
+#define FOE_MAGIC_PPE_DWORD		0x7fff7276UL	/* FOE_Entry=0x7fff */
 #else
-#define FOE_MAGIC_PPE_DWORD		0x3fff7276UL	/* HNAT_V2: FOE_Entry=0x3fff */
+#ifdef __BIG_ENDIAN
+#define FOE_MAGIC_PPE_DWORD		0x7672ff3fUL	/* FOE_Entry=0x3fff */
+#else
+#define FOE_MAGIC_PPE_DWORD		0x3fff7276UL	/* FOE_Entry=0x3fff */
+#endif
 #endif
 
 /* choose one of them to keep HNAT related information in somewhere. */
@@ -72,13 +99,14 @@ struct PdmaRxDescInfo4 {
 #define FOE_MAGIC_TAG(skb)	((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->MAGIC_TAG
 #define FOE_ENTRY_NUM(skb)	((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->FOE_Entry
 #define FOE_ALG(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->ALG
-#define FOE_ENTRY_VALID(skb)   (((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->FOE_Entry != 0x3fff)
+#define FOE_ENTRY_VALID(skb)   (((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->FOE_Entry != FOE_INV_ENTRY)
 #define FOE_AI(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->CRSN
 #define FOE_SP(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->SPORT
 
 #ifndef UN_HIT
 #define UN_HIT 0x0D
 #endif
+
 #ifndef HIT_BIND_KEEPALIVE_DUP_OLD_HDR
 #define HIT_BIND_KEEPALIVE_DUP_OLD_HDR 0x15
 #endif
@@ -86,8 +114,14 @@ struct PdmaRxDescInfo4 {
 /* PPE internal CRSN values 0x01..0x1E */
 #define CRSN_PPE_INVALID 0x1F
 
+#if defined(MTK_NETSYS_V2) && IS_ENABLED(CONFIG_MTK_WARP)
+#define IS_MAGIC_TAG_VALID(skb) \
+	((FOE_MAGIC_TAG(skb) == FOE_MAGIC_GE) || \
+	 (FOE_MAGIC_TAG(skb) == FOE_MAGIC_WED))
+#else
 #define IS_MAGIC_TAG_VALID(skb) \
 	((FOE_MAGIC_TAG(skb) == FOE_MAGIC_GE))
+#endif
 
 #define IS_DPORT_PPE_VALID(skb) \
 	(*((uint32_t *)(FOE_INFO_START_ADDR(skb))) == FOE_MAGIC_PPE_DWORD)
@@ -194,16 +228,16 @@ struct gmac_info {
 struct gmac_info {
 	union {
 		struct {
-			/* assume LE for all mt762x */
+			/* assume LE for all mt76xx/mt79xx */
 			uint32_t gmac_id:	2;	/* 0: external (WiFi), 1: GDM1, 2: GDM2, 3: WDMA */
-			uint32_t queue_id:	6;	/* QDMA QoS queue (0..63) */
+			uint32_t queue_id:	7;	/* QDMA QoS queue (0..127) */
 			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
 			uint32_t is_wan:	1;	/* assume upstream path */
 			uint32_t wdmaid:	1;	/* WDMA0/1 */
 			uint32_t wi_bssid:	6;	/* BSSID */
-			uint32_t wi_wcid:	8;	/* WCID */
+			uint32_t wi_wcid:	10;	/* WCID */
 			uint32_t wi_rxid:	2;	/* WDMA RX ring */
-			uint32_t resv:		5;
+			uint32_t resv:		2;
 		} bits;
 		uint32_t word;
 	};

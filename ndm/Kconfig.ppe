@@ -12,6 +12,11 @@ config  HNAT_ENHANCED
 	bool
 	default y
 
+config  RA_HW_NAT_DUAL_PPE
+	bool "Dual PPE0 plus PPE1 offload"
+	depends on (MACH_MT7981 || MACH_MT7986)
+	default n
+
 config  RA_HW_NAT_BINDING_THRESHOLD
 	int "Binding Threshold (Unit:Packet Per Second)"
 	default 30
@@ -35,6 +40,9 @@ choice
 		bool "8K"
 	config  RA_HW_NAT_TBL_16K
 		bool "16K"
+	config  RA_HW_NAT_TBL_32K
+		bool "32K"
+		depends on (MACH_MT7981 || MACH_MT7986)
 endchoice
 
 choice
@@ -47,13 +55,11 @@ choice
 		bool "Hash1-Complex"
 	config  RA_HW_NAT_HASH2
 		bool "Hash2-Complex"
-	depends on HNAT_V2
 	config  RA_HW_NAT_HASH3
 		bool "Hash3-Complex"
-	depends on HNAT_V2
 	config  RA_HW_NAT_HASH_DBG
 		bool "Hash-Debug"
-	depends on (MACH_MT7623 || MACH_MT7622)
+		depends on (MACH_MT7622 || MACH_MT7623 || MACH_MT7629 || MACH_MT7981 || MACH_MT7986)
 endchoice
 
 choice
@@ -70,120 +76,21 @@ choice
 endchoice
 
 config  RA_HW_NAT_TCP_KA
-	int "TCP KeepAlive Interval(Unit:1Sec)"
-	depends on RA_HW_NAT_TBL_1K
-	default 5
-	help
-	  HW will duplicate one TCP packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_UDP_KA
-	int "UDP KeepAlive Interval(Unit:1Sec)"
-	depends on RA_HW_NAT_TBL_1K
-	default 5
-	help
-	  HW will duplicate one UDP packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_NTU_KA
-	int "Non-TCP/UDP KeepAlive Interval(Unit:1Sec)"
-	depends on RA_HW_NAT_TBL_1K && HNAT_V2
-	default 5
-	help
-	  HW will duplicate one packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_TCP_KA
-	int "TCP KeepAlive Interval(Unit:2Sec)"
-	depends on RA_HW_NAT_TBL_2K
-	default 3
-	help
-	  HW will duplicate one TCP packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_UDP_KA
-	int "UDP KeepAlive Interval(Unit:2Sec)"
-	depends on RA_HW_NAT_TBL_2K
-	default 3
-	help
-	  HW will duplicate one UDP packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_NTU_KA
-	int "Non-TCP/UDP KeepAlive Interval(Unit:2Sec)"
-	depends on RA_HW_NAT_TBL_2K && HNAT_V2
-	default 3
-	help
-	  HW will duplicate one packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_TCP_KA
-	int "TCP KeepAlive Interval(Unit:4Sec)"
-	depends on RA_HW_NAT_TBL_4K
+	int "TCP KeepAlive Interval (Unit: Sec * TblSize)"
 	default 1
 	help
 	  HW will duplicate one TCP packet from tcp bind flow to CPU
 	  in order to refresh Linux conntrack table.
 
 config  RA_HW_NAT_UDP_KA
-	int "UDP KeepAlive Interval(Unit:4Sec)"
-	depends on RA_HW_NAT_TBL_4K
+	int "UDP KeepAlive Interval (Unit: Sec * TblSize)"
 	default 1
 	help
 	  HW will duplicate one UDP packet from tcp bind flow to CPU
 	  in order to refresh Linux conntrack table.
 
 config  RA_HW_NAT_NTU_KA
-	int "Non-TCP/UDP KeepAlive Interval(Unit:4Sec)"
-	depends on RA_HW_NAT_TBL_4K && HNAT_V2
-	default 1
-	help
-	  HW will duplicate one packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_TCP_KA
-	int "TCP KeepAlive Interval(Unit:8Sec)"
-	depends on RA_HW_NAT_TBL_8K
-	default 1
-	help
-	  HW will duplicate one TCP packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_UDP_KA
-	int "UDP KeepAlive Interval(Unit:8Sec)"
-	depends on RA_HW_NAT_TBL_8K
-	default 1
-	help
-	  HW will duplicate one UDP packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_NTU_KA
-	int "Non-TCP/UDP KeepAlive Interval(Unit:8Sec)"
-	depends on RA_HW_NAT_TBL_8K && HNAT_V2
-	default 1
-	help
-	  HW will duplicate one packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_TCP_KA
-	int "TCP KeepAlive Interval(Unit:16Sec)"
-	depends on RA_HW_NAT_TBL_16K
-	default 1
-	help
-	  HW will duplicate one TCP packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_UDP_KA
-	int "UDP KeepAlive Interval(Unit:16Sec)"
-	depends on RA_HW_NAT_TBL_16K
-	default 1
-	help
-	  HW will duplicate one UDP packet from tcp bind flow to CPU
-	  in order to refresh Linux conntrack table.
-
-config  RA_HW_NAT_NTU_KA
-	int "Non-TCP/UDP KeepAlive Interval(Unit:16Sec)"
-	depends on RA_HW_NAT_TBL_16K && HNAT_V2
+	int "Non-TCP/UDP KeepAlive Interval (Unit: Sec * TblSize)"
 	default 1
 	help
 	  HW will duplicate one packet from tcp bind flow to CPU
@@ -223,14 +130,13 @@ config  RA_HW_NAT_FIN_DLTA
 
 config  RA_HW_NAT_NTU_DLTA
 	int "Life time of Non-TCP/UDP entry (Unit:1Sec)"
-	depends on HNAT_V2
 	default 5
 	help
 	  Set ageout time for Non-TCP/UDP entry
 
 config  RA_HW_NAT_PREBIND
 	bool "Pre-bind support"
-	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7623 || MACH_MT7622)
+	default n
 
 config  RA_HW_NAT_PBND_RD_PRD
 	int "Check interval in pause state (us) Max:65535"
@@ -244,7 +150,7 @@ config  RA_HW_NAT_PBND_RD_LMT
 
 config  RA_HW_NAT_PACKET_SAMPLING
 	bool "Packet Sampling to CPU"
-	depends on (MACH_MT7623 || MACH_MT7622)
+	depends on (MACH_MT7622 || MACH_MT7623 || MACH_MT7629 || MACH_MT7981 || MACH_MT7986)
 
 config  RA_HW_NAT_L2B
 	bool "L2 Bridge Acceleration"
@@ -255,7 +161,7 @@ config  RA_HW_NAT_L2B
 
 config  RA_HW_NAT_IPV6
 	bool "IPv6 Acceleration"
-	depends on HNAT_V2 && IPV6
+	depends on IPV6
 	default n
 	help
 	  IPv6 routing accelerated by HNAT
@@ -276,14 +182,12 @@ config  RA_HW_NAT_VDSL
 
 config  RA_HW_NAT_QDMA
 	bool "Flow out to QDMA (HW QoS)"
-	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7623 || MACH_MT7622)
-	default n
+	default y
 	help
 	  HW QoS concurrent with HNAT
 
 config  RA_HW_NAT_MCAST
 	bool "Multicast Acceleration"
-	depends on HNAT_V2
 	default n
 	help
 	  Multicast flow accelerated by HNAT
@@ -294,7 +198,7 @@ config  RA_HW_NAT_WIFI
 
 config  RA_HW_NAT_WHNAT
 	bool "WiFi Warp Acceleration"
-	depends on RA_HW_NAT_WIFI && (MACH_MT7622 || ECONET_EN7528)
+	depends on RA_HW_NAT_WIFI && (ECONET_EN7528 || MACH_MT7622 || MACH_MT7981 || MACH_MT7986)
 
 config  RA_HW_NAT_NIC_USB
 	bool "USBNET Acceleration"

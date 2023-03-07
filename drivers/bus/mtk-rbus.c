@@ -2,6 +2,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/mtk-rbus.h>
 
 int rbus_driver_register(struct platform_driver *drv, struct module *owner)
@@ -86,3 +87,18 @@ int rbus_pinctrl_get_select(struct device *dev, const char *name)
 	return 0;
 }
 EXPORT_SYMBOL(rbus_pinctrl_get_select);
+
+void *rbus_nvmem_read(struct device_node *np, const char *name, size_t *len)
+{
+	struct nvmem_cell *cell = of_nvmem_cell_get(np, name);
+	void *buf;
+
+	if (IS_ERR(cell))
+		return NULL;
+
+	buf = nvmem_cell_read(cell, len);
+	nvmem_cell_put(cell);
+
+	return buf;
+}
+EXPORT_SYMBOL(rbus_nvmem_read);

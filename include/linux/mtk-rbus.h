@@ -23,4 +23,6 @@ void rbus_set_dma_coherent(struct device *dev, bool coherent);
 
 int rbus_pinctrl_get_select(struct device *dev, const char *name);
 
+void *rbus_nvmem_read(struct device_node *np, const char *name, size_t *len);
+
 #endif /* _MTK_RBUS_H_ */

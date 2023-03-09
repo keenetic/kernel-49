@@ -120,9 +120,7 @@ struct nf_conn {
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
-	u_int8_t ndm_mark;
-	/* 8 or 24 bit hole */
-
+	u_int32_t ndm_mark;
 	u_int32_t mark;
 #endif
 

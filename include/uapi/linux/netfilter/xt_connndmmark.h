@@ -14,6 +14,7 @@ enum xt_connndmmark_list {
 	XT_CONNNDMMARK_IPSEC_IN      = 0x01,
 	XT_CONNNDMMARK_IPSEC_OUT     = 0x02,
 	XT_CONNNDMMARK_IPSEC_MASK    = 0x03,
+	XT_CONNNDMMARK_KEEP_CT       = 0x100,
 };
 
 enum {
@@ -22,13 +23,19 @@ enum {
 };
 
 struct xt_connndmmark_tginfo {
-	__u8 ctmark, ctmask, nfmask;
-	__u8 mode;
+	__u32 ctmark, ctmask, nfmask;
+	__u32 mode;
 };
 
 struct xt_connndmmark_mtinfo {
-	__u8 mark, mask;
-	__u8 invert;
+	__u32 mark, mask;
+	__u32 invert;
 };
+
+static inline bool xt_connndmmark_is_keep_ct(struct nf_conn *ct)
+{
+	return (ct->ndm_mark & XT_CONNNDMMARK_KEEP_CT) ==
+		XT_CONNNDMMARK_KEEP_CT;
+}
 
 #endif /*_XT_CONNNDMMARK_H*/

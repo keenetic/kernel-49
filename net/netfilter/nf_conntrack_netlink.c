@@ -329,7 +329,7 @@ nla_put_failure:
 
 static int ctnetlink_dump_ndmmark(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	if (nla_put_u8(skb, CTA_NDMMARK, ct->ndm_mark))
+	if (nla_put_be32(skb, CTA_NDMMARK, ct->ndm_mark))
 		goto nla_put_failure;
 
 	return 0;
@@ -1826,7 +1826,7 @@ ctnetlink_change_conntrack(struct nf_conn *ct,
 		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
 
 	if (cda[CTA_NDMMARK])
-		ct->ndm_mark = nla_get_u8(cda[CTA_NDMMARK]);
+		ct->ndm_mark = nla_get_be32(cda[CTA_NDMMARK]);
 #endif
 
 	if (cda[CTA_SEQ_ADJ_ORIG] || cda[CTA_SEQ_ADJ_REPLY]) {
@@ -1957,7 +1957,7 @@ ctnetlink_create_conntrack(struct net *net,
 		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
 
 	if (cda[CTA_NDMMARK])
-		ct->ndm_mark = nla_get_u8(cda[CTA_NDMMARK]);
+		ct->ndm_mark = nla_get_be32(cda[CTA_NDMMARK]);
 #endif
 
 	/* setup master conntrack: this is a confirmed expectation */
@@ -2442,9 +2442,9 @@ ctnetlink_glue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 			ct->mark = newmark;
 	}
 	if (cda[CTA_NDMMARK]) {
-		u8 mark, newmark;
+		u32 mark, newmark;
 
-		mark = nla_get_u8(cda[CTA_NDMMARK]);
+		mark = nla_get_be32(cda[CTA_NDMMARK]);
 		newmark = ct->ndm_mark ^ mark;
 		if (newmark != ct->ndm_mark)
 			ct->ndm_mark = newmark;

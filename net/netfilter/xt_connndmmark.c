@@ -37,7 +37,7 @@ connndmmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_connndmmark_tginfo *info = par->targinfo;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
-	u_int8_t newmark;
+	u_int32_t newmark;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (ct == NULL || nf_ct_is_untracked(ct))
@@ -111,7 +111,7 @@ static void connndmmark_mt_destroy(const struct xt_mtdtor_param *par)
 
 static struct xt_target connndmmark_tg_reg __read_mostly = {
 	.name           = "CONNNDMMARK",
-	.revision       = 0,
+	.revision       = 1,
 	.family         = NFPROTO_UNSPEC,
 	.checkentry     = connndmmark_tg_check,
 	.target         = connndmmark_tg,
@@ -122,7 +122,7 @@ static struct xt_target connndmmark_tg_reg __read_mostly = {
 
 static struct xt_match connndmmark_mt_reg __read_mostly = {
 	.name           = "connndmmark",
-	.revision       = 0,
+	.revision       = 1,
 	.family         = NFPROTO_UNSPEC,
 	.checkentry     = connndmmark_mt_check,
 	.match          = connndmmark_mt,

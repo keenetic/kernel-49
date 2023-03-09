@@ -78,6 +78,10 @@
 #include <linux/capability.h>
 #include <linux/user_namespace.h>
 
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+#include <linux/netfilter/xt_ndmmark.h>
+#endif
+
 struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
 int sysctl_max_skb_frags __read_mostly = MAX_SKB_FRAGS;
@@ -4425,8 +4429,17 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 	skb->ignore_df = 0;
 	skb_dst_drop(skb);
 	secpath_reset(skb);
-	nf_reset(skb);
-	nf_reset_trace(skb);
+
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	if (!xt_ndmmark_is_keep_ct(skb)) {
+#endif
+		nf_reset(skb);
+		nf_reset_trace(skb);
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	} else {
+		xt_ndmmark_rst_keep_ct(skb);
+	}
+#endif
 
 #ifdef CONFIG_NET_SWITCHDEV
 	skb->offload_fwd_mark = 0;

@@ -967,7 +967,7 @@ set_rcvbuf:
 		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 			ret = -EPERM;
 		else
-			sk->sk_ndm_mark = val & 0xFF;
+			sk->sk_ndm_mark = val;
 		break;
 
 	case SO_RXQ_OVFL:

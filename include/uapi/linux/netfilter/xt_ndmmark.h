@@ -17,6 +17,7 @@ enum xt_ndmmark_list {
 	XT_NDMMARK_L2TP_IPSEC_VPN   = 0x10, // with mask
 	XT_NDMMARK_CHILLI           = 0x08, // with mask
 	XT_NDMMARK_FWD              = 0x04, // with mask
+	XT_NDMMARK_KEEP_CT          = 0x100, // with mask
 	XT_NDMMARK_ALL              = 0xff  // all-wide mask
 };
 
@@ -30,15 +31,19 @@ enum xt_ndmmark_kernel_list {
 };
 
 struct xt_ndmmark_tginfo {
-	__u8 mark, mask;
+	__u32 mark, mask;
 };
 
 struct xt_ndmmark_mtinfo {
-	__u8 mark, mask;
-	__u8 invert;
+	__u32 mark, mask;
+	__u32 invert;
 };
 
 #ifdef CONFIG_NETFILTER_XT_NDMMARK
+static inline bool xt_ndmmark_is_dnat(struct sk_buff *skb)
+{
+	return (skb->ndm_mark & XT_NDMMARK_DNAT) == XT_NDMMARK_DNAT;
+}
 static inline bool xt_ndmmark_is_fwd(struct sk_buff *skb)
 {
 	return (skb->ndm_mark & XT_NDMMARK_FWD) == XT_NDMMARK_FWD;
@@ -51,7 +56,23 @@ static inline bool xt_ndmmark_is_ipsec(struct sk_buff *skb)
 {
 	return (skb->ndm_mark & XT_NDMMARK_IPSEC_MASK);
 }
+static inline void xt_ndmmark_set_keep_ct(struct sk_buff *skb)
+{
+	skb->ndm_mark |= XT_NDMMARK_KEEP_CT;
+}
+static inline bool xt_ndmmark_is_keep_ct(struct sk_buff *skb)
+{
+	return (skb->ndm_mark & XT_NDMMARK_KEEP_CT) == XT_NDMMARK_KEEP_CT;
+}
+static inline void xt_ndmmark_rst_keep_ct(struct sk_buff *skb)
+{
+	skb->ndm_mark &= ~XT_NDMMARK_KEEP_CT;
+}
 #else
+static inline bool xt_ndmmark_is_dnat(struct sk_buff *skb)
+{
+	return false;
+}
 static inline bool xt_ndmmark_is_fwd(struct sk_buff *skb)
 {
 	return false;

@@ -28,12 +28,12 @@ static inline u8 nf_nsc_sc_to_pcp(const u8 sc)
 int nf_nsc_update_dscp(struct nf_conn *ct, struct sk_buff *skb);
 void nf_nsc_update_sc_ct(struct nf_conn *ct, const u8 sc);
 
-static inline u8 nf_nsc_ctmark_to_sc(const u8 mark)
+static inline u8 nf_nsc_ctmark_to_sc(const u32 mark)
 {
 	return (mark & XT_CONNNDMMARK_CS_MASK) >> XT_CONNNDMMARK_CS_SHIFT;
 }
 
-static inline u8 nf_nsc_ctmark_to_dscp(const u8 mark)
+static inline u8 nf_nsc_ctmark_to_dscp(const u32 mark)
 {
 	return ndm_sc_to_dscp(nf_nsc_ctmark_to_sc(mark));
 }

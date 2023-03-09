@@ -30,7 +30,7 @@ ndmmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_ndmmark_tginfo *info = par->targinfo;
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
-	if (info->mark & info->mask != XT_NDMMARK_FWD)
+	if ((info->mark & info->mask) != XT_NDMMARK_FWD)
 		FOE_ALG_MARK(skb);
 #endif
 
@@ -49,7 +49,7 @@ ndmmark_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 static struct xt_target ndmmark_tg_reg __read_mostly = {
 	.name           = "NDMMARK",
-	.revision       = 0,
+	.revision       = 1,
 	.family         = NFPROTO_UNSPEC,
 	.target         = ndmmark_tg,
 	.targetsize     = sizeof(struct xt_ndmmark_tginfo),
@@ -58,7 +58,7 @@ static struct xt_target ndmmark_tg_reg __read_mostly = {
 
 static struct xt_match ndmmark_mt_reg __read_mostly = {
 	.name           = "ndmmark",
-	.revision       = 0,
+	.revision       = 1,
 	.family         = NFPROTO_UNSPEC,
 	.match          = ndmmark_mt,
 	.matchsize      = sizeof(struct xt_ndmmark_mtinfo),

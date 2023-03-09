@@ -1906,6 +1906,10 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		if (ct->mark != 0)
 			skb->mark = ct->mark;
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+		if (xt_connndmmark_is_keep_ct(ct))
+			xt_ndmmark_set_keep_ct(skb);
+#endif
 #endif
 
 		if (unlikely(nf_nsc_update_dscp(ct, skb))) {

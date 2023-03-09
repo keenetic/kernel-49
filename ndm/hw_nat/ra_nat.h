@@ -11,30 +11,35 @@
 
 struct PdmaRxDescInfo4 {
 	uint16_t MAGIC_TAG;
+	union {
+		struct {
 #ifdef MTK_NETSYS_V2
-	uint32_t FOE_Entry:15;
-	uint32_t Rsv0:3;
-	uint32_t CRSN:5;
-	uint32_t Rsv1:3;
-	uint32_t SPORT:4;
-	uint32_t Rsv2:1;
-	uint32_t ALG:1;
+			uint32_t FOE_Entry:15;
+			uint32_t Rsv0:3;
+			uint32_t CRSN:5;
+			uint32_t Rsv1:3;
+			uint32_t SPORT:4;
+			uint32_t Rsv3:1;
+			uint32_t ALG:1;
 #else
 #ifdef __BIG_ENDIAN
-	uint32_t IF:8;
-	uint32_t ALG:1;
-	uint32_t SPORT:4;
-	uint32_t CRSN:5;
-	uint32_t FOE_Entry:14;
+			uint32_t IF:8;
+			uint32_t ALG:1;
+			uint32_t SPORT:4;
+			uint32_t CRSN:5;
+			uint32_t FOE_Entry:14;
 #else
-	uint32_t FOE_Entry:14;
-	uint32_t CRSN:5;
-	uint32_t SPORT:4;
-	uint32_t ALG:1;
-	uint32_t IF:8;
+			uint32_t FOE_Entry:14;
+			uint32_t CRSN:5;
+			uint32_t SPORT:4;
+			uint32_t ALG:1;
+			uint32_t IF:8;
 #endif
 #endif
-}  __packed;
+		};
+		uint32_t desc;
+	};
+} __packed;
 
 /*
  * DEFINITIONS AND MACROS
@@ -150,6 +155,10 @@ struct PdmaRxDescInfo4 {
 /* full clear FoE Info */
 #define DO_FULL_CLEAR_FOE(skb) \
 	(memset(FOE_INFO_START_ADDR(skb), 0, FOE_INFO_LEN))
+
+/* fast fill FoE magic tag field */
+#define DO_FILL_FOE_MTAG(skb,mtag) \
+	(*((uint16_t *)(FOE_INFO_START_ADDR(skb))) = (uint16_t)(mtag))
 
 /* fast fill FoE desc field */
 #define DO_FILL_FOE_DESC(skb,desc) \

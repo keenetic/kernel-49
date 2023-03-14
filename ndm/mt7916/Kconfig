@@ -16,6 +16,10 @@ config MT7916_DEFAULT_5G_PROFILE
 	depends on MT7916_DBDC_MODE
 	default y
 
+config MT7916_6G_SUPPORT
+	bool "6GHz support"
+	default n
+
 config MT7916_LED_CONTROL_SUPPORT
 	bool "LED support"
 	default y

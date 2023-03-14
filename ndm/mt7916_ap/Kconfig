@@ -66,6 +66,10 @@ config MT7916_OCE_SUPPORT
 	depends on MT7916_MBO_SUPPORT
 	default n
 
+config MT7916_WTBL_TDD_SUPPORT
+	bool "Software WTBL TDD swap support"
+	default n
+
 config MT7916_MAP_SUPPORT
 	bool "Multi-AP Support"
 	default y
@@ -90,6 +94,10 @@ config MT7916_OWE_SUPPORT
 	bool "Enhanced OPEN (OWE) auth support"
 	depends on MT7916_WPA3_SUPPORT
 	default y
+
+config MT7916_QOS_R1_SUPPORT
+	bool "MTK QoS R1 support"
+	default n
 
 config MT7916_DSCP_PRI_SUPPORT
 	bool "DSCP Priority Mapping support"

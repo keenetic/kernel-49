@@ -72,6 +72,28 @@ choice
 endchoice
 
 choice
+	prompt "A-die type for Panther"
+	depends on FIRST_IF_MT7986
+
+	config FIRST_IF_ADIE_MT7975
+	bool "MT7975"
+
+	config FIRST_IF_ADIE_MT7976
+	bool "MT7976"
+endchoice
+
+choice
+	prompt "SKU type for Panther"
+	depends on FIRST_IF_MT7986
+
+	config FIRST_IF_SKU_AX4200
+	bool "AX4200"
+
+	config FIRST_IF_SKU_AX6000
+	bool "AX6000"
+endchoice
+
+choice
 	prompt "EEPROM type of 1st card"
 	depends on ! FIRST_IF_NONE
 

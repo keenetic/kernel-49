@@ -60,9 +60,13 @@ enum ctattr_type {
 };
 #define CTA_MAX (__CTA_MAX - 1)
 
+#define CTA_NDM_IFACE_FLAG_FROM_WAN	0x1
+
 enum ctattr_ndm_ifaces {
-	CTA_NDM_IFACE1,
-	CTA_NDM_IFACE2,
+	CTA_NDM_IFACE_WAN,
+	CTA_NDM_IFACE_LAN,
+	CTA_NDM_IFACE_LAN_MAC,
+	CTA_NDM_IFACE_FLAGS,
 	__CTA_NDM_IFACES_MAX
 };
 #define CTA_NDM_IFACES_MAX (__CTA_NDM_IFACES_MAX - 1)
@@ -73,6 +77,7 @@ enum ctattr_ntce {
 	CTA_NTCE_ATTRIBUTES,
 	CTA_NTCE_OS,
 	CTA_NTCE_FLAGS,
+	CTA_NTCE_SC,
 	__CTA_NTCE_MAX
 };
 #define CTA_NTCE_MAX (__CTA_NTCE_MAX - 1)

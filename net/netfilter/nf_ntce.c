@@ -584,7 +584,8 @@ int nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct)
 	    nla_put_u32(skb, CTA_NTCE_GROUP, lbl->group) ||
 	    nla_put_u32(skb, CTA_NTCE_ATTRIBUTES, lbl->attrs.attributes) ||
 	    nla_put_u8(skb, CTA_NTCE_OS, lbl->os) ||
-	    nla_put_u8(skb, CTA_NTCE_FLAGS, lbl->flags))
+	    nla_put_u8(skb, CTA_NTCE_FLAGS, lbl->flags) ||
+	    nla_put_u8(skb, CTA_NTCE_SC, nf_nsc_ctmark_to_sc(ct->ndm_mark)))
 		return -1;
 
 	nla_nest_end(skb, nest_lbl);

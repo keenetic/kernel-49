@@ -349,6 +349,7 @@ static int ctnetlink_dump_ndm_ifaces(struct sk_buff *skb,
 	struct nlattr *nest_lbl;
 	int ret = 0;
 	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
+	__be32 flags = 0;
 
 	if (lbl == NULL)
 		return ret;
@@ -358,9 +359,20 @@ static int ctnetlink_dump_ndm_ifaces(struct sk_buff *skb,
 	if (nest_lbl == NULL)
 		goto nla_put_failure;
 
-	if (nla_put_s32(skb, CTA_NDM_IFACE1, lbl->wan_iface) ||
-	    nla_put_s32(skb, CTA_NDM_IFACE2, lbl->lan_iface))
+	if (nla_put_s32(skb, CTA_NDM_IFACE_WAN, lbl->wan_iface) ||
+	    nla_put_s32(skb, CTA_NDM_IFACE_LAN, lbl->lan_iface))
 		goto nla_put_failure;
+
+	if (nf_ct_ext_ntc_mac_isset(lbl)) {
+		if (nla_put(skb, CTA_NDM_IFACE_LAN_MAC, ETH_ALEN, lbl->mac))
+			goto nla_put_failure;
+	}
+
+	flags |= nf_ct_ext_ntc_from_lan(lbl) ? CTA_NDM_IFACE_FLAG_FROM_WAN : 0;
+
+	if (nla_put_be32(skb, CTA_NDM_IFACE_FLAGS, htonl(flags)))
+		goto nla_put_failure;
+
 	nla_nest_end(skb, nest_lbl);
 
 	ret = 0;

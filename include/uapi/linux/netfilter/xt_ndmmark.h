@@ -27,7 +27,9 @@ enum xt_ndmmark_kernel_list {
 	XT_NDMMARK_KERNEL_CS_SHIFT  = 0x02,
 	XT_NDMMARK_KERNEL_WAN       = 0x20,
 	XT_NDMMARK_KERNEL_USBMAC    = 0x40,
-	XT_NDMMARK_KERNEL_SET_CE    = 0x80
+	XT_NDMMARK_KERNEL_SET_CE    = 0x80,
+	XT_NDMMARK_KERNEL_HAS_IF    = 0x100,
+	XT_NDMMARK_KERNEL_HAS_MAC   = 0x200,
 };
 
 struct xt_ndmmark_tginfo {
@@ -127,6 +129,28 @@ static inline bool xt_ndmmark_is_set_ce(struct sk_buff *skb)
 {
 	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_SET_CE) ==
 		XT_NDMMARK_KERNEL_SET_CE;
+}
+
+static inline void xt_ndmmark_kernel_set_has_if(struct sk_buff *skb)
+{
+	skb->ndm_mark_kernel |= XT_NDMMARK_KERNEL_HAS_IF;
+}
+
+static inline bool xt_ndmmark_has_if(struct sk_buff *skb)
+{
+	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_HAS_IF) ==
+		XT_NDMMARK_KERNEL_HAS_IF;
+}
+
+static inline void xt_ndmmark_kernel_set_has_mac(struct sk_buff *skb)
+{
+	skb->ndm_mark_kernel |= XT_NDMMARK_KERNEL_HAS_MAC;
+}
+
+static inline bool xt_ndmmark_has_mac(struct sk_buff *skb)
+{
+	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_HAS_MAC) ==
+		XT_NDMMARK_KERNEL_HAS_MAC;
 }
 
 #endif /* _XT_NDMMARK_H */

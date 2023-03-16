@@ -446,6 +446,27 @@ static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
 }
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+#include <linux/netfilter/xt_ndmmark.h>
+
+void nf_ct_ext_ntc_update_if(struct sk_buff *skb);
+
+static inline void nf_ct_ext_ntc_check_if(struct sk_buff *skb)
+{
+	if (likely(!xt_ndmmark_is_fwd(skb) ||
+		    xt_ndmmark_has_if(skb) ||
+		    xt_ndmmark_has_mac(skb)))
+	{
+		return;
+	}
+
+	rcu_read_lock_bh();
+	nf_ct_ext_ntc_update_if(skb);
+	rcu_read_unlock_bh();
+}
+
+#endif
+
 static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb)
 {
 	unsigned int hh_alen = 0;
@@ -483,6 +504,11 @@ static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb
 	}
 
 	__skb_push(skb, hh_len);
+
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+	nf_ct_ext_ntc_check_if(skb);
+#endif
+
 	return dev_queue_xmit(skb);
 }
 

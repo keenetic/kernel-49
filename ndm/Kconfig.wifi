@@ -306,6 +306,10 @@ config CHIP_MT7986
 	bool
 	select RTMP_RBUS_SUPPORT
 
+config MTK_CONNINFRA
+	tristate "Mediatek MT7981/MT7986 on-SoC radio infrastructure connectivity"
+	depends on (CHIP_MT7981 || CHIP_MT7986)
+
 if RALINK_MT7628
 menu "MediaTek MT7628/MT7688 RBUS Wireless driver"
 source "ndm/mt7628_ap/Kconfig"

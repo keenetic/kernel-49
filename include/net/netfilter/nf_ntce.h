@@ -387,7 +387,7 @@ static inline void nf_ntce_enqueue_out(struct sk_buff *skb)
 {
 }
 
-static inline int nf_ntce_enqueue_in(int h,
+static inline int nf_ntce_enqueue_in(int h, int hooknum,
 				     struct nf_conn *ct, struct sk_buff *skb)
 {
 	return 0;

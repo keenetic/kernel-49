@@ -1641,7 +1641,9 @@ nf_conntrack_update_mac(struct sk_buff *skb,
 	if (!from_output && skb_mac_header(skb) + ETH_HLEN > skb->data)
 		return false;
 
-	memcpy(&lbl->mac, eth_hdr(skb)->h_source, sizeof(lbl->mac));
+	memcpy(&lbl->mac,
+	       from_output ? eth_hdr(skb)->h_dest : eth_hdr(skb)->h_source,
+	       sizeof(lbl->mac));
 	lbl->flags |= NF_CT_EXT_NTC_MAC_SET;
 	xt_ndmmark_kernel_set_has_mac(skb);
 

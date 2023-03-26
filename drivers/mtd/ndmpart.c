@@ -1395,7 +1395,9 @@ static int u_state_commit(void)
 
 static bool di_is_enabled(void)
 {
-#if defined(CONFIG_OF_FLATTREE)
+#if IS_ENABLED(CONFIG_VIRTIO) && IS_ENABLED(CONFIG_MTD_BLOCK2MTD)
+	return true;
+#elif defined(CONFIG_OF_FLATTREE)
 	const unsigned char *val;
 	void *fdt = initial_boot_params;
 	const int off = fdt_path_offset(fdt, "/chosen");

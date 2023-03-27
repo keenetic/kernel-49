@@ -69,13 +69,25 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
+#define CTNL_PARSE_F_COUNTERS_			(1 << 0)
+#define CTNL_PARSE_F_PROTO_INFO_		(1 << 1)
+#define CTNL_PARSE_F_SKIP_AF_			(1 << 2)
+#define CTNL_PARSE_F_PROCESS_L4_		(1 << 3)
+#define CTNL_PARSE_F_PROCESS_MARKS_		(1 << 4)
+#define CTNL_PARSE_F_PROCESS_NTCE_		(1 << 5)
+#define CTNL_PARSE_F_ONLY_ORIG_			(1 << 6)
+#define CTNL_PARSE_F_PROCESS_IFACES_		(1 << 7)
+#define CTNL_PARSE_F_OTHER_			(1 << 8)
+#define CTNL_PARSE_F_ALL_			(0xffffffffu)
+
 MODULE_LICENSE("GPL");
 
 static char __initdata version[] = "0.93";
 
 static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 				       const struct nf_conntrack_tuple *tuple,
-				       struct nf_conntrack_l4proto *l4proto)
+				       struct nf_conntrack_l4proto *l4proto,
+				       unsigned long dfl)
 {
 	int ret = 0;
 	struct nlattr *nest_parms;
@@ -85,6 +97,9 @@ static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 		goto nla_put_failure;
 	if (nla_put_u8(skb, CTA_PROTO_NUM, tuple->dst.protonum))
 		goto nla_put_failure;
+
+	if (!(dfl & CTNL_PARSE_F_PROCESS_L4_))
+		return ret;
 
 	if (likely(l4proto->tuple_to_nlattr))
 		ret = l4proto->tuple_to_nlattr(skb, tuple);
@@ -120,7 +135,8 @@ nla_put_failure:
 }
 
 static int ctnetlink_dump_tuples(struct sk_buff *skb,
-				 const struct nf_conntrack_tuple *tuple)
+				 const struct nf_conntrack_tuple *tuple,
+				 unsigned long dfl)
 {
 	int ret;
 	struct nf_conntrack_l3proto *l3proto;
@@ -133,7 +149,7 @@ static int ctnetlink_dump_tuples(struct sk_buff *skb,
 	if (ret >= 0) {
 		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
 					       tuple->dst.protonum);
-		ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto);
+		ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto, dfl);
 	}
 	rcu_read_unlock();
 	return ret;
@@ -169,9 +185,13 @@ nla_put_failure:
 	return -1;
 }
 
-static int ctnetlink_dump_timeout(struct sk_buff *skb, const struct nf_conn *ct)
+static int ctnetlink_dump_timeout(struct sk_buff *skb, const struct nf_conn *ct,
+				  unsigned long dfl)
 {
 	long timeout = nf_ct_expires(ct) / HZ;
+
+	if (!(dfl & CTNL_PARSE_F_OTHER_))
+		return 0;
 
 	if (nla_put_be32(skb, CTA_TIMEOUT, htonl(timeout)))
 		goto nla_put_failure;
@@ -181,11 +201,15 @@ nla_put_failure:
 	return -1;
 }
 
-static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct)
+static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct,
+				    unsigned long dfl)
 {
 	struct nf_conntrack_l4proto *l4proto;
 	struct nlattr *nest_proto;
 	int ret;
+
+	if (!(dfl & CTNL_PARSE_F_PROTO_INFO_))
+		return 0;
 
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	if (!l4proto->to_nlattr)
@@ -206,11 +230,15 @@ nla_put_failure:
 }
 
 static int ctnetlink_dump_helpinfo(struct sk_buff *skb,
-				   const struct nf_conn *ct)
+				   const struct nf_conn *ct,
+				   unsigned long dfl)
 {
 	struct nlattr *nest_helper;
 	const struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_helper *helper;
+
+	if (!(dfl & CTNL_PARSE_F_OTHER_))
+		return 0;
 
 	if (!help)
 		return 0;
@@ -272,9 +300,13 @@ nla_put_failure:
 }
 
 static int
-ctnetlink_dump_acct(struct sk_buff *skb, const struct nf_conn *ct, int type)
+ctnetlink_dump_acct(struct sk_buff *skb, const struct nf_conn *ct, int type,
+		    unsigned long dfl)
 {
 	struct nf_conn_acct *acct = nf_conn_acct_find(ct);
+
+	if (!(dfl & CTNL_PARSE_F_COUNTERS_))
+		return 0;
 
 	if (!acct)
 		return 0;
@@ -288,10 +320,14 @@ ctnetlink_dump_acct(struct sk_buff *skb, const struct nf_conn *ct, int type)
 }
 
 static int
-ctnetlink_dump_timestamp(struct sk_buff *skb, const struct nf_conn *ct)
+ctnetlink_dump_timestamp(struct sk_buff *skb, const struct nf_conn *ct,
+			 unsigned long dfl)
 {
 	struct nlattr *nest_count;
 	const struct nf_conn_tstamp *tstamp;
+
+	if (!(dfl & CTNL_PARSE_F_OTHER_))
+		return 0;
 
 	tstamp = nf_conn_tstamp_find(ct);
 	if (!tstamp)
@@ -316,8 +352,12 @@ nla_put_failure:
 }
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
-static int ctnetlink_dump_mark(struct sk_buff *skb, const struct nf_conn *ct)
+static int ctnetlink_dump_mark(struct sk_buff *skb, const struct nf_conn *ct,
+			       unsigned long dfl)
 {
+	if (!(dfl & CTNL_PARSE_F_PROCESS_MARKS_))
+		return 0;
+
 	if (nla_put_be32(skb, CTA_MARK, htonl(ct->mark)))
 		goto nla_put_failure;
 
@@ -327,8 +367,12 @@ nla_put_failure:
 	return -1;
 }
 
-static int ctnetlink_dump_ndmmark(struct sk_buff *skb, const struct nf_conn *ct)
+static int ctnetlink_dump_ndmmark(struct sk_buff *skb, const struct nf_conn *ct,
+				  unsigned long dfl)
 {
+	if (!(dfl & CTNL_PARSE_F_PROCESS_MARKS_))
+		return 0;
+
 	if (nla_put_be32(skb, CTA_NDMMARK, ct->ndm_mark))
 		goto nla_put_failure;
 
@@ -338,18 +382,24 @@ nla_put_failure:
 	return -1;
 }
 #else
-#define ctnetlink_dump_mark(a, b) (0)
-#define ctnetlink_dump_ndmmark(a, b) (0)
+#define ctnetlink_dump_mark(a, b, c) (0)
+#define ctnetlink_dump_ndmmark(a, b, c) (0)
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
 static int ctnetlink_dump_ndm_ifaces(struct sk_buff *skb,
-				     const struct nf_conn *ct)
+				     const struct nf_conn *ct,
+				     unsigned long dfl)
 {
 	struct nlattr *nest_lbl;
 	int ret = 0;
-	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
+	struct nf_ct_ext_ntc_label *lbl = NULL;
 	__be32 flags = 0;
+
+	if (!(dfl & CTNL_PARSE_F_PROCESS_IFACES_))
+		return ret;
+
+	lbl = nf_ct_ext_find_ntc(ct);
 
 	if (lbl == NULL)
 		return ret;
@@ -380,15 +430,19 @@ nla_put_failure:
 	return ret;
 }
 #else
-#define ctnetlink_dump_ndm_ifaces(a, b) (0)
+#define ctnetlink_dump_ndm_ifaces(a, b, c) (0)
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
-static int ctnetlink_dump_secctx(struct sk_buff *skb, const struct nf_conn *ct)
+static int ctnetlink_dump_secctx(struct sk_buff *skb, const struct nf_conn *ct,
+				 unsigned long dfl)
 {
 	struct nlattr *nest_secctx;
 	int len, ret;
 	char *secctx;
+
+	if (!(dfl & CTNL_PARSE_F_OTHER_))
+		return 0;
 
 	ret = security_secid_to_secctx(ct->secmark, &secctx, &len);
 	if (ret)
@@ -409,7 +463,7 @@ nla_put_failure:
 	return ret;
 }
 #else
-#define ctnetlink_dump_secctx(a, b) (0)
+#define ctnetlink_dump_secctx(a, b, c) (0)
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_LABELS
@@ -423,10 +477,14 @@ static inline int ctnetlink_label_size(const struct nf_conn *ct)
 }
 
 static int
-ctnetlink_dump_labels(struct sk_buff *skb, const struct nf_conn *ct)
+ctnetlink_dump_labels(struct sk_buff *skb, const struct nf_conn *ct,
+		      unsigned long dfl)
 {
 	struct nf_conn_labels *labels = nf_ct_labels_find(ct);
 	unsigned int i;
+
+	if (!(dfl & CTNL_PARSE_F_OTHER_))
+		return 0;
 
 	if (!labels)
 		return 0;
@@ -442,15 +500,19 @@ ctnetlink_dump_labels(struct sk_buff *skb, const struct nf_conn *ct)
 	return 0;
 }
 #else
-#define ctnetlink_dump_labels(a, b) (0)
+#define ctnetlink_dump_labels(a, b, c) (0)
 #define ctnetlink_label_size(a)	(0)
 #endif
 
 #define master_tuple(ct) &(ct->master->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
 
-static int ctnetlink_dump_master(struct sk_buff *skb, const struct nf_conn *ct)
+static int ctnetlink_dump_master(struct sk_buff *skb, const struct nf_conn *ct,
+				 unsigned long dfl)
 {
 	struct nlattr *nest_parms;
+
+	if (!(dfl & CTNL_PARSE_F_OTHER_))
+		return 0;
 
 	if (!(ct->status & IPS_EXPECTED))
 		return 0;
@@ -458,7 +520,7 @@ static int ctnetlink_dump_master(struct sk_buff *skb, const struct nf_conn *ct)
 	nest_parms = nla_nest_start(skb, CTA_TUPLE_MASTER | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
-	if (ctnetlink_dump_tuples(skb, master_tuple(ct)) < 0)
+	if (ctnetlink_dump_tuples(skb, master_tuple(ct), dfl) < 0)
 		goto nla_put_failure;
 	nla_nest_end(skb, nest_parms);
 
@@ -494,10 +556,14 @@ nla_put_failure:
 }
 
 static int ctnetlink_dump_ct_seq_adj(struct sk_buff *skb,
-				     const struct nf_conn *ct)
+				     const struct nf_conn *ct,
+				     unsigned long dfl)
 {
 	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
 	struct nf_ct_seqadj *seq;
+
+	if (!(dfl & CTNL_PARSE_F_OTHER_))
+		return 0;
 
 	if (!(ct->status & IPS_SEQ_ADJUST) || !seqadj)
 		return 0;
@@ -525,8 +591,12 @@ nla_put_failure:
 	return -1;
 }
 
-static int ctnetlink_dump_use(struct sk_buff *skb, const struct nf_conn *ct)
+static int ctnetlink_dump_use(struct sk_buff *skb, const struct nf_conn *ct,
+			      unsigned long dfl)
 {
+	if (!(dfl & CTNL_PARSE_F_OTHER_))
+		return 0;
+
 	if (nla_put_be32(skb, CTA_USE, htonl(atomic_read(&ct->ct_general.use))))
 		goto nla_put_failure;
 	return 0;
@@ -535,15 +605,34 @@ nla_put_failure:
 	return -1;
 }
 
+static inline int nf_ntce_ctnetlink_dump_(struct sk_buff *skb,
+					  const struct nf_conn *ct,
+					  unsigned long dfl)
+{
+	if (!(dfl & CTNL_PARSE_F_PROCESS_NTCE_))
+		return 0;
+
+	return nf_ntce_ctnetlink_dump(skb, ct);
+}
+
+struct ctnetlink_filter {
+	struct {
+		u_int32_t val;
+		u_int32_t mask;
+	} mark;
+	u_int32_t flags;
+};
+
 static int
 ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
-		    struct nf_conn *ct)
+		    struct nf_conn *ct, struct ctnetlink_filter *flt)
 {
 	const struct nf_conntrack_zone *zone;
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	struct nlattr *nest_parms;
 	unsigned int flags = portid ? NLM_F_MULTI : 0, event;
+	unsigned long dfl = (flt == NULL ? CTNL_PARSE_F_ALL_ : flt->flags);
 
 	event = (NFNL_SUBSYS_CTNETLINK << 8 | IPCTNL_MSG_CT_NEW);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
@@ -560,7 +649,8 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
-	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL)) < 0)
+	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL),
+				  dfl) < 0)
 		goto nla_put_failure;
 	if (ctnetlink_dump_zone_id(skb, CTA_TUPLE_ZONE, zone,
 				   NF_CT_ZONE_DIR_ORIG) < 0)
@@ -570,33 +660,40 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	nest_parms = nla_nest_start(skb, CTA_TUPLE_REPLY | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
-	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_REPLY)) < 0)
+	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_REPLY),
+				  dfl) < 0)
 		goto nla_put_failure;
-	if (ctnetlink_dump_zone_id(skb, CTA_TUPLE_ZONE, zone,
-				   NF_CT_ZONE_DIR_REPL) < 0)
-		goto nla_put_failure;
+
+	if (dfl & CTNL_PARSE_F_OTHER_) {
+		if (ctnetlink_dump_zone_id(skb, CTA_TUPLE_ZONE, zone,
+					   NF_CT_ZONE_DIR_REPL) < 0)
+			goto nla_put_failure;
+	}
+
 	nla_nest_end(skb, nest_parms);
 
-	if (ctnetlink_dump_zone_id(skb, CTA_ZONE, zone,
-				   NF_CT_DEFAULT_ZONE_DIR) < 0)
-		goto nla_put_failure;
+	if (dfl & CTNL_PARSE_F_OTHER_) {
+		if (ctnetlink_dump_zone_id(skb, CTA_ZONE, zone,
+					   NF_CT_DEFAULT_ZONE_DIR) < 0)
+			goto nla_put_failure;
+	}
 
 	if (ctnetlink_dump_status(skb, ct) < 0 ||
-	    ctnetlink_dump_timeout(skb, ct) < 0 ||
-	    ctnetlink_dump_acct(skb, ct, type) < 0 ||
-	    ctnetlink_dump_timestamp(skb, ct) < 0 ||
-	    ctnetlink_dump_protoinfo(skb, ct) < 0 ||
-	    ctnetlink_dump_helpinfo(skb, ct) < 0 ||
-	    ctnetlink_dump_mark(skb, ct) < 0 ||
-	    ctnetlink_dump_ndmmark(skb, ct) < 0 ||
-	    ctnetlink_dump_ndm_ifaces(skb, ct) < 0 ||
-	    nf_ntce_ctnetlink_dump(skb, ct) < 0 ||
-	    ctnetlink_dump_secctx(skb, ct) < 0 ||
-	    ctnetlink_dump_labels(skb, ct) < 0 ||
+	    ctnetlink_dump_timeout(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_acct(skb, ct, type, dfl) < 0 ||
+	    ctnetlink_dump_timestamp(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_protoinfo(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_helpinfo(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_mark(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_ndmmark(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_ndm_ifaces(skb, ct, dfl) < 0 ||
+	    nf_ntce_ctnetlink_dump_(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_secctx(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_labels(skb, ct, dfl) < 0 ||
 	    ctnetlink_dump_id(skb, ct) < 0 ||
-	    ctnetlink_dump_use(skb, ct) < 0 ||
-	    ctnetlink_dump_master(skb, ct) < 0 ||
-	    ctnetlink_dump_ct_seq_adj(skb, ct) < 0)
+	    ctnetlink_dump_use(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_master(skb, ct, dfl) < 0 ||
+	    ctnetlink_dump_ct_seq_adj(skb, ct, dfl) < 0)
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -787,7 +884,8 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
-	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL)) < 0)
+	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL),
+				  CTNL_PARSE_F_ALL_) < 0)
 		goto nla_put_failure;
 	if (ctnetlink_dump_zone_id(skb, CTA_TUPLE_ZONE, zone,
 				   NF_CT_ZONE_DIR_ORIG) < 0)
@@ -797,7 +895,8 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	nest_parms = nla_nest_start(skb, CTA_TUPLE_REPLY | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
-	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_REPLY)) < 0)
+	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_REPLY),
+				  CTNL_PARSE_F_ALL_) < 0)
 		goto nla_put_failure;
 	if (ctnetlink_dump_zone_id(skb, CTA_TUPLE_ZONE, zone,
 				   NF_CT_ZONE_DIR_REPL) < 0)
@@ -815,19 +914,19 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 		goto nla_put_failure;
 
 	if (events & (1 << IPCT_DESTROY)) {
-		if (ctnetlink_dump_acct(skb, ct, type) < 0 ||
-		    ctnetlink_dump_timestamp(skb, ct) < 0)
+		if (ctnetlink_dump_acct(skb, ct, type, CTNL_PARSE_F_ALL_) < 0 ||
+		    ctnetlink_dump_timestamp(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 			goto nla_put_failure;
 	} else {
-		if (ctnetlink_dump_timeout(skb, ct) < 0)
+		if (ctnetlink_dump_timeout(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 			goto nla_put_failure;
 
 		if (events & (1 << IPCT_PROTOINFO)
-		    && ctnetlink_dump_protoinfo(skb, ct) < 0)
+		    && ctnetlink_dump_protoinfo(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 			goto nla_put_failure;
 
 		if ((events & (1 << IPCT_HELPER) || nfct_help(ct))
-		    && ctnetlink_dump_helpinfo(skb, ct) < 0)
+		    && ctnetlink_dump_helpinfo(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 			goto nla_put_failure;
 
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
@@ -836,25 +935,25 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 			goto nla_put_failure;
 #endif
 		if (events & (1 << IPCT_LABEL) &&
-		     ctnetlink_dump_labels(skb, ct) < 0)
+		     ctnetlink_dump_labels(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 			goto nla_put_failure;
 
 		if (events & (1 << IPCT_RELATED) &&
-		    ctnetlink_dump_master(skb, ct) < 0)
+		    ctnetlink_dump_master(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 			goto nla_put_failure;
 
 		if (events & (1 << IPCT_SEQADJ) &&
-		    ctnetlink_dump_ct_seq_adj(skb, ct) < 0)
+		    ctnetlink_dump_ct_seq_adj(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 			goto nla_put_failure;
 	}
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	if ((events & (1 << IPCT_MARK) || ct->mark)
-	    && ctnetlink_dump_mark(skb, ct) < 0)
+	    && ctnetlink_dump_mark(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 		goto nla_put_failure;
 
 	if ((events & (1 << IPCT_NDMMARK) || ct->ndm_mark)
-	    && ctnetlink_dump_ndmmark(skb, ct) < 0)
+	    && ctnetlink_dump_ndmmark(skb, ct, CTNL_PARSE_F_ALL_) < 0)
 		goto nla_put_failure;
 #endif
 
@@ -893,30 +992,33 @@ static int ctnetlink_done(struct netlink_callback *cb)
 	return 0;
 }
 
-struct ctnetlink_filter {
-	struct {
-		u_int32_t val;
-		u_int32_t mask;
-	} mark;
-};
-
 static struct ctnetlink_filter *
 ctnetlink_alloc_filter(const struct nlattr * const cda[])
 {
-#ifdef CONFIG_NF_CONNTRACK_MARK
 	struct ctnetlink_filter *filter;
 
 	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
 	if (filter == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	filter->mark.val = ntohl(nla_get_be32(cda[CTA_MARK]));
-	filter->mark.mask = ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
+#ifdef CONFIG_NF_CONNTRACK_MARK
+	if (cda[CTA_MARK] && cda[CTA_MARK_MASK])
+	{
+		filter->mark.val = ntohl(nla_get_be32(cda[CTA_MARK]));
+		filter->mark.mask = ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
+	}
+#endif
+
+	if (cda[CTA_STATUS])
+	{
+		filter->flags = htonl(nla_get_be32(cda[CTA_STATUS]));
+
+	} else
+	{
+		filter->flags = CTNL_PARSE_F_ALL_;
+	}
 
 	return filter;
-#else
-	return ERR_PTR(-EOPNOTSUPP);
-#endif
 }
 
 static int ctnetlink_filter_match(struct nf_conn *ct, void *data)
@@ -999,7 +1101,8 @@ restart:
 			ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,
 					    NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
-					    ct);
+					    ct,
+					    cb->data);
 			rcu_read_unlock();
 			if (res < 0) {
 				nf_conntrack_get(&ct->ct_general);
@@ -1329,7 +1432,8 @@ static int ctnetlink_get_conntrack(struct net *net, struct sock *ctnl,
 			.done = ctnetlink_done,
 		};
 
-		if (cda[CTA_MARK] && cda[CTA_MARK_MASK]) {
+		if ((cda[CTA_MARK] && cda[CTA_MARK_MASK]) ||
+		    cda[CTA_STATUS]) {
 			struct ctnetlink_filter *filter;
 
 			filter = ctnetlink_alloc_filter(cda);
@@ -1372,7 +1476,7 @@ static int ctnetlink_get_conntrack(struct net *net, struct sock *ctnl,
 
 	rcu_read_lock();
 	err = ctnetlink_fill_info(skb2, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
-				  NFNL_MSG_TYPE(nlh->nlmsg_type), ct);
+				  NFNL_MSG_TYPE(nlh->nlmsg_type), ct, NULL);
 	rcu_read_unlock();
 	nf_ct_put(ct);
 	if (err <= 0)
@@ -1439,7 +1543,7 @@ restart:
 			res = ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).portid,
 						  cb->nlh->nlmsg_seq,
 						  NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
-						  ct);
+						  ct, NULL);
 			rcu_read_unlock();
 			if (res < 0) {
 				if (!atomic_inc_not_zero(&ct->ct_general.use))
@@ -2568,7 +2672,7 @@ static int ctnetlink_exp_dump_tuple(struct sk_buff *skb,
 	nest_parms = nla_nest_start(skb, type | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
-	if (ctnetlink_dump_tuples(skb, tuple) < 0)
+	if (ctnetlink_dump_tuples(skb, tuple, CTNL_PARSE_F_ALL_) < 0)
 		goto nla_put_failure;
 	nla_nest_end(skb, nest_parms);
 
@@ -2603,7 +2707,7 @@ static int ctnetlink_exp_dump_mask(struct sk_buff *skb,
 	if (ret >= 0) {
 		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
 					       tuple->dst.protonum);
-	ret = ctnetlink_dump_tuples_proto(skb, &m, l4proto);
+	ret = ctnetlink_dump_tuples_proto(skb, &m, l4proto, CTNL_PARSE_F_ALL_);
 	}
 	rcu_read_unlock();
 

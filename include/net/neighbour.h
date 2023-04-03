@@ -461,6 +461,7 @@ static inline void nf_ct_ext_ntc_check_if(struct sk_buff *skb)
 	}
 
 	rcu_read_lock_bh();
+	skb_reset_mac_header(skb);
 	nf_ct_ext_ntc_update_if(skb);
 	rcu_read_unlock_bh();
 }

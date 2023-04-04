@@ -941,6 +941,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	char *colon;
 	int ret = -EFAULT;
 	int tryaddrmatch = 0;
+	int alias = 0;
 
 	/*
 	 *	Fetch the caller's info block into kernel space
@@ -954,8 +955,10 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	memcpy(&sin_orig, sin, sizeof(*sin));
 
 	colon = strchr(ifr.ifr_name, ':');
-	if (colon)
+	if (colon) {
 		*colon = 0;
+		alias = 1;
+	}
 
 	dev_load(net, ifr.ifr_name);
 
@@ -1103,6 +1106,12 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 			ifa->ifa_prefixlen = 32;
 			ifa->ifa_mask = inet_make_mask(32);
 		}
+
+		if (alias)
+			ifa->ifa_flags |= IFA_F_IP4_ALIAS;
+		else
+			ifa->ifa_flags &= ~IFA_F_IP4_ALIAS;
+
 		set_ifa_lifetime(ifa, INFINITY_LIFE_TIME, INFINITY_LIFE_TIME);
 		ret = inet_set_ifa(dev, ifa);
 		break;
@@ -1218,6 +1227,26 @@ __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev)
 		goto no_in_dev;
+
+	/* Try to select primary address at first */
+
+	for_primary_ifa(in_dev) {
+		if (ifa->ifa_flags & IFA_F_IP4_ALIAS)
+			continue;
+		if (ifa->ifa_scope > scope)
+			continue;
+		if (!dst || inet_ifa_match(dst, ifa)) {
+			addr = ifa->ifa_local;
+			break;
+		}
+		if (!addr)
+			addr = ifa->ifa_local;
+	} endfor_ifa(in_dev);
+
+	if (addr)
+		goto out_unlock;
+
+	/* Repeat old-style select */
 
 	for_primary_ifa(in_dev) {
 		if (ifa->ifa_scope > scope)

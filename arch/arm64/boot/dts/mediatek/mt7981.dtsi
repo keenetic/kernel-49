@@ -189,28 +189,23 @@
 
 	wed: wed@15010000 {
 		compatible = "mediatek,wed";
-		wed_num = <2>;
-		pci_slot_map = <0>, <1>;
-		reg = <0 0x15010000 0 0x1000>,
-		      <0 0x15011000 0 0x1000>;
+		wed_num = <1>;
+		pci_slot_map = <0>;
+		reg = <0 0x15010000 0 0x1000>;
 		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	wdma: wdma@15104800 {
 		compatible = "mediatek,wed-wdma";
-		reg = <0 0x15104800 0 0x400>,
-		      <0 0x15104c00 0 0x400>;
+		reg = <0 0x15104800 0 0x400>;
 	};
 
 	ap2woccif: ap2woccif@151A5000 {
 		compatible = "mediatek,ap2woccif";
-		reg = <0 0x151a5000 0 0x1000>,
-		      <0 0x151ad000 0 0x1000>;
+		reg = <0 0x151a5000 0 0x1000>;
 		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	wocpu0_ilm: wocpu0_ilm@151e0000 {
@@ -220,8 +215,7 @@
 
 	wocpu_dlm: wocpu_dlm@151e8000 {
 		compatible = "mediatek,wocpu_dlm";
-		reg = <0 0x151e8000 0 0x2000>,
-		      <0 0x151f8000 0 0x2000>;
+		reg = <0 0x151e8000 0 0x2000>;
 		resets = <&ethsysrst 0>;
 		reset-names = "wocpu_rst";
 	};

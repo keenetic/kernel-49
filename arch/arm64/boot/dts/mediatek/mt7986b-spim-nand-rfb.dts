@@ -245,10 +245,6 @@
 	status = "okay";
 };
 
-&wed2 {
-	status = "okay";
-};
-
 &pio {
 	wf_led_pins: wf-led-pins-1-2 {
 		mux {

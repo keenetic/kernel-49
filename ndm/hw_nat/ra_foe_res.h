@@ -46,6 +46,12 @@
 #define FOE_ENTRY_SIZE		FOE_ENTRY_SIZE_IP4
 #endif
 
+#if defined(CONFIG_RA_HW_NAT_DUAL_PPE)
+#define MAX_PPE_NUM		2
+#else
+#define MAX_PPE_NUM		1
+#endif
+
 #define MIB_ENTRY_SIZE		16
 #define PSP_ENTRY_SIZE		16
 
@@ -53,23 +59,23 @@
 #define MIB_TABLE_SIZE		(FOE_ENTRY_COUNT * MIB_ENTRY_SIZE)
 #define PSP_TABLE_SIZE		(FOE_ENTRY_COUNT * PSP_ENTRY_SIZE)
 
+struct ppe_tbl {
+	void *virt;
+	dma_addr_t phys;
+	u32 size;
+};
+
 struct ra_foe_resources {
 #if defined(CONFIG_ARCH_MEDIATEK)
 	void __iomem *ethdma_sys_base;
 	void __iomem *ethdma_fe_base;
 #endif
-	void *foe_virt;
-	dma_addr_t foe_phys;
-	u32 foe_size;
+	struct ppe_tbl foe[MAX_PPE_NUM];
 #ifdef FOE_HAS_MIB_TABLE
-	void *mib_virt;
-	dma_addr_t mib_phys;
-	u32 mib_size;
+	struct ppe_tbl mib[MAX_PPE_NUM];
 #endif
 #ifdef FOE_HAS_PSP_TABLE
-	void *psp_virt;
-	dma_addr_t psp_phys;
-	u32 psp_size;
+	struct ppe_tbl psp[MAX_PPE_NUM];
 #endif
 };
 

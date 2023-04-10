@@ -19,6 +19,13 @@ enum {
 	WIFI_HW_CAP_RRO,
 };
 
+struct warp_slot_info {
+	u8 wed_id;
+	u8 wdma_rx_port;
+	u8 wdma_tx_port;
+	u8 hw_tx_en;
+};
+
 struct wlan_tx_info {
 	void *pkt;
 	u16 wcid;

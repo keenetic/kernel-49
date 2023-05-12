@@ -183,6 +183,12 @@ config MTD_BLOCK2MTD
 	  Testing MTD users (eg JFFS2) on large media and media that might
 	  be removed during a write (using the floppy drive).
 
+config MTD_BLOCK2MTD_PARAMS
+	string "block2mtd default parameters"
+	default ""
+	help
+	  This option determines default block2mtd parameters.
+
 config MTD_POWERNV_FLASH
 	tristate "powernv flash MTD driver"
 	depends on PPC_POWERNV

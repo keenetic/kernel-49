@@ -374,9 +374,13 @@ static inline void kill_final_newline(char *str)
 
 
 #ifndef MODULE
+#if !defined(CONFIG_MTD_BLOCK2MTD_PARAMS)
+#define CONFIG_MTD_BLOCK2MTD_PARAMS ""
+#endif
+
 static int block2mtd_init_called = 0;
 /* 80 for device, 12 for erase size */
-static char block2mtd_paramline[80 + 12];
+static char block2mtd_paramline[80 + 12] = CONFIG_MTD_BLOCK2MTD_PARAMS;
 #endif
 
 static int block2mtd_setup2(const char *val)

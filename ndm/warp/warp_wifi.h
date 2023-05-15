@@ -40,6 +40,15 @@ struct wlan_rx_info {
 	u8 csrn;
 };
 
+struct wo_cmd_rxcnt_t {
+	u16 wlan_idx;
+	u16 tid;
+	u32 rx_pkt_cnt;
+	u32 rx_byte_cnt;
+	u32 rx_err_cnt;
+	u32 rx_drop_cnt;
+};
+
 struct ring_ctrl {
 	u32 base;
 	u32 cnt;
@@ -140,7 +149,7 @@ struct wifi_ops {
 				    void **alloc_va, dma_addr_t *alloc_pa);
 	void (*rxinfo_wrapper)(u8 *rx_info, struct wlan_rx_info *info);
 	void (*do_wifi_reset)(void *priv_data);
-	void (*update_wo_rxcnt)(void *priv_data, void *wo_rxcnt);
+	void (*update_wo_rxcnt)(void *priv_data, struct wo_cmd_rxcnt_t *wo_rxcnt, u8 num);
 };
 
 #endif /*_WARP_WIFI_COMMON_H_*/

@@ -185,6 +185,7 @@ config MTD_BLOCK2MTD
 
 config MTD_BLOCK2MTD_PARAMS
 	string "block2mtd default parameters"
+	depends on MTD_BLOCK2MTD
 	default ""
 	help
 	  This option determines default block2mtd parameters.

@@ -73,11 +73,204 @@
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
 #include <linux/ntc_shaper_hooks.h>
 #include <../net/bridge/br_private.h>
+#include <../net/bridge/ubridge_private.h>
 #endif
 
 #include <net/netfilter/nf_ntce.h>
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
+
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+#ifndef CONFIG_NDM_SECURITY_LEVEL
+#error "NDM security level support required"
+#endif
+
+static void
+__nf_ct_ext_ndm_skip(struct sk_buff *skb, struct nf_conn *ct)
+{
+	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
+
+	memset(lbl, 0, sizeof(*lbl));
+	clear_bit(IPS_NDM_FROM_WAN_BIT, &ct->status);
+	clear_bit(IPS_NDM_FILLED_BIT, &ct->status);
+
+	set_bit(IPS_NDM_SKIPPED_BIT, &ct->status);
+
+	/* skip an output handler */
+	xt_ndmmark_kernel_set_ndm_skip(skb);
+}
+
+static void
+__nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
+		     struct nf_conn *ct, enum ip_conntrack_info ctinfo)
+{
+	struct nf_ct_ext_ntc_label *lbl;
+	unsigned short sl;
+	s32 ifindex;
+	bool input;
+
+	if (CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL) {
+		__nf_ct_ext_ndm_skip(skb, ct);
+		return;
+	}
+
+	rcu_read_lock_bh();
+
+	if (is_ubridge_port(dev)) {
+		dev = ubr_get_by_slave_rcu_bh(dev);
+		if (!dev)
+			dev = skb->dev;
+	}
+
+	if (br_port_exists(dev)) {
+		const struct net_bridge_port *p = br_port_get_rcu_bh(dev);
+
+		if (p && p->br && p->br->dev)
+			dev = p->br->dev;
+	}
+
+	/* an index and a security level of an active L3 interface */
+	ifindex = (s32)dev->ifindex;
+	sl = dev->ndm_security_level;
+
+	rcu_read_unlock_bh();
+
+	if (ifindex <= 0 || sl == NDM_SECURITY_LEVEL_NONE) {
+		__nf_ct_ext_ndm_skip(skb, ct);
+		return;
+	}
+
+	input = !test_bit(IPS_CONFIRMED, &ct->status);
+	lbl = nf_ct_ext_find_ntc(ct);
+
+	if (sl == NDM_SECURITY_LEVEL_PUBLIC) {
+		if (lbl->wan_iface > 0) {
+			/* WAN <-> WAN connection */
+			__nf_ct_ext_ndm_skip(skb, ct);
+			return;
+		}
+
+		lbl->wan_iface = ifindex;
+
+		if (input) {
+			/* an input interface is WAN */
+			set_bit(IPS_NDM_FROM_WAN_BIT, &ct->status);
+			xt_ndmmark_kernel_set_wan(skb); /* from WAN */
+		}
+	} else {
+		struct ethhdr *hdr;
+
+		if (lbl->lan_iface > 0) {
+			/* LAN <-> LAN connection */
+			__nf_ct_ext_ndm_skip(skb, ct);
+			return;
+		}
+
+		lbl->lan_iface = ifindex;
+
+		/* an input interface is LAN */
+		if (input)
+			lbl->flags |= NF_CT_EXT_NTC_FROM_LAN;
+
+		if (skb->dev->type != ARPHRD_ETHER ||
+		    !skb_mac_header_was_set(skb) ||
+		    skb_mac_header_len(skb) < ETH_HLEN) {
+			/* LAN without L2 */
+			__nf_ct_ext_ndm_skip(skb, ct);
+			return;
+		}
+
+		hdr = eth_hdr(skb);
+		memcpy(lbl->mac, input ? hdr->h_source : hdr->h_dest,
+		       sizeof(lbl->mac));
+	}
+
+	if (nf_ct_ext_ntc_filled(lbl))
+		set_bit(IPS_NDM_FILLED_BIT, &ct->status);
+}
+
+static inline void
+nf_ct_ext_ndm_input(u8 pf, struct net *net, struct sk_buff *skb,
+		    struct nf_conn *ct, const enum ip_conntrack_info ctinfo)
+{
+	struct net_device *dev;
+
+	if (unlikely(pf != PF_INET && pf != PF_INET6)) {
+		__nf_ct_ext_ndm_skip(skb, ct);
+		return;
+	}
+
+	if (unlikely(skb_sec_path(skb))) {
+		__nf_ct_ext_ndm_skip(skb, ct);
+		return;
+	}
+
+	dev = dev_get_by_index(net, skb->skb_iif);
+	if (unlikely(!dev)) {
+		__nf_ct_ext_ndm_skip(skb, ct);
+		return;
+	}
+
+	__nf_ct_ext_ndm_fill(skb, dev, ct, ctinfo);
+	dev_put(dev);
+}
+
+void nf_ct_ext_ndm_output(struct sk_buff *skb)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
+
+	if (!skb->dev)
+		return;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct)
+		return;
+
+	if (test_bit(IPS_NDM_FILLED_BIT, &ct->status) ||
+	    test_bit(IPS_NDM_SKIPPED_BIT, &ct->status))
+		return;
+
+	__nf_ct_ext_ndm_fill(skb, skb->dev, ct, ctinfo);
+}
+EXPORT_SYMBOL(nf_ct_ext_ndm_output);
+
+static inline void
+nf_ct_ext_ndm_mark_skb(struct sk_buff *skb, struct nf_conn *ct,
+		       const enum ip_conntrack_info ctinfo)
+{
+	if (test_bit(IPS_NDM_FILLED_BIT, &ct->status)) {
+		/* A connection origin is a WAN interface
+		 * and a packet going to original direction
+		 * or
+		 * the connection origin is a LAN interface
+		 * and the packet going to reply direction.
+		 */
+		if (test_bit(IPS_NDM_FROM_WAN_BIT, &ct->status) ==
+		    (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL))
+			xt_ndmmark_kernel_set_wan(skb); /* from WAN */
+
+		xt_ndmmark_kernel_set_ndm_skip(skb);
+		return;
+	}
+
+	if (test_bit(IPS_NDM_SKIPPED_BIT, &ct->status))
+		xt_ndmmark_kernel_set_ndm_skip(skb);
+}
+
+#else
+static inline void
+nf_ct_ext_ndm_input(u8 pf, struct net *net, struct sk_buff *skb,
+		    struct nf_conn *ct,
+		    const enum ip_conntrack_info ctinfo) {}
+
+static inline void
+nf_ct_ext_ndm_output(struct sk_buff *skb) {}
+
+static inline void
+nf_ct_ext_ndm_mark_skb(struct sk_buff *skb, struct nf_conn *ct,
+		       const enum ip_conntrack_info ctinfo) {}
+#endif
 
 int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
 				      enum nf_nat_manip_type manip,
@@ -1030,6 +1223,10 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 	nf_conntrack_event_cache(master_ct(ct) ?
 				 IPCT_RELATED : IPCT_NEW, ct);
+
+	if (skb->dev && skb->dev->type != ARPHRD_ETHER)
+		nf_ct_ext_ndm_output(skb);
+
 	return NF_ACCEPT;
 
 out:
@@ -1399,8 +1596,12 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
-	if (unlikely(nf_ct_ext_add_ntc(ct) == NULL))
-		pr_err_ratelimited("unable to allocate ntc ct label");
+	if (__nf_ct_ext_add_length(ct, nf_ct_ext_id_ntc,
+				   sizeof(struct nf_ct_ext_ntc_label),
+				   GFP_ATOMIC) == NULL) {
+		nf_conntrack_free(ct);
+		return ERR_PTR(-ENOMEM);
+	}
 #endif
 
 	nf_ct_ntce_append(NF_INET_PRE_ROUTING, ct);
@@ -1479,6 +1680,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 			exp->expectfn(ct, exp);
 		nf_ct_expect_put(exp);
 	}
+
+	nf_ct_ext_ndm_input(l3proto->l3proto, net, skb, ct, IPCT_NEW);
 
 	return &ct->tuplehash[IP_CT_DIR_ORIGINAL];
 }
@@ -1618,215 +1821,6 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	skb->nfctinfo = *ctinfo;
 	return ct;
 }
-
-#ifdef CONFIG_NF_CONNTRACK_CUSTOM
-#ifdef CONFIG_NDM_SECURITY_LEVEL
-
-static inline bool
-nf_conntrack_update_mac(struct sk_buff *skb,
-			struct nf_ct_ext_ntc_label *lbl,
-			const bool from_output)
-{
-	if (nf_ct_ext_ntc_mac_isset(lbl)) {
-		xt_ndmmark_kernel_set_has_mac(skb);
-		return false;
-	}
-
-	if (skb->dev == NULL || skb->dev->type != ARPHRD_ETHER)
-		return false;
-
-	if (skb_mac_header(skb) < skb->head)
-		return false;
-
-	if (!from_output && skb_mac_header(skb) + ETH_HLEN > skb->data)
-		return false;
-
-	memcpy(&lbl->mac,
-	       from_output ? eth_hdr(skb)->h_dest : eth_hdr(skb)->h_source,
-	       sizeof(lbl->mac));
-	lbl->flags |= NF_CT_EXT_NTC_MAC_SET;
-	xt_ndmmark_kernel_set_has_mac(skb);
-
-	return true;
-}
-
-static inline void
-nf_conntrack_set_lan(struct nf_ct_ext_ntc_label* lbl,
-		     const enum ip_conntrack_info ctinfo,
-		     const bool from_output)
-{
-	const enum ip_conntrack_dir dir =
-		(from_output ? IP_CT_DIR_REPLY : IP_CT_DIR_ORIGINAL);
-
-	if (CTINFO2DIR(ctinfo) == dir)
-		lbl->flags |= NF_CT_EXT_NTC_FROM_LAN;
-}
-
-static inline void
-nf_conntrack_save_iface_(struct net_device *dev,
-			 struct nf_ct_ext_ntc_label* lbl,
-			 const enum ip_conntrack_info ctinfo,
-			 struct sk_buff *skb,
-			 const bool from_output)
-{
-	const unsigned short sl = dev->ndm_security_level;
-
-	if (unlikely(sl == NDM_SECURITY_LEVEL_NONE))
-		return;
-
-	if (sl == NDM_SECURITY_LEVEL_PUBLIC) {
-		lbl->wan_iface = dev->ifindex;
-		xt_ndmmark_kernel_set_wan(skb);
-	} else {
-		lbl->lan_iface = dev->ifindex;
-
-		if (nf_conntrack_update_mac(skb, lbl, from_output))
-		    nf_conntrack_set_lan(lbl, ctinfo, from_output);
-	}
-}
-
-static inline void
-nf_conntrack_save_iface_br(struct net_device *dev,
-			   struct nf_ct_ext_ntc_label* lbl,
-			   const enum ip_conntrack_info ctinfo,
-			   struct sk_buff *skb,
-			   const bool from_output)
-{
-	struct net_bridge_port *p = br_port_get_check_rcu(dev);
-	struct net_bridge *br;
-
-	if (unlikely(p == NULL))
-		return;
-
-	br = p->br;
-
-	if (unlikely(br == NULL))
-		return;
-
-	nf_conntrack_save_iface_(br->dev, lbl, ctinfo, skb, from_output);
-}
-
-static inline void
-nf_conntrack_save_iface(struct net_device *dev,
-			struct nf_ct_ext_ntc_label* lbl,
-			const enum ip_conntrack_info ctinfo,
-			struct sk_buff *skb,
-			const bool from_output)
-{
-	if (br_port_exists(dev)) {
-		rcu_read_lock();
-		nf_conntrack_save_iface_br(dev, lbl, ctinfo, skb, from_output);
-		rcu_read_unlock();
-	}
-
-	nf_conntrack_save_iface_(dev, lbl, ctinfo, skb, from_output);
-}
-
-static inline struct nf_ct_ext_ntc_label *
-nf_conntrack_ntc_lbl(struct nf_conn *ct)
-{
-	struct nf_ct_ext_ntc_label *lbl = NULL;
-
-	if (unlikely(nf_ct_ext_id_ntc == 0))
-		return NULL;
- 
-	lbl = nf_ct_ext_find_ntc(ct);
-	if (unlikely(!lbl)) {
-		if (unlikely(nf_ct_is_confirmed(ct)))
-			return NULL;
-
-		lbl = nf_ct_ext_add_ntc(ct);
-
-		if (unlikely(!lbl)) {
-			pr_err_ratelimited("unable to create a NTC extension");
-			return NULL;
-		}
-	}
-
-	return lbl;
-}
-
-static inline void
-nf_ct_ext_ntc_update_if_(struct nf_conn *ct,
-			 const enum ip_conntrack_info ctinfo,
-			 struct sk_buff *skb)
-{
-	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_find_ntc(ct);
-
-	if (unlikely(lbl == NULL))
-		return;
-
-	nf_conntrack_save_iface(skb->dev, lbl, ctinfo, skb, true);
-}
-
-void nf_ct_ext_ntc_update_if(struct sk_buff *skb)
-{
-	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-
-	if (ct == NULL)
-		return;
-
-	if (!nf_ct_is_confirmed(ct) ||
-	     nf_ct_is_expired(ct) ||
-	     nf_ct_is_dying(ct))
-	{
-		return;
-	}
-
-	nf_ct_ext_ntc_update_if_(ct, ctinfo, skb);
-}
-EXPORT_SYMBOL(nf_ct_ext_ntc_update_if);
-
-static inline void
-nf_conntrack_update_ntc_ifaces(struct net *net, struct sk_buff *skb,
-			       struct nf_conn *ct,
-			       const enum ip_conntrack_info ctinfo,
-			       unsigned int hooknum)
-{
-	struct nf_ct_ext_ntc_label *lbl;
-	struct net_device *dev;
-	int idx;
-
-	if (hooknum != NF_INET_PRE_ROUTING)
-		return;
-
-	if (unlikely(skb_sec_path(skb)))
-		return;
-
-	lbl = nf_conntrack_ntc_lbl(ct);
-
-	if (unlikely(lbl == NULL))
-		return;
-
-	if (likely(nf_ct_ext_ntc_filled(lbl))) {
-		if (lbl->wan_iface == skb->skb_iif)
-			xt_ndmmark_kernel_set_wan(skb);
-
-		xt_ndmmark_kernel_set_has_if(skb);
-
-		if (nf_ct_ext_ntc_mac_isset(lbl))
-			xt_ndmmark_kernel_set_has_mac(skb);
-
-		return;
-	}
-
-	idx = skb->skb_iif;
-	if (idx <= 0)
-		return;
-
-	dev = dev_get_by_index(net, idx);
-	if (!dev)
-		return;
-
-	nf_conntrack_save_iface(dev, lbl, ctinfo, skb, false);
-
-	dev_put(dev);
-}
-#else
-#error NDM Security level is required
-#endif
-#endif
 
 unsigned int
 nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
@@ -1973,10 +1967,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 #endif
 	}
 
-#ifdef CONFIG_NF_CONNTRACK_CUSTOM
-	if (pf == PF_INET || pf == PF_INET6)
-		nf_conntrack_update_ntc_ifaces(net, skb, ct, ctinfo, hooknum);
-#endif
+	nf_ct_ext_ndm_mark_skb(skb, ct, ctinfo);
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	/* check IPv4 condition */
@@ -2795,15 +2786,28 @@ int nf_conntrack_init_start(void)
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
 	/* "NTC\0" in hex */
 	ret = nf_ct_extend_custom_register(&ntc_extend, 0x4e544300);
+	if (ret < 0) {
+		pr_err("unable to register a NTC extend\n");
+		goto err_custom;
+	}
 
-	if(ret < 0)
-		pr_err("unable to register ntc extend\n");
-	else
-		nf_ct_ext_id_ntc = ntc_extend.id;
+	nf_ct_ext_id_ntc = ntc_extend.id;
 #endif
 
 	return 0;
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+err_custom:
+
+	RCU_INIT_POINTER(nf_ct_destroy, NULL);
+	while (untrack_refs() > 0)
+		schedule();
+
+	cancel_delayed_work_sync(&conntrack_gc_work.dwork);
+	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_htable_size);
+
+	nf_conntrack_proto_fini();
+#endif
 err_proto:
 	nf_conntrack_seqadj_fini();
 err_seqadj:

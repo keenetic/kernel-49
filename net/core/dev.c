@@ -145,6 +145,23 @@
 
 #include "net-sysfs.h"
 
+#ifdef CONFIG_NF_CONNTRACK_CUSTOM
+#include <linux/netfilter/xt_ndmmark.h>
+
+void nf_ct_ext_ndm_output(struct sk_buff *skb);
+
+static inline void nf_ct_ext_ndm_output_dev(struct sk_buff *skb)
+{
+	if (likely(!xt_ndmmark_is_fwd(skb) || xt_ndmmark_has_ndm_skip(skb)))
+		return;
+
+	nf_ct_ext_ndm_output(skb);
+}
+
+#else
+static inline void nf_ct_ext_ndm_output_dev(struct sk_buff *skb) {}
+#endif
+
 /* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
 
@@ -3399,6 +3416,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	int rc = -ENOMEM;
 
 	skb_reset_mac_header(skb);
+	nf_ct_ext_ndm_output_dev(skb);
 
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_SCHED_TSTAMP))
 		__skb_tstamp_tx(skb, NULL, skb->sk, SCM_TSTAMP_SCHED);

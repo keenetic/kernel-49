@@ -321,6 +321,11 @@ static inline struct net_bridge_port *br_port_get_rcu(const struct net_device *d
 	return rcu_dereference(dev->rx_handler_data);
 }
 
+static inline struct net_bridge_port *br_port_get_rcu_bh(const struct net_device *dev)
+{
+	return rcu_dereference_bh(dev->rx_handler_data);
+}
+
 static inline struct net_bridge_port *br_port_get_rtnl(const struct net_device *dev)
 {
 	return br_port_exists(dev) ?

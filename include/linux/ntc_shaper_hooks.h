@@ -78,70 +78,42 @@ ntc_shaper_hooks_set(ntc_shaper_hook_fn *ingress_hook,
 
 /* Must be no more than 128 bits long */
 struct nf_ct_ext_ntc_label {
-	int32_t wan_iface;
-	int32_t lan_iface;
-	char mac[ETH_ALEN];
-	uint8_t flags;
+	s32 wan_iface;
+	s32 lan_iface;
+	u8  mac[ETH_ALEN];
+	u8  flags;
 };
 
-#define NF_CT_EXT_NTC_MAC_SET			0x1
-#define NF_CT_EXT_NTC_FROM_LAN			0x2
+#define NF_CT_EXT_NTC_FROM_LAN			(0x1)
 
 _Static_assert(sizeof(struct nf_ct_ext_ntc_label) <= 16,
 	       "invalid struct nf_ct_ext_ntc_label size");
 
 extern enum nf_ct_ext_id nf_ct_ext_id_ntc;
 
-static inline void *nf_ct_ext_add_ntc_(struct nf_conn *ct)
+static inline struct nf_ct_ext_ntc_label *
+nf_ct_ext_find_ntc(const struct nf_conn *ct)
 {
-	if (unlikely(nf_ct_ext_id_ntc == 0))
-		return NULL;
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-	return nf_ct_ext_add(ct, nf_ct_ext_id_ntc, GFP_ATOMIC);
-#else
-	return __nf_ct_ext_add_length(ct, nf_ct_ext_id_ntc,
-		sizeof(struct nf_ct_ext_ntc_label), GFP_ATOMIC);
-#endif
+	return __nf_ct_ext_find(ct, nf_ct_ext_id_ntc);
 }
 
-static inline struct nf_ct_ext_ntc_label *nf_ct_ext_find_ntc(
-					  const struct nf_conn *ct)
+static inline bool
+nf_ct_ext_ntc_filled(const struct nf_ct_ext_ntc_label *lbl)
 {
-	return (struct nf_ct_ext_ntc_label *)
-		__nf_ct_ext_find(ct, nf_ct_ext_id_ntc);
+	return lbl->wan_iface > 0 && lbl->lan_iface > 0;
 }
 
-static inline struct nf_ct_ext_ntc_label *nf_ct_ext_add_ntc(struct nf_conn *ct)
+static inline bool
+nf_ct_ext_ntc_mac_isset(const struct nf_ct_ext_ntc_label *lbl)
 {
-	struct nf_ct_ext_ntc_label *lbl = nf_ct_ext_add_ntc_(ct);
-
-	if (unlikely(lbl == NULL))
-		return NULL;
-
-	lbl->wan_iface = 0;
-	lbl->lan_iface = 0;
-	lbl->flags = 0;
-	memset(&lbl->mac, 0, sizeof(lbl->mac));
-
-	return lbl;
+	return lbl->lan_iface > 0;
 }
 
-static inline bool nf_ct_ext_ntc_filled(struct nf_ct_ext_ntc_label *lbl)
+static inline bool
+nf_ct_ext_ntc_from_lan(const struct nf_ct_ext_ntc_label *lbl)
 {
-	return lbl != NULL && lbl->wan_iface > 0 && lbl->lan_iface > 0;
-}
-
-static inline bool nf_ct_ext_ntc_mac_isset(struct nf_ct_ext_ntc_label *lbl)
-{
-	return lbl != NULL && (lbl->flags & NF_CT_EXT_NTC_MAC_SET);
-}
-
-static inline bool nf_ct_ext_ntc_from_lan(struct nf_ct_ext_ntc_label *lbl)
-{
-	return lbl != NULL && (lbl->flags & NF_CT_EXT_NTC_FROM_LAN);
+	return !!(lbl->flags & NF_CT_EXT_NTC_FROM_LAN);
 }
 
 #endif
-
 #endif

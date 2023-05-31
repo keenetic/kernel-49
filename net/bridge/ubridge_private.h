@@ -38,4 +38,19 @@ static inline struct net_device *ubr_get_by_slave_rcu(
 	return ubr->dev;
 }
 
+static inline struct net_device *
+ubr_get_by_slave_rcu_bh(struct net_device *slave_dev)
+{
+	struct ubr_private *ubr = NULL;
+
+	if (!slave_dev || !is_ubridge_port(slave_dev))
+		return NULL;
+
+	ubr = rcu_dereference_bh(slave_dev->rx_handler_data);
+	if (!ubr || !is_ubridge(ubr->dev))
+		return NULL;
+
+	return ubr->dev;
+}
+
 #endif

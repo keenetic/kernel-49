@@ -99,9 +99,20 @@ enum ip_conntrack_status {
 	IPS_HELPER = (1 << IPS_HELPER_BIT),
 };
 
-/* Must be more than __IPS_MAX_BIT */
-#define IPS_FASTNAT_BIT 20
-#define IPS_FASTNAT (1 << IPS_FASTNAT_BIT)
+#define IPS_FASTNAT_BIT			(20)
+#define IPS_FASTNAT			(1 << IPS_FASTNAT_BIT)
+
+/* a NDM extend filled */
+#define IPS_NDM_FILLED_BIT		(21)
+#define IPS_NDM_FILLED			(1 << IPS_NDM_FILLED_BIT)
+
+/* not a valid WAN <-> LAN connection */
+#define IPS_NDM_SKIPPED_BIT		(22)
+#define IPS_NDM_SKIPPED			(1 << IPS_NDM_SKIPPED_BIT)
+
+/* connection origin is a WAN interface */
+#define IPS_NDM_FROM_WAN_BIT		(23)
+#define IPS_NDM_FROM_WAN		(1 << IPS_NDM_FROM_WAN_BIT)
 
 /* Connection tracking event types */
 enum ip_conntrack_events {

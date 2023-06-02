@@ -37,6 +37,11 @@
 #define XHCI_MTK_SCH_IN_ACK_RTY_EN (1 << 7)
 #define XHCI_MTK_UPDATE_XACT_NUMP_INTIME (1 << 15)
 
+/* COMPLIANCE_CP5_CP7_TXDEEMPH_10G register */
+#define COMPLIANCE_CP5_CP7_TXDEEMPH_10G		0x2428
+#define CP5_CP7_TXDEEMPH_10G			GENMASK(17, 0)
+#define CP5_CP7_TXDEEMPH_10G_VAL(val)		((val) & 0x03FFFF)
+
 /**
  * To simplify scheduler algorithm, set a upper limit for ESIT,
  * if a synchromous ep's ESIT is larger than @XHCI_MTK_MAX_ESIT,
@@ -176,6 +181,7 @@ struct xhci_hcd_mtk {
 	int num_phys;
 	int wakeup_src;
 	bool lpm_support;
+	bool p0_speed_fixup;
 };
 
 static inline struct xhci_hcd_mtk *hcd_to_mtk(struct usb_hcd *hcd)

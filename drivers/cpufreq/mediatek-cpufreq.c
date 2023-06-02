@@ -24,6 +24,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
+#include <linux/nvmem-consumer.h>
 
 #define MIN_VOLT_SHIFT		(100000)
 #define MAX_VOLT_SHIFT		(200000)
@@ -598,12 +599,33 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 	struct mtk_cpu_dvfs_info *info;
 	struct cpufreq_frequency_table *freq_table;
 	int ret;
+	int target_vproc;
+	u8 reg_val;
+	struct nvmem_cell *cell;
+	size_t len;
+	u8 *buf;
 
 	info = mtk_cpu_dvfs_info_lookup(policy->cpu);
 	if (!info) {
 		pr_err("dvfs info for cpu%d is not initialized.\n",
 		       policy->cpu);
 		return -EINVAL;
+	}
+
+	cell = nvmem_cell_get(info->cpu_dev, "calibration-data");
+	if (!IS_ERR(cell)) {
+		buf = (u8 *)nvmem_cell_read(cell, &len);
+		nvmem_cell_put(cell);
+		if (!IS_ERR(buf)) {
+			reg_val = buf[0] & 0x1f;
+			pr_debug("%s: read vbinning value: %d\n", __func__, reg_val);
+			if (reg_val > 0) {
+				target_vproc = 850000 + reg_val * 10000;
+				dev_pm_opp_remove(info->cpu_dev, 1800000000);
+				dev_pm_opp_add(info->cpu_dev, 1800000000, target_vproc);
+			}
+			kfree(buf);
+		}
 	}
 
 	ret = dev_pm_opp_init_cpufreq_table(info->cpu_dev, &freq_table);

@@ -28,6 +28,30 @@
 #include <linux/cpu.h>
 #include <linux/average.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+
+static inline bool vio_swnat_rx(struct sk_buff *skb)
+{
+	return swnat_rx(skb);
+}
+
+static inline bool vio_swnat_tx(struct sk_buff *skb)
+{
+	return swnat_tx_consume(skb);
+}
+#else
+static inline bool vio_swnat_rx(struct sk_buff *skb)
+{
+	return false;
+}
+
+static inline bool vio_swnat_tx(struct sk_buff *skb)
+{
+	return false;
+}
+#endif
+
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
 
@@ -504,7 +528,9 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 	pr_debug("Receiving skb proto 0x%04x len %i type %i\n",
 		 ntohs(skb->protocol), skb->len, skb->pkt_type);
 
-	napi_gro_receive(&rq->napi, skb);
+	if (unlikely(!vio_swnat_rx(skb)))
+		napi_gro_receive(&rq->napi, skb);
+
 	return;
 
 frame_err:
@@ -848,6 +874,9 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int err;
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, qnum);
 	bool kick = !skb->xmit_more;
+
+	if (unlikely(vio_swnat_tx(skb)))
+		return NETDEV_TX_OK;
 
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(sq);

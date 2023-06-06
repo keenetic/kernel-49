@@ -250,6 +250,10 @@ EXPORT_SYMBOL(strscpy);
  * not recommended for usage. Instead, its definition is provided in case
  * the compiler lowers other libcalls to stpcpy.
  */
+ void
+__ubsan_handle_nonnull_return_v1(void*, void*)
+{
+}
 char *stpcpy(char *__restrict__ dest, const char *__restrict__ src);
 char *stpcpy(char *__restrict__ dest, const char *__restrict__ src)
 {

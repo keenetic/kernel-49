@@ -46,6 +46,7 @@
 #include <asm/pbus-timer.h>
 
 #include <asm/rt2880/generic.h>
+#include <asm/rt2880/eureka_ep430.h>
 
 extern void mtk_disable_irq_all(void);
 
@@ -62,6 +63,11 @@ static void hw_uninit(bool do_reboot)
 		pbus_timer_disable(PBUS_TIMER_1);
 
 #if defined(CONFIG_RALINK_MT7628)
+#ifdef CONFIG_PCI
+	/* assert PERST */
+	RALINK_PCI_PCICFG_ADDR |= (1 << 1);
+	udelay(100);
+#endif
 	/* reset PCIe */
 	*(volatile u32 *)(SOFTRES_REG) = RALINK_PCIE0_RST;
 

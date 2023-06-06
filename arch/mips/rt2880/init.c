@@ -64,6 +64,7 @@
 #define RALINK_CLKCFG1		*(volatile u32 *)(RALINK_SYSCTL_BASE + 0x30)
 #define RALINK_RSTCTRL		*(volatile u32 *)(RALINK_SYSCTL_BASE + 0x34)
 #define RALINK_RSTSTAT		*(volatile u32 *)(RALINK_SYSCTL_BASE + 0x38)
+#define RALINK_GPIOMODE		*(volatile u32 *)(RALINK_SYSCTL_BASE + 0x60)
 
 u32 mips_cpu_feq;
 u32 surfboard_sysclk;
@@ -143,6 +144,15 @@ bool plat_cpu_core_present(int core)
 static inline void prom_init_pcie(void)
 {
 #if defined(CONFIG_RALINK_MT7628)
+#if defined(CONFIG_PCI)
+	/* PERST_GPIO_MODE = 0 */
+	RALINK_GPIOMODE &= ~(0x01 << 16);
+
+	/* assert PERST */
+	RALINK_PCI_PCICFG_ADDR |= (1 << 1);
+	udelay(100);
+#endif
+
 	/* assert PCIe RC RST */
 	RALINK_RSTCTRL |=  RALINK_PCIE0_RST;
 

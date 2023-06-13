@@ -78,6 +78,30 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+
+static inline bool cp_swnat_rx(struct sk_buff *skb)
+{
+	return swnat_rx(skb);
+}
+
+static inline bool cp_swnat_tx(struct sk_buff *skb)
+{
+	return swnat_tx_consume(skb);
+}
+#else
+static inline bool cp_swnat_rx(struct sk_buff *skb)
+{
+	return false;
+}
+
+static inline bool cp_swnat_tx(struct sk_buff *skb)
+{
+	return false;
+}
+#endif
+
 /* These identify the driver base version and may not be removed. */
 static char version[] =
 DRV_NAME ": 10/100 PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")\n";
@@ -428,7 +452,8 @@ static inline void cp_rx_skb (struct cp_private *cp, struct sk_buff *skb,
 	if (opts2 & RxVlanTagged)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), swab16(opts2 & 0xffff));
 
-	napi_gro_receive(&cp->napi, skb);
+	if (unlikely(!cp_swnat_rx(skb)))
+		napi_gro_receive(&cp->napi, skb);
 }
 
 static void cp_rx_err_acct (struct cp_private *cp, unsigned rx_tail,
@@ -737,6 +762,9 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 	unsigned long intr_flags;
 	__le32 opts2;
 	int mss = 0;
+
+	if (unlikely(cp_swnat_tx(skb)))
+		return NETDEV_TX_OK;
 
 	spin_lock_irqsave(&cp->lock, intr_flags);
 

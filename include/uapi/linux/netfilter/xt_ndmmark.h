@@ -30,6 +30,7 @@ enum xt_ndmmark_kernel_list {
 	XT_NDMMARK_KERNEL_SET_CE    = 0x80,
 	XT_NDMMARK_KERNEL_HAS_IF    = 0x100,
 	XT_NDMMARK_KERNEL_HAS_MAC   = 0x200,
+	XT_NDMMARK_KERNEL_FVPN      = 0x400
 };
 
 struct xt_ndmmark_tginfo {
@@ -152,5 +153,17 @@ static inline bool xt_ndmmark_has_mac(struct sk_buff *skb)
 	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_HAS_MAC) ==
 		XT_NDMMARK_KERNEL_HAS_MAC;
 }
+
+static inline void xt_ndmmark_kernel_set_fvpn(struct sk_buff *skb)
+{
+	skb->ndm_mark_kernel |= XT_NDMMARK_KERNEL_FVPN;
+}
+
+static inline bool xt_ndmmark_has_fvpn(struct sk_buff *skb)
+{
+	return (skb->ndm_mark_kernel & XT_NDMMARK_KERNEL_FVPN) ==
+		XT_NDMMARK_KERNEL_FVPN;
+}
+
 
 #endif /* _XT_NDMMARK_H */

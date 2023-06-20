@@ -39,6 +39,31 @@ static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 const char e1000_driver_version[] = DRV_VERSION;
 static const char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
+#if IS_ENABLED(CONFIG_FAST_NAT)
+#include <net/fast_vpn.h>
+
+static inline bool e1000_swnat_rx(struct sk_buff *skb)
+{
+	return swnat_rx(skb);
+}
+
+static inline bool e1000_swnat_tx(struct sk_buff *skb)
+{
+	return swnat_tx_consume(skb);
+}
+#else
+static inline bool e1000_swnat_rx(struct sk_buff *skb)
+{
+	return false;
+}
+
+static inline bool e1000_swnat_tx(struct sk_buff *skb)
+{
+	return false;
+}
+#endif
+
+
 /* e1000_pci_tbl - PCI Device ID Table
  *
  * Last entry must be all 0s
@@ -3147,6 +3172,9 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	unsigned int f;
 	__be16 protocol = vlan_get_protocol(skb);
 
+	if (unlikely(e1000_swnat_tx(skb)))
+		return NETDEV_TX_OK;
+
 	/* This goes back to the question of how to logically map a Tx queue
 	 * to a flow.  Right now, performance is impacted slightly negatively
 	 * if using multiple Tx queues.  If the stack breaks away from a
@@ -4057,7 +4085,9 @@ static void e1000_receive_skb(struct e1000_adapter *adapter, u8 status,
 
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
-	napi_gro_receive(&adapter->napi, skb);
+
+	if (unlikely(!e1000_swnat_rx(skb)))
+		napi_gro_receive(&adapter->napi, skb);
 }
 
 /**

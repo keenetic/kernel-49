@@ -56,6 +56,12 @@ static inline struct ubr_private *ubr_priv_get_rcu(const struct net_device *dev)
 	return rcu_dereference(dev->rx_handler_data);
 }
 
+static inline struct ubr_private *ubr_priv_get_rtnl(const struct net_device *dev)
+{
+	return is_ubridge_port(dev) ?
+		rtnl_dereference(dev->rx_handler_data) : NULL;
+}
+
 static inline bool is_netdev_rawip(struct net_device *netdev)
 {
 	return (netdev->type == ARPHRD_NONE);
@@ -1237,17 +1243,10 @@ static int ubr_dev_event(struct notifier_block *unused,
 	if (event != NETDEV_UNREGISTER)
 		return NOTIFY_DONE;
 
-	rcu_read_lock();
-	if (rcu_access_pointer(pdev->rx_handler) != ubr_handle_frame) {
-		rcu_read_unlock();
-		return NOTIFY_DONE;
-	}
-
-	ubr = ubr_priv_get_rcu(pdev);
+	ubr = ubr_priv_get_rtnl(pdev);
 	if (ubr)
 		ubr_unreg_if(ubr);
 
-	rcu_read_unlock();
 	return NOTIFY_DONE;
 }
 

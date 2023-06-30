@@ -21,8 +21,18 @@
 #include <linux/vmalloc.h>
 #include <linux/zstd.h>
 
-
-#define ZSTD_DEF_LEVEL	5
+#if defined(CONFIG_RALINK_RAM_SIZE)
+#if (CONFIG_RALINK_RAM_SIZE < 256)
+	#define ZSTD_DEF_LEVEL	1
+#elif (CONFIG_RALINK_RAM_SIZE < 512)
+	#define ZSTD_DEF_LEVEL	2
+#else
+	#define ZSTD_DEF_LEVEL	5
+#endif
+#else
+	/* assume >= 512MB RAM for arm/arm64/x86 */
+	#define ZSTD_DEF_LEVEL	5
+#endif
 
 struct zstd_ctx {
 	ZSTD_CCtx *cctx;

@@ -319,9 +319,13 @@ static void ubsan_type_mismatch_common(struct type_mismatch_data_common *data,
 
 	if (!ptr)
 		handle_null_ptr_deref(data);
-	else if (data->alignment && !IS_ALIGNED(ptr, data->alignment))
+	else if (data->alignment && !IS_ALIGNED(ptr, data->alignment)) {
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+		if (data->alignment <= sizeof(void *) && (ptr % 2) == 0)
+			return;
+#endif
 		handle_misaligned_access(data, ptr);
-	else
+	} else
 		handle_object_size_mismatch(data, ptr);
 }
 

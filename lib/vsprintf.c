@@ -1788,9 +1788,10 @@ early_initcall(initialize_ptr_random);
 /* Maps a pointer to a 32 bit unique identifier. */
 static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
 {
-	unsigned long hashval;
+	unsigned long hashval = (unsigned long)ptr;
 	const int default_width = 2 * sizeof(ptr);
 
+#if !defined(CONFIG_KASAN) && !defined(CONFIG_UBSAN)
 	if (static_branch_unlikely(&not_filled_random_ptr_key)) {
 		spec.field_width = default_width;
 		/* string length must be less than default_width */
@@ -1806,6 +1807,7 @@ static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
 	hashval = hashval & 0xffffffff;
 #else
 	hashval = (unsigned long)siphash_1u32((u32)ptr, &ptr_key);
+#endif
 #endif
 
 	spec.flags |= SMALL;

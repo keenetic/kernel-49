@@ -13,7 +13,7 @@
 
 #define HPT_BITS				32
 
-#define HPT_MIN_DELTA				0x00000300
+#define HPT_MIN_DELTA				0x00001000
 #define HPT_MAX_DELTA				GENMASK(HPT_BITS - 1, 0)
 
 #define HPT_IRQ					SI_TIMER_INT
@@ -97,15 +97,10 @@ static int hpt_set_next_event(unsigned long delta,
 	/* called by the kernel with disabled local hardware interrupts */
 	const struct hpt *hpt = container_of(cd, struct hpt, cd);
 	const u32 next = hpt_read_count(hpt) + delta;
-	u32 cnt;
 
 	hpt_write_compare(hpt, next);
-	cnt = hpt_read_count(hpt);
 
-	if (next >= cnt)
-		return 0; /* next - cnt <= delta */
-
-	if (HPT_MAX_DELTA - cnt + next > delta)
+	if ((s32)(next - hpt_read_count(hpt)) < HPT_MIN_DELTA / 2)
 		return -ETIME;
 
 	return 0;

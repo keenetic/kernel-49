@@ -14,7 +14,7 @@
 #define HPT_BITS				32
 
 #define HPT_MIN_DELTA				0x00001000
-#define HPT_MAX_DELTA				GENMASK(HPT_BITS - 1, 0)
+#define HPT_MAX_DELTA				GENMASK(HPT_BITS - 2, 0)
 
 #define HPT_IRQ					SI_TIMER_INT
 
@@ -64,7 +64,7 @@ static void hpt_init(const struct hpt *hpt)
 	const struct hpt_regs *regs = &hpt->regs;
 
 	hpt_w32(regs->cvr, 0);
-	hpt_w32(regs->lvr, HPT_MAX_DELTA);
+	hpt_w32(regs->lvr, U32_MAX);
 }
 
 static void hpt_enable(const struct hpt *hpt)

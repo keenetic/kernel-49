@@ -76,7 +76,8 @@ static void dst_gc_task(struct work_struct *work)
 loop:
 	while ((dst = next) != NULL) {
 		next = dst->next;
-		prefetch(&next->next);
+		if (next)
+			prefetch(&next->next);
 		cond_resched();
 		if (likely(atomic_read(&dst->__refcnt))) {
 			last->next = dst;

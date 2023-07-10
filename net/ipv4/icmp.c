@@ -745,7 +745,8 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 
 	icmp_push_reply(icmp_param, &fl4, &ipc, &rt);
 ende:
-	ip_rt_put(rt);
+	if (rt)
+		ip_rt_put(rt);
 out_unlock:
 	icmp_xmit_unlock(sk);
 out_free:

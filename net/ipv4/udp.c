@@ -1100,7 +1100,8 @@ do_append_data:
 	release_sock(sk);
 
 out:
-	ip_rt_put(rt);
+	if (rt)
+		ip_rt_put(rt);
 out_free:
 	if (free)
 		kfree(ipc.opt);

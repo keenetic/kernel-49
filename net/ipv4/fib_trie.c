@@ -505,7 +505,8 @@ static void tnode_free(struct key_vector *tn)
 		tnode_free_size += TNODE_SIZE(1ul << tn->bits);
 		node_free(tn);
 
-		tn = container_of(head, struct tnode, rcu)->kv;
+		if (head)
+			tn = container_of(head, struct tnode, rcu)->kv;
 	}
 
 	if (tnode_free_size >= PAGE_SIZE * sync_pages) {

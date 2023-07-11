@@ -158,11 +158,11 @@ struct PdmaRxDescInfo4 {
 
 /* fast fill FoE magic tag field */
 #define DO_FILL_FOE_MTAG(skb,mtag) \
-	(*((uint16_t *)(FOE_INFO_START_ADDR(skb))) = (uint16_t)(mtag))
+	(((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->MAGIC_TAG = (uint16_t)(mtag))
 
 /* fast fill FoE desc field */
-#define DO_FILL_FOE_DESC(skb,desc) \
-	(*((uint32_t *)(FOE_INFO_START_ADDR(skb) + 2)) = (uint32_t)(desc))
+#define DO_FILL_FOE_DESC(skb,dsc) \
+	(((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->desc = (uint32_t)(dsc))
 
 /* fast fill FoE desc to DPORT PPE (magic_tag,entry_num) */
 #define DO_FILL_FOE_DPORT_PPE(skb) \

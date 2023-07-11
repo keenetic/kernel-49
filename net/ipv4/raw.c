@@ -669,7 +669,8 @@ back_from_confirm:
 done:
 	if (free)
 		kfree(ipc.opt);
-	ip_rt_put(rt);
+	if (rt)
+		ip_rt_put(rt);
 
 out:
 	if (err < 0)

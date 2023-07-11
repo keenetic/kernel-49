@@ -441,7 +441,8 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	if (icmpv4_xrlim_allow(net, rt, &fl4, icmp_param->data.icmph.type,
 			       icmp_param->data.icmph.code))
 		icmp_push_reply(icmp_param, &fl4, &ipc, &rt);
-	ip_rt_put(rt);
+	if (rt)
+		ip_rt_put(rt);
 out_unlock:
 	icmp_xmit_unlock(sk);
 }

@@ -1647,7 +1647,8 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 		ip_push_pending_frames(sk, &fl4);
 	}
 out:
-	ip_rt_put(rt);
+	if (rt)
+		ip_rt_put(rt);
 }
 
 void __init ip_init(void)

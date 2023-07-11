@@ -130,7 +130,7 @@ static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
  */
 static inline unsigned int psched_mtu(const struct net_device *dev)
 {
-	return dev->mtu + dev->hard_header_len;
+	return READ_ONCE(dev->mtu) + dev->hard_header_len;
 }
 
 #endif

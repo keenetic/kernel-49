@@ -1463,7 +1463,8 @@ skip_routeinfo:
 		ND_PRINTK(2, warn, "RA: invalid RA options\n");
 	}
 out:
-	ip6_rt_put(rt);
+	if (rt)
+		ip6_rt_put(rt);
 	if (neigh)
 		neigh_release(neigh);
 }

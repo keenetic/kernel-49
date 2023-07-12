@@ -164,7 +164,8 @@ int ext4_mpage_readpages(struct address_space *mapping,
 		int fully_mapped = 1;
 		unsigned first_hole = blocks_per_page;
 
-		prefetchw(&page->flags);
+		if (page)
+			prefetchw(&page->flags);
 		if (pages) {
 			page = list_entry(pages->prev, struct page, lru);
 			list_del(&page->lru);

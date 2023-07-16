@@ -175,7 +175,9 @@ static void populate_properties(const void *blob,
 	int cur;
 	bool has_name = false;
 
-	pprev = &np->properties;
+	if (!dryrun)
+		pprev = &np->properties;
+
 	for (cur = fdt_first_property_offset(blob, offset);
 	     cur >= 0;
 	     cur = fdt_next_property_offset(blob, cur)) {

@@ -483,6 +483,38 @@ err_put_entry:
 	return err;
 }
 
+unsigned int ndm_fw_cfg_mode = 0; /* router */
+EXPORT_SYMBOL(ndm_fw_cfg_mode);
+
+static void ndm_handle_kv(const char* name, const char* val)
+{
+	if (!strcmp("opt/ndm.system.mode", name)) {
+		if (!strcmp("router", val)) {
+			pr_info("running in router mode\n");
+			ndm_fw_cfg_mode = 0;
+		} else
+		if (!strcmp("extender", val)) {
+			pr_info("running in extender mode\n");
+			ndm_fw_cfg_mode = 1;
+		}
+	}
+}
+
+static void ndm_handle_entry(struct fw_cfg_file *dir)
+{
+	char buf[64];
+
+	if (strncmp(dir->name, "opt/ndm.", 8))
+		return;
+
+	memset(buf, 0, sizeof(buf));
+	fw_cfg_read_blob(dir->select, buf, 0,
+		min_t(size_t, dir->size, sizeof(buf) - 1));
+
+	pr_info("variable '%s', value '%s'\n", dir->name, buf);
+	ndm_handle_kv(dir->name, buf);
+}
+
 /* iterate over all fw_cfg directory entries, registering each one */
 static int fw_cfg_register_dir_entries(void)
 {
@@ -507,6 +539,8 @@ static int fw_cfg_register_dir_entries(void)
 		ret = fw_cfg_register_file(&dir[i]);
 		if (ret)
 			break;
+
+		ndm_handle_entry(&dir[i]);
 	}
 
 	kfree(dir);

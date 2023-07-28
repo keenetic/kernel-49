@@ -211,6 +211,10 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	if (!p || p->state == BR_STATE_DISABLED)
 		goto drop;
 
+	if (skb_vlan_tag_present(skb) || skb->protocol == htons(ETH_P_8021Q))
+		if (!(p->flags & BR_ADMIT_TAGGED))
+			goto drop;
+
 	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid))
 		goto out;
 

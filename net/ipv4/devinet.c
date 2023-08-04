@@ -1231,7 +1231,7 @@ __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 	/* Try to select primary address at first */
 
 	for_primary_ifa(in_dev) {
-		if (ifa->ifa_flags & IFA_F_IP4_ALIAS)
+		if (ifa->ifa_flags & IFA_F_IP4_ALIAS && !inet_ifa_match(dst, ifa))
 			continue;
 		if (ifa->ifa_scope > scope)
 			continue;

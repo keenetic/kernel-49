@@ -15,6 +15,30 @@
 #include <asm/time.h>
 #include <asm/cevt-r4k.h>
 
+#if defined(CONFIG_RALINK_MT7621)
+
+#define MIN_DELTA				(0x1000)
+
+static int mips_next_event(unsigned long delta,
+			   struct clock_event_device *evt)
+{
+	const unsigned int next = read_c0_count() + delta;
+
+	write_c0_compare(next);
+
+	if ((int)(next - read_c0_count()) < MIN_DELTA / 2)
+		return -ETIME;
+
+	return 0;
+}
+
+static unsigned int calculate_min_delta(void)
+{
+	return MIN_DELTA;
+}
+
+#else
+
 static int mips_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
@@ -104,6 +128,8 @@ static unsigned int calculate_min_delta(void)
 		 __func__, buf2[ARRAY_SIZE(buf2) - 1], min_delta);
 	return min_delta;
 }
+
+#endif
 
 DEFINE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 int cp0_timer_irq_installed;

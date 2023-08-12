@@ -229,7 +229,8 @@ void nf_ct_ext_ndm_output(struct sk_buff *skb)
 		return;
 
 	if (test_bit(IPS_NDM_FILLED_BIT, &ct->status) ||
-	    test_bit(IPS_NDM_SKIPPED_BIT, &ct->status))
+	    test_bit(IPS_NDM_SKIPPED_BIT, &ct->status) ||
+	    nf_ct_is_untracked(ct))
 		return;
 
 	__nf_ct_ext_ndm_fill(skb, skb->dev, ct, ctinfo);

@@ -117,9 +117,10 @@ __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
 	rcu_read_lock_bh();
 
 	if (is_ubridge_port(dev)) {
-		dev = ubr_get_by_slave_rcu_bh(dev);
-		if (!dev)
-			dev = skb->dev;
+		struct net_device *dev_sl = ubr_get_by_slave_rcu_bh(dev);
+
+		if (dev_sl)
+			dev = dev_sl;
 	}
 
 	if (br_port_exists(dev)) {

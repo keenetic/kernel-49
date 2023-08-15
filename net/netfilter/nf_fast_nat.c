@@ -125,7 +125,9 @@ int fast_nat_path(struct net *net, struct sock *sk, struct sk_buff *skb)
 		const struct ntc_shaper_fwd_t fwd = {
 			.okfn		= fast_nat_path_egress,
 			.net		= net,
-			.sk		= sk
+			.sk		= sk,
+			.is_ipv4	= true,
+			.is_swnat	= false
 		};
 
 		ntc_retval = shaper_egress(skb, &fwd);

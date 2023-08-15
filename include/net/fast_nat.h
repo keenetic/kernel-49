@@ -145,7 +145,9 @@ fast_nat_ntc_ingress(struct net *net, struct sk_buff *skb, __be32 saddr)
 		const struct ntc_shaper_fwd_t fwd = {
 			.okfn		= fast_nat_path,
 			.net		= net,
-			.sk		= skb->sk
+			.sk		= skb->sk,
+			.is_ipv4	= true,
+			.is_swnat	= false
 		};
 		unsigned int ntc_retval = ntc_ingress(skb, &fwd);
 

@@ -102,17 +102,11 @@ __nf_ct_ext_ndm_skip(struct sk_buff *skb, struct nf_conn *ct)
 
 static void
 __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
-		     struct nf_conn *ct, enum ip_conntrack_info ctinfo)
+		     struct nf_conn *ct, const bool input)
 {
 	struct nf_ct_ext_ntc_label *lbl;
 	unsigned short sl;
 	s32 ifindex;
-	bool input;
-
-	if (CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL) {
-		__nf_ct_ext_ndm_skip(skb, ct);
-		return;
-	}
 
 	rcu_read_lock_bh();
 
@@ -141,17 +135,20 @@ __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
 		return;
 	}
 
-	input = !test_bit(IPS_CONFIRMED, &ct->status);
 	lbl = nf_ct_ext_find_ntc(ct);
 
 	if (sl == NDM_SECURITY_LEVEL_PUBLIC) {
-		if (lbl->wan_iface > 0) {
+		const s32 wan_iface = READ_ONCE(lbl->wan_iface);
+
+		if (wan_iface > 0) {
 			/* WAN <-> WAN connection */
-			__nf_ct_ext_ndm_skip(skb, ct);
+			if (wan_iface != ifindex)
+				__nf_ct_ext_ndm_skip(skb, ct);
+
 			return;
 		}
 
-		lbl->wan_iface = ifindex;
+		WRITE_ONCE(lbl->wan_iface, ifindex);
 
 		if (input) {
 			/* an input interface is WAN */
@@ -159,15 +156,18 @@ __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
 			xt_ndmmark_kernel_set_wan(skb); /* from WAN */
 		}
 	} else {
+		const s32 lan_iface = READ_ONCE(lbl->lan_iface);
 		struct ethhdr *hdr;
 
-		if (lbl->lan_iface > 0) {
+		if (lan_iface > 0) {
 			/* LAN <-> LAN connection */
-			__nf_ct_ext_ndm_skip(skb, ct);
+			if (lan_iface != ifindex)
+				__nf_ct_ext_ndm_skip(skb, ct);
+
 			return;
 		}
 
-		lbl->lan_iface = ifindex;
+		WRITE_ONCE(lbl->lan_iface, ifindex);
 
 		/* an input interface is LAN */
 		if (input)
@@ -192,7 +192,7 @@ __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
 
 static inline void
 nf_ct_ext_ndm_input(u8 pf, struct net *net, struct sk_buff *skb,
-		    struct nf_conn *ct, const enum ip_conntrack_info ctinfo)
+		    struct nf_conn *ct)
 {
 	struct net_device *dev;
 
@@ -212,7 +212,7 @@ nf_ct_ext_ndm_input(u8 pf, struct net *net, struct sk_buff *skb,
 		return;
 	}
 
-	__nf_ct_ext_ndm_fill(skb, dev, ct, ctinfo);
+	__nf_ct_ext_ndm_fill(skb, dev, ct, true);
 	dev_put(dev);
 }
 
@@ -233,7 +233,7 @@ void nf_ct_ext_ndm_output(struct sk_buff *skb)
 	    nf_ct_is_untracked(ct))
 		return;
 
-	__nf_ct_ext_ndm_fill(skb, skb->dev, ct, ctinfo);
+	__nf_ct_ext_ndm_fill(skb, skb->dev, ct, false);
 }
 EXPORT_SYMBOL(nf_ct_ext_ndm_output);
 
@@ -263,8 +263,7 @@ nf_ct_ext_ndm_mark_skb(struct sk_buff *skb, struct nf_conn *ct,
 #else
 static inline void
 nf_ct_ext_ndm_input(u8 pf, struct net *net, struct sk_buff *skb,
-		    struct nf_conn *ct,
-		    const enum ip_conntrack_info ctinfo) {}
+		    struct nf_conn *ct) {}
 
 static inline void
 nf_ct_ext_ndm_output(struct sk_buff *skb) {}
@@ -1683,7 +1682,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		nf_ct_expect_put(exp);
 	}
 
-	nf_ct_ext_ndm_input(l3proto->l3proto, net, skb, ct, IPCT_NEW);
+	nf_ct_ext_ndm_input(l3proto->l3proto, net, skb, ct);
 
 	return &ct->tuplehash[IP_CT_DIR_ORIGINAL];
 }

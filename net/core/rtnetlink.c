@@ -2478,9 +2478,11 @@ replay:
 		ifname[0] = '\0';
 
 	ifm = nlmsg_data(nlh);
-	if (ifm->ifi_index > 0)
+	if (ifm->ifi_index > 0) {
 		dev = __dev_get_by_index(net, ifm->ifi_index);
-	else {
+	} else if (ifm->ifi_index < 0) {
+		return -EINVAL;
+	} else {
 		if (ifname[0])
 			dev = __dev_get_by_name(net, ifname);
 		else

@@ -1612,7 +1612,7 @@ static bool nmbm_map_block(struct nmbm_instance *ni, uint32_t lb)
 	ni->mapping_blocks_top_ba--;
 	ni->block_mapping_changed++;
 
-	nlog_info(ni, "Logic block %u mapped to physical blcok %u\n", lb, pb);
+	nlog_info(ni, "Logic block %u mapped to physical block %u\n", lb, pb);
 	nmbm_mark_block_color_mapped(ni, pb);
 
 	return true;

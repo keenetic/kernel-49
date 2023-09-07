@@ -461,6 +461,19 @@ static const struct snand_flash_info snand_flash_ids[] = {
 		   SNAND_MEMORG_1G_2K_64,
 		   &snand_cap_read_from_cache_quad_q2d,
 		   &snand_cap_program_load_x4),
+
+	SNAND_INFO("XT26G01C", SNAND_ID(SNAND_ID_ADDR, 0x0b, 0x11),
+		   SNAND_MEMORG_1G_2K_128,
+		   &snand_cap_read_from_cache_quad_q2d,
+		   &snand_cap_program_load_x4),
+	SNAND_INFO("XT26G11D", SNAND_ID(SNAND_ID_ADDR, 0x0b, 0x34),
+		   SNAND_MEMORG_1G_2K_128,
+		   &snand_cap_read_from_cache_quad_q2d,
+		   &snand_cap_program_load_x4),
+	SNAND_INFO("XT26G12D", SNAND_ID(SNAND_ID_ADDR, 0x0b, 0x35),
+		   SNAND_MEMORG_2G_2K_128,
+		   &snand_cap_read_from_cache_quad_q2d,
+		   &snand_cap_program_load_x4),
 };
 
 static int mtk_snand_winbond_select_die(struct mtk_snand *snf, uint32_t dieidx)

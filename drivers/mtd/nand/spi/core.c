@@ -985,6 +985,7 @@ int spinand_match_and_init(struct spinand_device *spinand,
 		spinand->flags = table[i].flags;
 		spinand->id.len = 1 + table[i].devid.len;
 		spinand->select_target = table[i].select_target;
+		spinand->model = info->model;
 
 		op = spinand_select_op_variant(spinand,
 					       info->op_variants.read_cache);
@@ -1033,9 +1034,10 @@ static int spinand_detect(struct spinand_device *spinand)
 		return -EINVAL;
 	}
 
-	dev_info(&spinand->spimem->spi->dev,
-		 "%s SPI NAND was found.\n", spinand->manufacturer->name);
-	dev_info(&spinand->spimem->spi->dev,
+	dev_info(dev, "%s %s SPI NAND was found.\n",
+		 spinand->manufacturer->name, spinand->model);
+
+	dev_info(dev,
 		 "%llu MiB, block size: %zu KiB, page size: %zu, OOB size: %u\n",
 		 nanddev_size(nand) >> 20, nanddev_eraseblock_size(nand) >> 10,
 		 nanddev_page_size(nand), nanddev_per_page_oobsize(nand));

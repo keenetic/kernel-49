@@ -418,6 +418,7 @@ struct spinand_device {
 	u8 *oobbuf;
 	u8 *scratchbuf;
 	const struct spinand_manufacturer *manufacturer;
+	const char *model;
 	void *priv;
 };
 

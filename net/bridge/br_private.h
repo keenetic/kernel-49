@@ -439,6 +439,8 @@ struct net_bridge
 	__be16				vlan_proto;
 	u16				default_pvid;
 #endif
+
+	u64				wsta_shutdown_time;
 };
 
 struct br_input_skb_cb {

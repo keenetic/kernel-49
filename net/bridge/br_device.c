@@ -456,6 +456,8 @@ void br_dev_setup(struct net_device *dev)
 	br->bridge_forward_delay = br->forward_delay = 15 * HZ;
 	br->ageing_time = BR_DEFAULT_AGEING_TIME;
 
+	br->wsta_shutdown_time = get_jiffies_64();
+
 	br_netfilter_rtable_init(br);
 	br_stp_timer_init(br);
 	br_multicast_init(br);

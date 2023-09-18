@@ -177,12 +177,12 @@ void br_queue_init(struct br_queue *q, void (*on_dequeue)(struct sk_buff *))
 	atomic_set(&q->timer_shutdown, 0);
 	smp_wmb(); /* a barrier required after atomic_set() */
 
-	br_queue_set_kbps(q, 512); /* 512 kbps */
-	q->limit_pkts = 768;
-	q->min_pkts = 384;
+	br_queue_set_kbps(q, 640); /* 640 kbps */
+	q->limit_pkts = 1024;
+	q->min_pkts = 512;
 
-	q->limit_bytes = 32 * 1024;
-	q->min_bytes = 8 * 1024;
+	q->limit_bytes = 48 * 1024;
+	q->min_bytes = 12 * 1024;
 
 	q->send_time = jiffies - HZ;
 	q->prob_pkts = reciprocal_value(max(q->limit_pkts - q->min_pkts, 1U));
@@ -213,6 +213,6 @@ void br_queue_destroy(struct br_queue *q)
 int br_queue_overloaded(struct br_queue *q)
 {
 	return
-		(q->avg_pkts > q->limit_pkts * 3 / 4) ||
-		(q->avg_bytes > q->limit_bytes * 3 / 4);
+		(q->avg_pkts > q->limit_pkts * 4 / 5) ||
+		(q->avg_bytes > q->limit_bytes * 4 / 5);
 }

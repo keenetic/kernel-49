@@ -336,6 +336,9 @@ static void br_disable_ports(struct net_bridge *br, struct net_bridge_port *p,
 		p->loop_detect = BR_PORT_LOOP_DETECTED;
 		br_warn(br, "loop by %s detected, disable port %u(%s)\n",
 			reason, (unsigned int) p->port_no, p->dev->name);
+		br->wsta_shutdown_time =
+			get_jiffies_64() +
+			nsecs_to_jiffies64(3 * NSEC_PER_SEC);
 	} else {
 		list_for_each_entry_rcu(port, &br->port_list, list) {
 			if (port == p)
@@ -452,7 +455,8 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 				goto drop;
 			}
 
-			if (unlikely(br_queue_overloaded(&p->queue))) {
+			if (unlikely(br_queue_overloaded(&p->queue) &&
+			    time_is_after_jiffies64(br->wsta_shutdown_time))) {
 				br_disable_ports(br, p, "queue");
 				goto drop;
 			}

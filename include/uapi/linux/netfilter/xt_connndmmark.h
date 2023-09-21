@@ -15,6 +15,7 @@ enum xt_connndmmark_list {
 	XT_CONNNDMMARK_IPSEC_OUT     = 0x02,
 	XT_CONNNDMMARK_IPSEC_MASK    = 0x03,
 	XT_CONNNDMMARK_KEEP_CT       = 0x100,
+	XT_CONNNDMMARK_VPN_SRV       = 0x200,
 };
 
 enum {
@@ -37,5 +38,12 @@ static inline bool xt_connndmmark_is_keep_ct(struct nf_conn *ct)
 	return (ct->ndm_mark & XT_CONNNDMMARK_KEEP_CT) ==
 		XT_CONNNDMMARK_KEEP_CT;
 }
+
+static inline bool xt_connndmmark_is_vpn_srv(struct nf_conn *ct)
+{
+	return (ct->ndm_mark & XT_CONNNDMMARK_VPN_SRV) ==
+		XT_CONNNDMMARK_VPN_SRV;
+}
+
 
 #endif /*_XT_CONNNDMMARK_H*/

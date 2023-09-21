@@ -107,6 +107,7 @@ __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
 	struct nf_ct_ext_ntc_label *lbl;
 	unsigned short sl;
 	s32 ifindex;
+	bool is_vpn_server = false;
 
 	rcu_read_lock_bh();
 
@@ -131,13 +132,23 @@ __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
 	rcu_read_unlock_bh();
 
 	if (ifindex <= 0 || sl == NDM_SECURITY_LEVEL_NONE) {
-		__nf_ct_ext_ndm_skip(skb, ct);
-		return;
+		if (sl == NDM_SECURITY_LEVEL_NONE &&
+		    input &&
+		    (!strncmp(dev->name, "vpn", 3) ||
+		     !strncmp(dev->name, "sstp", 4) ||
+		     !strncmp(dev->name, "l2tp", 4)))
+			is_vpn_server = true;
+
+		if (!is_vpn_server) {
+			__nf_ct_ext_ndm_skip(skb, ct);
+
+			return;
+		}
 	}
 
 	lbl = nf_ct_ext_find_ntc(ct);
 
-	if (sl == NDM_SECURITY_LEVEL_PUBLIC) {
+	if (sl == NDM_SECURITY_LEVEL_PUBLIC || is_vpn_server) {
 		const s32 wan_iface = READ_ONCE(lbl->wan_iface);
 
 		if (wan_iface > 0) {

@@ -18,8 +18,8 @@
 #include <crypto/des.h>
 #include <crypto/gcm.h>
 #include <crypto/ghash.h>
-#include <crypto/poly1305.h>
 #include <crypto/sha.h>
+#include <crypto/poly1305.h>
 #include <crypto/xts.h>
 #include <crypto/skcipher.h>
 #include <crypto/internal/aead.h>

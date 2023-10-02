@@ -777,6 +777,16 @@ static int mt7981_smi_mdc_mdio_funcs[] = { 1, 1, };
 static int mt7981_gbe_ext_mdc_mdio_pins[] = { 36, 37, };
 static int mt7981_gbe_ext_mdc_mdio_funcs[] = { 3, 3, };
 
+/* WF0_MODE1 */
+static int mt7981_wf0_mode1_pins[] = {
+	40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56 };
+static int mt7981_wf0_mode1_funcs[] = {
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+
+/* WF0_MODE3 */
+static int mt7981_wf0_mode3_pins[] = { 45, 46, 47, 48, 49, 51 };
+static int mt7981_wf0_mode3_funcs[] = { 2, 2, 2, 2, 2, 2 };
+
 /* WF2G_LED */
 static int mt7981_wf2g_led0_pins[] = { 30, };
 static int mt7981_wf2g_led0_funcs[] = { 2, };
@@ -915,6 +925,10 @@ static const struct group_desc mt7981_groups[] = {
 	PINCTRL_PIN_GROUP("smi_mdc_mdio", mt7981_smi_mdc_mdio),
 	/*  @GPIO(36,37): MDC_MDIO(3) */
 	PINCTRL_PIN_GROUP("gbe_ext_mdc_mdio", mt7981_gbe_ext_mdc_mdio),
+	/*  @GPIO(69,85): WF0_MODE1(1) */
+	PINCTRL_PIN_GROUP("wf0_mode1", mt7981_wf0_mode1),
+	/*  @GPIO(74,80): WF0_MODE3(3) */
+	PINCTRL_PIN_GROUP("wf0_mode3", mt7981_wf0_mode3),
 	/*  @GPIO(30): WF2G_LED(2) */
 	PINCTRL_PIN_GROUP("wf2g_led0", mt7981_wf2g_led0),
 	/*  @GPIO(34): WF2G_LED(1) */
@@ -959,8 +973,8 @@ static const char *mt7981_pcm_groups[] = { "pcm", };
 static const char *mt7981_udi_groups[] = { "udi", };
 static const char *mt7981_usb_groups[] = { "drv_vbus", };
 static const char *mt7981_flash_groups[] = { "emmc_45", "snfi", };
-static const char *mt7981_ethernet_groups[] = {
-	"smi_mdc_mdio", "gbe_ext_mdc_mdio", "mt7531_int", };
+static const char *mt7981_ethernet_groups[] = { "smi_mdc_mdio", "gbe_ext_mdc_mdio",
+	"mt7531_int", "wf0_mode1", "wf0_mode3", };
 static const char *mt7981_ant_groups[] = { "ant_sel", };
 
 static const struct function_desc mt7981_functions[] = {

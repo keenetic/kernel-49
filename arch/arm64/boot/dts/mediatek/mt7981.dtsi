@@ -15,6 +15,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/mt7981-clk.h>
+#include <dt-bindings/reset/mt7986-resets.h>
 #include <dt-bindings/reset/ti-syscon.h>
 #include <dt-bindings/phy/phy.h>
 
@@ -452,13 +453,19 @@
 	};
 
 	wbsys: wbsys@18000000 {
-		compatible = "mediatek,wbsys";
-		reg = <0 0x18000000 0 0x1000000>;
+		compatible = "mediatek,wbsys",
+			     "mediatek,mt7981-wmac";
+		resets = <&watchdog MT7986_TOPRGU_CONSYS_RST>;
+		reset-names = "consys";
+		reg = <0 0x18000000 0 0x1000000>,
+		      <0 0x10003000 0 0x1000>,
+		      <0 0x11d10000 0 0x1000>;
 		interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
 		chip_id = <0x7981>;
+		memory-region = <&wmcpu_emi>;
 	};
 
 	consys: consys@10000000 {

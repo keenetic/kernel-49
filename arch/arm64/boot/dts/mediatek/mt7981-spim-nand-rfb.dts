@@ -260,6 +260,8 @@
 
 &wbsys {
 	mediatek,mtd-eeprom = <&factory 0x0000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wf_dbdc_pins>;
 	status = "okay";
 };
 
@@ -407,6 +409,22 @@
 		mux {
 			function = "pcie";
 			groups = "pcie_clk", "pcie_wake", "pcie_pereset";
+		};
+	};
+
+	wf_dbdc_pins: wf-dbdc-pins {
+		mux {
+			function = "eth";
+			groups = "wf0_mode1";
+		};
+
+		conf {
+			pins = "WF_HB1", "WF_HB2", "WF_HB3", "WF_HB4",
+			       "WF_HB0", "WF_HB0_B", "WF_HB5", "WF_HB6",
+			       "WF_HB7", "WF_HB8", "WF_HB9", "WF_HB10",
+			       "WF_TOP_CLK", "WF_TOP_DATA", "WF_XO_REQ",
+			       "WF_CBA_RESETB", "WF_DIG_RESETB";
+			drive-strength = <MTK_DRIVE_4mA>;
 		};
 	};
 };

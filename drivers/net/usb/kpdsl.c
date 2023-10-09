@@ -249,8 +249,9 @@ static int kpdsl_get_eeprom(struct net_device *net,
 static int kpdsl_mdio_read(struct net_device *netdev, int phy_id, int loc)
 {
 	struct usbnet *dev = netdev_priv(netdev);
-	u8 val;
+	int err;
 	__le16 res;
+	u8 val = 0;
 
 	/* since REG DM_NET_CTRL/DM_NET_STATUS is the final result,
 	 * no matter internal PHY or EXT MII */
@@ -263,6 +264,7 @@ static int kpdsl_mdio_read(struct net_device *netdev, int phy_id, int loc)
 			if (val & 0x08) /* duplex mode */
 				ret |= BMCR_FULLDPLX;
 
+			val = 0;
 			dm_read_reg(dev, DM_NET_STATUS, &val);
 
 			if (!(val & 0x80)) /* speed 10/100 */
@@ -280,6 +282,7 @@ static int kpdsl_mdio_read(struct net_device *netdev, int phy_id, int loc)
 				BMSR_100HALF     |
 				BMSR_100FULL;
 
+			val = 0;
 			dm_read_reg(dev, DM_NET_STATUS, &val);
 
 			if (val & 0x40) /* link status */
@@ -305,7 +308,11 @@ static int kpdsl_mdio_read(struct net_device *netdev, int phy_id, int loc)
 			       LPA_LPACK;
 	}
 
-	dm_read_shared_word(dev, phy_id, loc, &res);
+	err = dm_read_shared_word(dev, phy_id, loc, &res);
+	if (err < 0) {
+		netdev_err(dev->net, "MDIO read error: %d\n", err);
+		return err;
+	}
 
 	netdev_dbg(dev->net,
 		   "kpdsl_mdio_read() phy_id=0x%02x, loc=0x%02x, returns=0x%04x\n",

@@ -113,7 +113,6 @@ enum part {
 #endif /* CONFIG_MACH_MT7622 */
 #if defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986)
-	PART_ROM_HDR,
 	PART_PRELOADER,
 #endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
 	PART_U_BOOT,
@@ -154,6 +153,7 @@ struct part_dsc {
 #ifdef MTD_NDM_PARTITION_UPDATE
 	const unsigned char *image;
 	const unsigned int *image_len;
+	uint32_t image_ofs;
 #endif
 	uint32_t offset;
 	uint32_t size;
@@ -201,12 +201,12 @@ static struct part_dsc parts[PART_MAX] = {
 #endif /* CONFIG_MACH_MT7622 */
 #if defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986)
-	[PART_ROM_HDR] = {
-		.name		= "ROM-Header",
-		.read_only	= true
-	},
 	[PART_PRELOADER] = {
 		.name		= "Preloader",
+#ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
+		.image		= preloader_bin,
+		.image_len	= &preloader_bin_len,
+#endif
 		.read_only	= true
 	},
 #endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
@@ -363,13 +363,8 @@ static uint32_t parts_size_default_get(enum part part,
 #elif defined(CONFIG_MACH_MT7981) || \
       defined(CONFIG_MACH_MT7986)
 	switch (part) {
-	case PART_ROM_HDR:
-		size = PART_HDR_SIZE;
-		break;
 	case PART_PRELOADER:
 		size = is_nor ? PART_BL2_SIZE_NOR : PART_BL2_SIZE_NAND;
-		/* subtract ROM header */
-		size -= PART_HDR_SIZE;
 		break;
 	case PART_U_BOOT:
 		size = is_nor ? PART_FIP_SIZE_NOR : PART_FIP_SIZE_NAND;
@@ -488,15 +483,18 @@ static int ndm_flash_partition(struct mtd_info *master,
 {
 	int res = 0, ret, retries;
 	size_t len;
-	uint32_t off, size, ws, es, image_len = *p->image_len;
+	uint32_t off, size, ws, es, image_ofs, image_len, total_len;
 	uint32_t orig_crc = 0, src_crc = 0, dst_crc = 0;
 	unsigned char *m = NULL, *v = NULL;
 
+	image_ofs = p->image_ofs;
+	image_len = *p->image_len;
+	total_len = image_ofs + image_len;
+
 	/* Check partition size */
-	if (image_len > p->size) {
+	if (total_len > p->size) {
 		pr_err("the image for %s partition is too big (%u > %u)\n",
-		       p->name,
-		       (unsigned int)image_len, (unsigned int)p->size);
+		       p->name, total_len, p->size);
 		res = -EFBIG;
 		goto out;
 	}
@@ -525,13 +523,12 @@ static int ndm_flash_partition(struct mtd_info *master,
 		goto out;
 	}
 
-	orig_crc = crc32(0, m, image_len);
+	orig_crc = crc32(0, m + image_ofs, image_len);
 
 	/* Fill main buffer with new partition content */
-	memcpy(m, p->image, image_len);
-	size = ALIGN(image_len, master->writesize);
+	memcpy(m + image_ofs, p->image, image_len);
 
-	dst_crc = crc32(0, m, image_len);
+	dst_crc = crc32(0, m + image_ofs, image_len);
 
 	/* Compare actual partition content with the new one */
 	if (orig_crc == dst_crc) {
@@ -543,8 +540,9 @@ static int ndm_flash_partition(struct mtd_info *master,
 	pr_info("updating %s partition content...\n", p->name);
 
 	/* Fill padding */
-	if (size > image_len)
-		memset(m + image_len, 0xff, size - image_len);
+	size = ALIGN(total_len, master->writesize);
+	if (size > total_len)
+		memset(m + total_len, 0xff, size - total_len);
 
 	/* Erase & write -> verify */
 	for (off = 0; off < size; off += es) {
@@ -754,10 +752,14 @@ static int create_mtd_partitions(struct mtd_info *m,
 #if defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986)
 	/* Fill known fields */
-	parts[PART_ROM_HDR].size = parts_size_default_get(PART_ROM_HDR, m);
-
-	parts[PART_PRELOADER].offset = parts_offset_end(PART_ROM_HDR);
 	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
+#ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
+	/* ROM header for NAND: 2048[4096], for NOR: 1536 */
+	if (m->type == MTD_NORFLASH)
+		parts[PART_PRELOADER].image_ofs = ROM_HDR_SIZE_NOR;
+	else
+		parts[PART_PRELOADER].image_ofs = m->writesize;
+#endif
 
 	offs_uboot = parts_offset_end(PART_PRELOADER);
 #endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */

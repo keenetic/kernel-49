@@ -38,7 +38,7 @@
 
 #elif defined(CONFIG_MACH_MT7981) || \
       defined(CONFIG_MACH_MT7986)
-#define PART_HDR_SIZE			0x000800
+#define ROM_HDR_SIZE_NOR		0x000600
 
 #define PART_BL2_SIZE_NOR		0x040000
 #define PART_BL2_SIZE_NAND		0x080000

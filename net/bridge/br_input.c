@@ -338,7 +338,7 @@ static void br_disable_ports(struct net_bridge *br, struct net_bridge_port *p,
 			reason, (unsigned int) p->port_no, p->dev->name);
 		br->wsta_shutdown_time =
 			get_jiffies_64() +
-			nsecs_to_jiffies64(3 * NSEC_PER_SEC);
+			nsecs_to_jiffies64(3ULL * NSEC_PER_SEC);
 	} else {
 		list_for_each_entry_rcu(port, &br->port_list, list) {
 			if (port == p)

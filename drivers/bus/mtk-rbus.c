@@ -35,6 +35,12 @@ int rbus_get_irq(struct platform_device *pdev, unsigned int num)
 }
 EXPORT_SYMBOL(rbus_get_irq);
 
+int rbus_get_irq_byname(struct platform_device *pdev, const char *name)
+{
+	return platform_get_irq_byname(pdev, name);
+}
+EXPORT_SYMBOL(rbus_get_irq_byname);
+
 int rbus_init_dummy_netdev(struct net_device *dev)
 {
 	return init_dummy_netdev(dev);

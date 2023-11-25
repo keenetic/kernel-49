@@ -12,6 +12,7 @@ struct platform_device *rbus_device_alloc(const char *name, int id);
 void rbus_device_put(struct platform_device *pdev);
 
 int rbus_get_irq(struct platform_device *pdev, unsigned int num);
+int rbus_get_irq_byname(struct platform_device *pdev, const char *name);
 
 int rbus_init_dummy_netdev(struct net_device *dev);
 

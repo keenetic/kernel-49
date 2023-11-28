@@ -40,6 +40,15 @@ config COMMON_CLK_MT7986
 	  This driver supports MediaTek MT7986 basic clocks and clocks
 	  required for various periperals found on MediaTek.
 
+config COMMON_CLK_MT7988
+	bool "Clock driver for MediaTek MT7988"
+	depends on MACH_MT7988 || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default MACH_MT7988
+	---help---
+	  This driver supports MediaTek MT7988 basic clocks and clocks
+	  required for various periperals found on MediaTek.
+
 config COMMON_CLK_MT8135
 	bool "Clock driver for Mediatek MT8135"
 	depends on ARCH_MEDIATEK || COMPILE_TEST

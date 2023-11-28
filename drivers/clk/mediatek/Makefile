@@ -4,6 +4,7 @@ obj-$(CONFIG_COMMON_CLK_MT2701) += clk-mt2701.o
 obj-$(CONFIG_COMMON_CLK_MT7622) += clk-mt7622.o clkchk-mt7622.o
 obj-$(CONFIG_COMMON_CLK_MT7981) += clk-mt7981.o
 obj-$(CONFIG_COMMON_CLK_MT7986) += clk-mt7986.o
+obj-$(CONFIG_COMMON_CLK_MT7988) += clk-mt7988.o
 obj-$(CONFIG_COMMON_CLK_MT8135) += clk-mt8135.o
 obj-$(CONFIG_COMMON_CLK_MT8173) += clk-mt8173.o
 obj-y += clk-bringup.o

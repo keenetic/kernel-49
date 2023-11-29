@@ -70,6 +70,13 @@ config PINCTRL_MT7986
 	default MACH_MT7986
 	select PINCTRL_MTK_MOORE
 
+config PINCTRL_MT7988
+	bool "Mediatek MT7988 pin control"
+	depends on OF
+	depends on MACH_MT7988 || COMPILE_TEST
+	default MACH_MT7988
+	select PINCTRL_MTK_MOORE
+
 config PINCTRL_MT8173
 	bool "Mediatek MT8173 pin control"
 	depends on OF

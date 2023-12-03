@@ -103,6 +103,9 @@ config MACH_MT7981
 config MACH_MT7986
 	bool "MediaTek MT7986 SoC support"
 
+config MACH_MT7988
+	bool "MediaTek MT7988 SoC support"
+
 endif
 
 config ARCH_MESON

@@ -117,7 +117,7 @@ static unsigned int rt5190a_fixed_buck_get_mode(struct regulator_dev *rdev)
 
 static const struct regulator_ops rt5190a_ranged_buck_ops = {
 	.enable	= regulator_enable_regmap,
-	.disable = regulator_disable_regmap,
+	/*.disable = regulator_disable_regmap,*/
 	.is_enabled = regulator_is_enabled_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -128,7 +128,7 @@ static const struct regulator_ops rt5190a_ranged_buck_ops = {
 
 static const struct regulator_ops rt5190a_fixed_buck_ops = {
 	.enable	= regulator_enable_regmap,
-	.disable = regulator_disable_regmap,
+	/*.disable = regulator_disable_regmap,*/
 	.is_enabled = regulator_is_enabled_regmap,
 	.set_active_discharge = regulator_set_active_discharge_regmap,
 	.set_mode = rt5190a_fixed_buck_set_mode,
@@ -138,7 +138,7 @@ static const struct regulator_ops rt5190a_fixed_buck_ops = {
 
 static const struct regulator_ops rt5190a_fixed_ldo_ops = {
 	.enable	= regulator_enable_regmap,
-	.disable = regulator_disable_regmap,
+	/*.disable = regulator_disable_regmap,*/
 	.is_enabled = regulator_is_enabled_regmap,
 	.set_active_discharge = regulator_set_active_discharge_regmap,
 	.get_error_flags = rt5190a_get_error_flags,

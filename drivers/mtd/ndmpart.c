@@ -112,9 +112,10 @@ enum part {
 	PART_ATF,		/* ARM Trusted Firmware */
 #endif /* CONFIG_MACH_MT7622 */
 #if defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
+    defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7988)
 	PART_PRELOADER,
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
+#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 || CONFIG_MACH_MT7988*/
 	PART_U_BOOT,
 	PART_U_CONFIG,
 	PART_RF_EEPROM,
@@ -200,7 +201,8 @@ static struct part_dsc parts[PART_MAX] = {
 	},
 #endif /* CONFIG_MACH_MT7622 */
 #if defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
+    defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7988)
 	[PART_PRELOADER] = {
 		.name		= "Preloader",
 #ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
@@ -209,7 +211,7 @@ static struct part_dsc parts[PART_MAX] = {
 #endif
 		.read_only	= true
 	},
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
+#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 || CONFIG_MACH_MT7988 */
 	[PART_U_BOOT] = {
 		.name		= "U-Boot",
 #ifdef CONFIG_MTD_NDM_BOOT_UPDATE
@@ -361,7 +363,8 @@ static uint32_t parts_size_default_get(enum part part,
 		break;
 	}
 #elif defined(CONFIG_MACH_MT7981) || \
-      defined(CONFIG_MACH_MT7986)
+      defined(CONFIG_MACH_MT7986) || \
+      defined(CONFIG_MACH_MT7988)
 	switch (part) {
 	case PART_PRELOADER:
 		size = is_nor ? PART_BL2_SIZE_NOR : PART_BL2_SIZE_NAND;
@@ -750,7 +753,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 #endif /* CONFIG_MACH_MT7622 */
 
 #if defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
+    defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7988)
 	/* Fill known fields */
 	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
 #ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
@@ -762,7 +766,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 #endif
 
 	offs_uboot = parts_offset_end(PART_PRELOADER);
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
+#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 || CONFIG_MACH_MT7988 */
 
 	/* early fill partition info for NAND */
 	parts[PART_U_BOOT].offset = offs_uboot;

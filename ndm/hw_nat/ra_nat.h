@@ -7,6 +7,9 @@
 #if defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986)
 #define MTK_NETSYS_V2
+#elif defined(CONFIG_MACH_MT7988)
+#define MTK_NETSYS_V2
+#define MTK_NETSYS_V3
 #endif
 
 struct PdmaRxDescInfo4 {

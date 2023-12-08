@@ -3,7 +3,8 @@
 
 #if defined(CONFIG_MACH_MT7622) || \
     defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
+    defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7988)
 #define FOE_HAS_MIB_TABLE
 #endif
 
@@ -11,7 +12,8 @@
     defined(CONFIG_MACH_MT7623) || \
     defined(CONFIG_MACH_MT7629) || \
     defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
+    defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7988)
 #define FOE_HAS_PSP_TABLE
 #endif
 
@@ -19,6 +21,9 @@
     defined(CONFIG_MACH_MT7986)
 #define FOE_ENTRY_SIZE_IP4	96
 #define FOE_ENTRY_SIZE_IP6	96
+#elif defined(CONFIG_MACH_MT7988)
+#define FOE_ENTRY_SIZE_IP4	128
+#define FOE_ENTRY_SIZE_IP6	128
 #else
 #define FOE_ENTRY_SIZE_IP4	64
 #define FOE_ENTRY_SIZE_IP6	80
@@ -46,7 +51,9 @@
 #define FOE_ENTRY_SIZE		FOE_ENTRY_SIZE_IP4
 #endif
 
-#if defined(CONFIG_RA_HW_NAT_DUAL_PPE)
+#if defined(CONFIG_RA_HW_NAT_TRIPLE_PPE)
+#define MAX_PPE_NUM		3
+#elif defined(CONFIG_RA_HW_NAT_DUAL_PPE)
 #define MAX_PPE_NUM		2
 #else
 #define MAX_PPE_NUM		1

@@ -14,7 +14,12 @@ config  HNAT_ENHANCED
 
 config  RA_HW_NAT_DUAL_PPE
 	bool "Dual PPE0 plus PPE1 offload"
-	depends on (MACH_MT7981 || MACH_MT7986)
+	depends on (MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
+	default n
+
+config  RA_HW_NAT_TRIPLE_PPE
+	bool "Triple PPE0/PPE1/PPE2 offload"
+	depends on (MACH_MT7988)
 	default n
 
 config  RA_HW_NAT_BINDING_THRESHOLD
@@ -42,7 +47,7 @@ choice
 		bool "16K"
 	config  RA_HW_NAT_TBL_32K
 		bool "32K"
-		depends on (MACH_MT7981 || MACH_MT7986)
+		depends on (MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
 endchoice
 
 choice
@@ -59,7 +64,7 @@ choice
 		bool "Hash3-Complex"
 	config  RA_HW_NAT_HASH_DBG
 		bool "Hash-Debug"
-		depends on (MACH_MT7622 || MACH_MT7623 || MACH_MT7629 || MACH_MT7981 || MACH_MT7986)
+		depends on (MACH_MT7622 || MACH_MT7623 || MACH_MT7629 || MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
 endchoice
 
 choice
@@ -150,7 +155,7 @@ config  RA_HW_NAT_PBND_RD_LMT
 
 config  RA_HW_NAT_PACKET_SAMPLING
 	bool "Packet Sampling to CPU"
-	depends on (MACH_MT7622 || MACH_MT7623 || MACH_MT7629 || MACH_MT7981 || MACH_MT7986)
+	depends on (MACH_MT7622 || MACH_MT7623 || MACH_MT7629 || MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
 
 config  RA_HW_NAT_L2B
 	bool "L2 Bridge Acceleration"
@@ -198,7 +203,7 @@ config  RA_HW_NAT_WIFI
 
 config  RA_HW_NAT_WHNAT
 	bool "WiFi Warp Acceleration"
-	depends on RA_HW_NAT_WIFI && (ECONET_EN7528 || MACH_MT7622 || MACH_MT7981 || MACH_MT7986)
+	depends on RA_HW_NAT_WIFI && (ECONET_EN7528 || MACH_MT7622 || MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
 
 config  RA_HW_NAT_NIC_USB
 	bool "USBNET Acceleration"

@@ -64,10 +64,17 @@ choice
 
 	config FIRST_IF_MT7916
 	bool "MT7916AN"
-	depends on (MACH_EN7523 || MACH_MT7622 || MACH_MT7623)
+	depends on (MACH_EN7523 || MACH_MT7622 || MACH_MT7623 || MACH_MT7988)
 	select MT_MAC
 	select WIFI_MT_MAC
 	select CHIP_MT7916
+
+	config FIRST_IF_MT7992
+	bool "MT7992 series"
+	depends on (MACH_MT7988)
+	select MT_MAC
+	select WIFI_MT_MAC
+	select CHIP_MT7992
 
 endchoice
 
@@ -305,6 +312,10 @@ config CHIP_MT7981
 config CHIP_MT7986
 	bool
 	select RTMP_RBUS_SUPPORT
+
+config CHIP_MT7992
+	bool
+	select RTMP_PCI_SUPPORT
 
 config MTK_CONNINFRA
 	tristate "Mediatek MT7981/MT7986 on-SoC radio infrastructure connectivity"

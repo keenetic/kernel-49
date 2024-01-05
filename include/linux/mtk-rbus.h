@@ -5,6 +5,8 @@
 #include <linux/netdevice.h>
 #include <linux/clk.h>
 
+struct gpio_desc;
+
 int rbus_driver_register(struct platform_driver *drv, struct module *owner);
 void rbus_driver_unregister(struct platform_driver *drv);
 
@@ -23,6 +25,10 @@ void rbus_pm_runtime_enable(struct device *dev, bool enable);
 void rbus_set_dma_coherent(struct device *dev, bool coherent);
 
 int rbus_pinctrl_get_select(struct device *dev, const char *name);
+
+int rbus_gpio_to_irq(const struct gpio_desc *desc);
+int rbus_gpio_get_value(const struct gpio_desc *desc, bool can_sleep);
+void rbus_gpio_set_value(struct gpio_desc *desc, int value, bool can_sleep);
 
 void *rbus_nvmem_read(struct device_node *np, const char *name, size_t *len);
 

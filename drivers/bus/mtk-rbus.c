@@ -2,6 +2,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/mtk-rbus.h>
 
@@ -93,6 +94,30 @@ int rbus_pinctrl_get_select(struct device *dev, const char *name)
 	return 0;
 }
 EXPORT_SYMBOL(rbus_pinctrl_get_select);
+
+int rbus_gpio_to_irq(const struct gpio_desc *desc)
+{
+	return gpiod_to_irq(desc);
+}
+EXPORT_SYMBOL(rbus_gpio_to_irq);
+
+int rbus_gpio_get_value(const struct gpio_desc *desc, bool can_sleep)
+{
+	if (can_sleep)
+		return gpiod_get_value_cansleep(desc);
+
+	return gpiod_get_value(desc);
+}
+EXPORT_SYMBOL(rbus_gpio_get_value);
+
+void rbus_gpio_set_value(struct gpio_desc *desc, int value, bool can_sleep)
+{
+	if (can_sleep)
+		gpiod_set_value_cansleep(desc, value);
+	else
+		gpiod_set_value(desc, value);
+}
+EXPORT_SYMBOL(rbus_gpio_set_value);
 
 void *rbus_nvmem_read(struct device_node *np, const char *name, size_t *len)
 {

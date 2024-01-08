@@ -419,7 +419,7 @@ static void set_polling_speed(struct lvts_data *lvts_data, int tc_id)
 	writel(lvts_mon_ctl_1, LVTSMONCTL1_0 + base);
 	writel(lvts_mon_ctl_2, LVTSMONCTL2_0 + base);
 
-	dev_info(dev, "%s %d, LVTSMONCTL1_0= 0x%x,LVTSMONCTL2_0= 0x%x\n",
+	dev_dbg(dev, "%s %d, LVTSMONCTL1_0= 0x%x, LVTSMONCTL2_0= 0x%x\n",
 		 __func__, tc_id, readl(LVTSMONCTL1_0 + base),
 		 readl(LVTSMONCTL2_0 + base));
 }
@@ -448,7 +448,7 @@ static void set_hw_filter(struct lvts_data *lvts_data, int tc_id)
 	option = (option << 9) | (option << 6) | (option << 3) | option;
 
 	writel(option, LVTSMSRCTL0_0 + base);
-	dev_info(dev, "%s %d, LVTSMSRCTL0_0= 0x%x\n", __func__, tc_id,
+	dev_dbg(dev, "%s %d, LVTSMSRCTL0_0= 0x%x\n", __func__, tc_id,
 		 readl(LVTSMSRCTL0_0 + base));
 }
 
@@ -529,7 +529,7 @@ static void set_tc_hw_reboot_threshold(struct lvts_data *lvts_data,
 	base = GET_BASE_ADDR(tc_id);
 	d_index = get_dominator_index(lvts_data, tc_id);
 
-	dev_info(dev, "%s: LVTS%d, the dominator sensing point= %d\n", __func__,
+	dev_dbg(dev, "%s: LVTS%d, the dominator sensing point= %d\n", __func__,
 		 tc_id, d_index);
 
 	disable_hw_reboot_interrupt(lvts_data, tc_id);
@@ -653,7 +653,7 @@ static int prepare_calibration_data(struct lvts_data *lvts_data)
 
 	lvts_data->coeff.golden_temp = cal_data->golden_temp;
 
-	dev_info(dev, "[lvts_cal] golden_temp = %d\n", cal_data->golden_temp);
+	dev_dbg(dev, "[lvts_cal] golden_temp = %d\n", cal_data->golden_temp);
 
 	size = sizeof(buffer);
 	offset = snprintf(buffer, size, "[lvts_cal] num:g_count:g_count_rc ");
@@ -663,7 +663,7 @@ static int prepare_calibration_data(struct lvts_data *lvts_data)
 				 cal_data->count_r[i], cal_data->count_rc[i]);
 
 	buffer[offset] = '\0';
-	dev_info(dev, "%s\n", buffer);
+	dev_dbg(dev, "%s\n", buffer);
 
 	return 0;
 }
@@ -818,13 +818,13 @@ static void tc_irq_handler(struct lvts_data *lvts_data, int tc_id)
 	/* Write back to clear interrupt status */
 	writel(ret, LVTSMONINTSTS_0 + base);
 
-	dev_info(
+	dev_dbg(
 		dev,
 		"[Thermal IRQ] LVTS thermal controller %d, LVTSMONINTSTS=0x%08x\n",
 		tc_id, ret);
 
 	if (ret & THERMAL_PROTECTION_STAGE_3)
-		dev_info(
+		dev_dbg(
 			dev,
 			"[Thermal IRQ]: Thermal protection stage 3 interrupt triggered\n");
 }
@@ -846,7 +846,7 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 	for (i = 0; i < lvts_data->num_domain; i++) {
 		base = lvts_data->domain[i].base;
 		irq_bitmap[i] = readl(THERMINTST + base);
-		dev_info(dev, "%s : THERMINTST = 0x%x\n", __func__,
+		dev_dbg(dev, "%s : THERMINTST = 0x%x\n", __func__,
 			 irq_bitmap[i]);
 	}
 
@@ -1140,7 +1140,7 @@ static int device_read_count_rc_n_v5(struct lvts_data *lvts_data)
 				   cal_data->count_rc_now[i]);
 
 	buffer[offset] = '\0';
-	dev_info(dev, "%s\n", buffer);
+	dev_dbg(dev, "%s\n", buffer);
 
 	return 0;
 }

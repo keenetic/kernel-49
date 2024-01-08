@@ -89,6 +89,18 @@
 	};
 };
 
+&cpu0 {
+	proc-supply = <&rt5190_buck3>;
+};
+
+&cpu1 {
+	proc-supply = <&rt5190_buck3>;
+};
+
+&cpu2 {
+	proc-supply = <&rt5190_buck3>;
+};
+
 &fan {
 	pwms = <&pwm 0 50000>;
 	status = "okay";
@@ -113,8 +125,9 @@
 				regulator-min-microvolt = <5090000>;
 				regulator-max-microvolt = <5090000>;
 				regulator-allowed-modes =
-				<RT5190A_OPMODE_AUTO RT5190A_OPMODE_FPWM>;
+				    <RT5190A_OPMODE_AUTO RT5190A_OPMODE_FPWM>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			buck2 {
@@ -122,9 +135,10 @@
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <1400000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
-			buck3 {
+			rt5190_buck3: buck3 {
 				regulator-name = "proc";
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <1400000>;
@@ -136,8 +150,9 @@
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <850000>;
 				regulator-allowed-modes =
-				<RT5190A_OPMODE_AUTO RT5190A_OPMODE_FPWM>;
+				    <RT5190A_OPMODE_AUTO RT5190A_OPMODE_FPWM>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			ldo {
@@ -145,6 +160,7 @@
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 		};
 	};

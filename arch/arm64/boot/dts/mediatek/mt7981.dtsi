@@ -181,6 +181,7 @@
 			 <&infracfg_ao CK_INFRA_PWM2_CK>,
 			 <&infracfg_ao CK_INFRA_PWM3_CK>;
 		clock-names = "top", "main", "pwm1", "pwm2", "pwm3";
+		status = "disabled";
 	};
 
 	wed_pcie: wed_pcie@10003000 {

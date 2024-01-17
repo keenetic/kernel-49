@@ -205,9 +205,9 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct mtk_pwm_chip *pc = to_mtk_pwm_chip(chip);
 	struct clk *clk = pc->clk_pwm[pwm->hwpwm];
-	u32 value;
-	u64 resolution = 100 / 4;
+	u64 resolution;
 	u32 clkdiv = 0;
+	u32 clksel = 0;
 	u32 reg_width = PWMDWIDTH, reg_thres = PWMTHRES;
 	u32 cnt_period, cnt_duty;
 	u32 data_width, thresh;
@@ -216,12 +216,33 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/* Using resolution in picosecond gets accuracy higher */
 	resolution = (u64)NSEC_PER_SEC * 1000;
+
+	/* Calculate resolution based on current clock frequency */
 	do_div(resolution, clk_get_rate(clk));
 
+	/* Using resolution to calculate cnt_period which represents
+	 * the effective range of the PWM period counter
+	 */
 	cnt_period = DIV_ROUND_CLOSEST_ULL((u64)period_ns * 1000, resolution);
 	while (cnt_period > 8191) {
-		clkdiv++;
+		/* Using clkdiv to reduce clock frequency and calculate
+		 * new resolution based on new clock speed
+		 */
 		resolution *= 2;
+		clkdiv++;
+
+		if (clkdiv > PWM_CLK_DIV_MAX && !clksel) {
+			/* Using clksel to divide the pwm source clock by
+			 * an additional 1625, and recalculate new clkdiv
+			 * and resolution
+			 */
+			clksel = 1;
+			clkdiv = 0;
+			resolution = (u64)NSEC_PER_SEC * 1000 * 1625;
+			do_div(resolution, clk_get_rate(clk));
+		}
+
+		/* Calculate cnt_period based on resolution */
 		cnt_period = DIV_ROUND_CLOSEST_ULL((u64)period_ns * 1000,
 						   resolution);
 	}
@@ -235,9 +256,6 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	data_width = period_ns / resolution;
 	thresh = duty_ns / resolution;
 
-	value = mtk_pwm_readl(pc, pwm->hwpwm, PWMCON);
-	value = value | BIT(15) | clkdiv;
-
 	if (pc->data->pwm45_fixup && pwm->hwpwm > 2) {
 		/*
 		 * PWM[4,5] has distinct offset for PWMDWIDTH and PWMTHRES
@@ -247,8 +265,18 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		reg_thres = PWM45THRES_FIXUP;
 	}
 
+	/* Calculate cnt_duty based on resolution */
 	cnt_duty = DIV_ROUND_CLOSEST_ULL((u64)duty_ns * 1000, resolution);
-	mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, value);
+
+	/* The source clock is divided by 2^clkdiv or if the clksel bit
+	 * is set by (2^clkdiv*1625)
+	 */
+
+	if (clksel)
+		mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, BIT(15) | BIT(3) | clkdiv);
+	else
+		mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, BIT(15) | clkdiv);
+
 	mtk_pwm_writel(pc, pwm->hwpwm, reg_width, cnt_period);
 	mtk_pwm_writel(pc, pwm->hwpwm, reg_thres, cnt_duty);
 

@@ -42,6 +42,9 @@
 #define PWM_CLK_DIV_MAX		7
 #define PWM_NUM_MAX		8
 
+#define REG_V1			1
+#define REG_V2			2
+
 #define PWM_CLK_NAME_MAIN	"main"
 #define PWM_CLK_NAME_TOP	"top"
 
@@ -50,9 +53,9 @@ static const char * const mtk_pwm_clk_name[PWM_NUM_MAX] = {
 };
 
 struct mtk_com_pwm_data {
-	const unsigned long *pwm_register;
 	unsigned int pwm_nums;
 	bool pwm45_fixup;
+	int reg_ver;
 };
 
 /**
@@ -72,35 +75,52 @@ struct mtk_pwm_chip {
 };
 
 /*==========================================*/
-static const unsigned long mtk_pwm_com_register[] = {
-	0x0010, 0x0050, 0x0090, 0x00d0, 0x0110, 0x0150
+static const unsigned int mtk_pwm_reg_offset_v1[] = {
+	0x0010, 0x0050, 0x0090, 0x00d0, 0x0110, 0x0150, 0x0190, 0x0220
 };
-/*==========================================*/
+
+static const unsigned int mtk_pwm_reg_offset_v2[] = {
+	0x0080, 0x00c0, 0x0100, 0x0140, 0x0180, 0x01c0, 0x0200, 0x0240
+};
 
 /*==========================================*/
 static const struct mtk_com_pwm_data mt7622_pwm_data = {
-	.pwm_register = mtk_pwm_com_register,
 	.pwm_nums = 6,
 	.pwm45_fixup = false,
+	.reg_ver = REG_V1,
 };
 
 static const struct mtk_com_pwm_data mt7623_pwm_data = {
-	.pwm_register = mtk_pwm_com_register,
 	.pwm_nums = 5,
 	.pwm45_fixup = true,
+	.reg_ver = REG_V1,
 };
 
-static const struct mtk_com_pwm_data mt8167_pwm_data = {
-	.pwm_register = mtk_pwm_com_register,
+static const struct mtk_com_pwm_data mt7981_pwm_data = {
 	.pwm_nums = 3,
 	.pwm45_fixup = false,
+	.reg_ver = REG_V2,
+};
+
+static const struct mtk_com_pwm_data mt7986_pwm_data = {
+	.pwm_nums = 2,
+	.pwm45_fixup = false,
+	.reg_ver = REG_V1,
+};
+
+static const struct mtk_com_pwm_data mt7988_pwm_data = {
+	.pwm_nums = 8,
+	.pwm45_fixup = false,
+	.reg_ver = REG_V2,
 };
 /*==========================================*/
 
 static const struct of_device_id mtk_pwm_of_match[] = {
 	{.compatible = "mediatek,mt7622-pwm", .data = &mt7622_pwm_data},
 	{.compatible = "mediatek,mt7623-pwm", .data = &mt7623_pwm_data},
-	{.compatible = "mediatek,mt8167-pwm", .data = &mt8167_pwm_data},
+	{.compatible = "mediatek,mt7981-pwm", .data = &mt7981_pwm_data},
+	{.compatible = "mediatek,mt7986-pwm", .data = &mt7986_pwm_data},
+	{.compatible = "mediatek,mt7988-pwm", .data = &mt7988_pwm_data},
 	{},
 };
 
@@ -144,20 +164,40 @@ static void mtk_pwm_clk_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 }
 
 static inline u32 mtk_pwm_readl(struct mtk_pwm_chip *chip,
-				u32 pwm_no, unsigned long offset)
+				unsigned int num, unsigned int offset)
 {
-	void __iomem *reg = chip->mmio_base + chip->data->pwm_register[pwm_no] + offset;
+	u32 pwm_offset;
 
-	return readl(reg);
+	switch (chip->data->reg_ver) {
+	case REG_V2:
+		pwm_offset = mtk_pwm_reg_offset_v2[num];
+		break;
+
+	case REG_V1:
+	default:
+		pwm_offset = mtk_pwm_reg_offset_v1[num];
+	}
+
+	return readl(chip->mmio_base + pwm_offset + offset);
 }
 
 static inline void mtk_pwm_writel(struct mtk_pwm_chip *chip,
-				u32 pwm_no, unsigned long offset,
-				unsigned long val)
+				  unsigned int num, unsigned int offset,
+				  u32 value)
 {
-	void __iomem *reg = chip->mmio_base + chip->data->pwm_register[pwm_no] + offset;
+	u32 pwm_offset;
 
-	writel(val, reg);
+	switch (chip->data->reg_ver) {
+	case REG_V2:
+		pwm_offset = mtk_pwm_reg_offset_v2[num];
+		break;
+
+	case REG_V1:
+	default:
+		pwm_offset = mtk_pwm_reg_offset_v1[num];
+	}
+
+	writel(value, chip->mmio_base + pwm_offset + offset);
 }
 
 static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -187,6 +227,7 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	if (clkdiv > PWM_CLK_DIV_MAX) {
+		mtk_pwm_clk_disable(chip, pwm);
 		dev_err(pc->dev, "period %d not supported\n", period_ns);
 		return -EINVAL;
 	}
@@ -208,7 +249,6 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	cnt_duty = DIV_ROUND_CLOSEST_ULL((u64)duty_ns * 1000, resolution);
 	mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, value);
-
 	mtk_pwm_writel(pc, pwm->hwpwm, reg_width, cnt_period);
 	mtk_pwm_writel(pc, pwm->hwpwm, reg_thres, cnt_duty);
 
@@ -292,6 +332,7 @@ static int mtk_pwm_probe(struct platform_device *pdev)
 
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &mtk_pwm_ops;
+	pc->chip.base = -1;
 	pc->chip.npwm = pc->data->pwm_nums;
 
 	platform_set_drvdata(pdev, pc);

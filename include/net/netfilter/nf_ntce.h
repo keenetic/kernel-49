@@ -29,6 +29,7 @@ struct net;
 #define NF_NTCE_HARD_PACKET_LIMIT		750
 
 struct seq_file;
+struct nf_ct_ext_ntce_label;
 
 bool nf_ntce_if_pass(const int ifidx);
 void nf_ntce_enq_packet(const struct nf_conn *ct, struct sk_buff *skb);
@@ -40,6 +41,11 @@ void nf_ntce_ct_show_labels(struct seq_file *s, const struct nf_conn *ct);
 int nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct);
 size_t nf_ntce_ctnetlink_size(const struct nf_conn *ct);
 void nf_ntce_update_sc_ct(struct nf_conn *ct);
+
+static inline bool
+nf_ct_ext_ntce_control(const struct nf_ct_ext_ntce_label *lbl);
+static inline struct nf_ct_ext_ntce_label *nf_ct_ext_find_ntce(
+					  const struct nf_conn *ct);
 
 static inline void nf_ntce_rst_bypass(const u8 pf, struct sk_buff *skb)
 {
@@ -99,10 +105,21 @@ static inline bool nf_ntce_is_enqueue(const u8 pf, struct sk_buff *skb)
 	return false;
 }
 
-static inline int nf_ntce_check_limit(const u8 pf,
+static inline int nf_ntce_check_limit(struct nf_conn *ct,
+				      const u8 pf,
 				      struct sk_buff *skb,
 				      const unsigned long long packets)
 {
+	if (nf_ntce_is_enabled()) {
+		const struct nf_ct_ext_ntce_label *lbl = nf_ct_ext_find_ntce(ct);
+
+		if (lbl != NULL && nf_ct_ext_ntce_control(lbl))
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+			FOE_ALG_MARK(skb);
+#endif
+			return 0;
+	}
+
 	if (packets > NF_NTCE_HARD_PACKET_LIMIT) {
 		nf_ntce_set_bypass(pf, skb);
 
@@ -129,6 +146,7 @@ static inline size_t nf_ntce_fastnat_limit(const size_t limit,
 #include <net/netfilter/nf_conntrack_extend.h>
 
 #define NTCE_NF_F_FASTPATH				0x1
+#define NTCE_NF_F_CONTROL				0x2
 
 /* Must be no more than 128 bits long */
 struct nf_ct_ext_ntce_label {
@@ -185,6 +203,17 @@ nf_ct_ext_ntce_fastpath(const struct nf_ct_ext_ntce_label *lbl)
 	return !!(lbl->flags & NTCE_NF_F_FASTPATH);
 }
 
+static inline void nf_ct_ext_ntce_set_control(struct nf_ct_ext_ntce_label *lbl)
+{
+	lbl->flags |= NTCE_NF_F_CONTROL;
+}
+
+static inline bool
+nf_ct_ext_ntce_control(const struct nf_ct_ext_ntce_label *lbl)
+{
+	return !!(lbl->flags & NTCE_NF_F_CONTROL);
+}
+
 static inline void
 nf_ct_ntce_append(int hooknum, struct nf_conn *ct)
 {
@@ -206,9 +235,8 @@ static inline int nf_ntce_enqueue__(const u8 pf, struct nf_conn *ct,
 				    struct sk_buff *skb,
 				    const bool mark)
 {
-	const struct nf_conn_counter *counters;
 	const struct nf_ct_ext_ntce_label *lbl = nf_ct_ext_find_ntce(ct);
-	u64 pkts;
+	
 
 	if (unlikely(lbl == NULL)) {
 		pr_err_ratelimited("unable to find NTCE label\n");
@@ -222,20 +250,25 @@ static inline int nf_ntce_enqueue__(const u8 pf, struct nf_conn *ct,
 		return 0;
 	}
 
-	counters = (struct nf_conn_counter *)nf_conn_acct_find(ct);
-	if (unlikely(counters == NULL)) {
-		pr_err_ratelimited("unable to find accoutings\n");
+	if (!nf_ct_ext_ntce_control(lbl)) {
+		const struct nf_conn_counter *counters =
+			(struct nf_conn_counter *)nf_conn_acct_find(ct);
+		u64 pkts;
 
-		return 0;
-	}
+		if (unlikely(counters == NULL)) {
+			pr_err_ratelimited("unable to find accoutings\n");
 
-	pkts = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets) +
-		atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
+			return 0;
+		}
 
-	if (pkts > NF_NTCE_HARD_PACKET_LIMIT) {
-		nf_ntce_update_sc_ct(ct);
+		pkts = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets) +
+			atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
 
-		return 0;
+		if (pkts > NF_NTCE_HARD_PACKET_LIMIT) {
+			nf_ntce_update_sc_ct(ct);
+
+			return 0;
+		}
 	}
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)

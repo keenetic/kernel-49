@@ -1935,7 +1935,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 				  pkt_r > limit_half))
 				ct->fast_bind_reached = 1;
 
-			nf_ntce_check_limit(pf, skb, pkt_r + pkt_o);
+			nf_ntce_check_limit(ct, pf, skb, pkt_r + pkt_o);
 		}
 	}
 #endif

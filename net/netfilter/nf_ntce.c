@@ -568,6 +568,11 @@ void nf_ntce_ct_show_labels(struct seq_file *s, const struct nf_conn *ct)
 			seq_puts(s, "ctrl ");
 			ctr++;
 		}
+
+		if (nf_ct_ext_ntce_blocked(lbl)) {
+			seq_puts(s, "blocked ");
+			ctr++;
+		}
 	}
 
 	if (ctr == 0)

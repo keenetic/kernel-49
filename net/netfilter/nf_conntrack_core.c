@@ -1911,14 +1911,17 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	nf_ntce_rst_bypass(pf, skb);
 	nf_ntce_rst_enqueue(pf, skb);
 
-#if IS_ENABLED(CONFIG_FAST_NAT)
+#if IS_ENABLED(CONFIG_FAST_NAT) || IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
 	if (!ct->fast_bind_reached) {
 		struct nf_conn_acct *acct = nf_conn_acct_find(ct);
+		struct nf_ct_ext_ntce_label *ntce = nf_ct_ext_find_ntce(ct);
 
 		if (likely(acct != NULL)) {
 			struct nf_conn_counter *counter = acct->counter;
 			uint64_t pkt_o, pkt_r;
-			const bool ntce_enabled = nf_ntce_is_enabled();
+			const bool ntce_fp =
+				(ntce != NULL && nf_ct_ext_ntce_fastpath(ntce));
+			const bool ntce_enabled = !ntce_fp && nf_ntce_is_enabled();
 			const size_t limit_half = nf_ntce_fastnat_limit(
 				FAST_NAT_BIND_PKT_DIR_HALF, ntce_enabled);
 			const size_t limit_both = nf_ntce_fastnat_limit(

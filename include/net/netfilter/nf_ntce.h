@@ -147,6 +147,7 @@ static inline size_t nf_ntce_fastnat_limit(const size_t limit,
 
 #define NTCE_NF_F_FASTPATH				0x1
 #define NTCE_NF_F_CONTROL				0x2
+#define NTCE_NF_F_BLOCKED				0x4
 
 /* Must be no more than 128 bits long */
 struct nf_ct_ext_ntce_label {
@@ -212,6 +213,17 @@ static inline bool
 nf_ct_ext_ntce_control(const struct nf_ct_ext_ntce_label *lbl)
 {
 	return !!(lbl->flags & NTCE_NF_F_CONTROL);
+}
+
+static inline void nf_ct_ext_ntce_set_blocked(struct nf_ct_ext_ntce_label *lbl)
+{
+	lbl->flags |= NTCE_NF_F_BLOCKED;
+}
+
+static inline bool
+nf_ct_ext_ntce_blocked(const struct nf_ct_ext_ntce_label *lbl)
+{
+	return !!(lbl->flags & NTCE_NF_F_BLOCKED);
 }
 
 static inline void

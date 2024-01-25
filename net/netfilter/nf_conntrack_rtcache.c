@@ -263,6 +263,9 @@ swnat_rtcache_prebind(struct sk_buff *skb,
 	    !test_bit(IPS_ASSURED_BIT, &ct->status))
 		return;
 
+	if (!ct->fast_bind_reached)
+		return;
+
 	if (unlikely(skb_sec_path(skb)))
 		return;
 

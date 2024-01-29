@@ -78,6 +78,7 @@
 #define CTNL_PARSE_F_ONLY_ORIG_			(1 << 6)
 #define CTNL_PARSE_F_PROCESS_IFACES_		(1 << 7)
 #define CTNL_PARSE_F_OTHER_			(1 << 8)
+#define CTNL_PARSE_F_BLOCKED_			(1 << 9)
 #define CTNL_PARSE_F_ALL_			(0xffffffffu)
 
 MODULE_LICENSE("GPL");
@@ -98,8 +99,11 @@ static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 	if (nla_put_u8(skb, CTA_PROTO_NUM, tuple->dst.protonum))
 		goto nla_put_failure;
 
-	if (!(dfl & CTNL_PARSE_F_PROCESS_L4_))
+	if (!(dfl & CTNL_PARSE_F_PROCESS_L4_)) {
+		nla_nest_end(skb, nest_parms);
+
 		return ret;
+	}
 
 	if (likely(l4proto->tuple_to_nlattr))
 		ret = l4proto->tuple_to_nlattr(skb, tuple);

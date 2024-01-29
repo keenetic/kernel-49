@@ -66,8 +66,11 @@
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 #include <net/ip.h>
-#include <net/fast_nat.h>
 #include <net/fast_vpn.h>
+#endif
+
+#if IS_ENABLED(CONFIG_FAST_NAT) || IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)
+#include <net/fast_nat.h>
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM

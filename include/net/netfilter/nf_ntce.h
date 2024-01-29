@@ -5,6 +5,19 @@ struct sk_buff;
 struct nf_conn;
 struct net;
 
+struct nf_ct_ext_ntce_label {
+	u32 app;
+	u32 group;
+
+	union {
+		u32 attributes;
+		u8 attr[4];
+	} attrs;
+
+	u8 os;
+	u8 flags;
+};
+
 #ifdef CONFIG_NTCE_MODULE
 #include <linux/version.h>
 #if IS_ENABLED(CONFIG_FAST_NAT)
@@ -150,18 +163,7 @@ static inline size_t nf_ntce_fastnat_limit(const size_t limit,
 #define NTCE_NF_F_BLOCKED				0x4
 
 /* Must be no more than 128 bits long */
-struct nf_ct_ext_ntce_label {
-	u32 app;
-	u32 group;
 
-	union {
-		u32 attributes;
-		u8 attr[4];
-	} attrs;
-
-	u8 os;
-	u8 flags;
-};
 
 extern enum nf_ct_ext_id nf_ct_ext_id_ntce;
 
@@ -374,6 +376,18 @@ static inline void nf_ntce_enqueue_fwd(struct sk_buff *skb)
 
 #else
 
+static inline struct nf_ct_ext_ntce_label *nf_ct_ext_find_ntce(
+					  const struct nf_conn *ct)
+{
+	return NULL;
+}
+
+static inline bool
+nf_ct_ext_ntce_fastpath(const struct nf_ct_ext_ntce_label *lbl)
+{
+	return true;
+}
+
 static inline size_t nf_ntce_fastnat_limit(const size_t limit,
 					   const bool is_enabled)
 {
@@ -411,7 +425,8 @@ static inline void nf_ntce_update_sc_ct(struct nf_conn *ct)
 {
 }
 
-static inline int nf_ntce_check_limit(const u8 pf, 
+static inline int nf_ntce_check_limit(struct nf_conn *ct,
+				      const u8 pf,
 				      struct sk_buff *skb,
 				      const unsigned long long packets)
 {

@@ -409,17 +409,11 @@
 		clock-names = "debugsys";
 	};
 
-	system_clk: dummy_system_clk {
-		compatible = "fixed-clock";
-		clock-frequency = <40000000>;
-		#clock-cells = <0>;
-	};
-
 	gpt_timer: timer@10008000 {
 		compatible = "mediatek,mt7986-timer";
 		reg = <0 0x10008000 0 0x1000>;
 		interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&system_clk>;
+		clocks = <&infracfg_ao CK_INFRA_66M_GPT_BCK>;
 		clock-names = "system-clk";
 	};
 

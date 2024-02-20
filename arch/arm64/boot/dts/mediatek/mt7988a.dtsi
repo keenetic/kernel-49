@@ -824,6 +824,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0 0x15020000 0 0x8000>;
+		interrupts = <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	eth: ethernet@15100000 {

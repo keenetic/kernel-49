@@ -84,8 +84,6 @@
 #define MT_WDT_STATUS_SW_WDT_RST		  (1 << 30)
 #define MT_WDT_STATUS_IRQ_WDT_RST		  (1 << 29)
 #define MT_WDT_STATUS_SECURITY_RST		  (1 << 28)
-#define MT_WDT_STATUS_DEBUG_WDT_RST		  (1 << 19)
-#define MT_WDT_STATUS_THERMAL_DIRECT_RST	  (1 << 18)
 #define MT_WDT_STATUS_SPM_WDT_RST		  (1 <<  1)
 #define MT_WDT_STATUS_SPM_THERMAL_RST		  (1 <<  0)
 #define MT_WDT_STATUS_HW_RST			  (0 <<  0)
@@ -163,6 +161,7 @@ struct mt_wdt_data {
 	u8 gpt_mode_offset;
 	u8 gpt_clk_offset;
 	u8 gpt_clk_div_offset;
+	u8 wdt_sts_bit_thermal;
 };
 
 struct mt_wdt {
@@ -189,6 +188,7 @@ static const struct mt_wdt_data mt7622_data = {
 	.gpt_mode_offset	= 4,
 	.gpt_clk_offset		= 4,
 	.gpt_clk_div_offset	= 0,
+	.wdt_sts_bit_thermal	= 18,
 };
 
 static const struct mt_wdt_data mt7986_data = {
@@ -199,6 +199,18 @@ static const struct mt_wdt_data mt7986_data = {
 	.gpt_mode_offset	= 5,
 	.gpt_clk_offset		= 2,
 	.gpt_clk_div_offset	= 10,
+	.wdt_sts_bit_thermal	= 18,
+};
+
+static const struct mt_wdt_data mt7988_data = {
+	.gpt_status_reg		= 0x6c,
+	.gpt_num		= 2,
+	.gpt_reg_size		= 0x20,
+	.gpt_mode_clk_div_reg	= MT_WDT_MODE,
+	.gpt_mode_offset	= 5,
+	.gpt_clk_offset		= 2,
+	.gpt_clk_div_offset	= 10,
+	.wdt_sts_bit_thermal	= 16,
 };
 
 static inline void
@@ -700,8 +712,11 @@ static void mt_wdt_irq_affinity_release(struct kref *ref)
 {
 }
 
-static inline const char *mt_wdt_status_text(const u32 status)
+static inline const char *
+mt_wdt_status_text(const struct mt_wdt_data *data, const u32 status)
 {
+	u32 wdt_sts_thermal = BIT(data->wdt_sts_bit_thermal);
+
 	switch (status) {
 	case MT_WDT_STATUS_HW_RST:
 		return "power-on reset";
@@ -709,10 +724,6 @@ static inline const char *mt_wdt_status_text(const u32 status)
 		return "system power manager thermal reset";
 	case MT_WDT_STATUS_SPM_WDT_RST:
 		return "system power manager timeout";
-	case MT_WDT_STATUS_THERMAL_DIRECT_RST:
-		return "thermal controller reset";
-	case MT_WDT_STATUS_DEBUG_WDT_RST:
-		return "debug reset";
 	case MT_WDT_STATUS_SECURITY_RST:
 		return "security reset";
 	case MT_WDT_STATUS_SW_WDT_RST:
@@ -722,6 +733,10 @@ static inline const char *mt_wdt_status_text(const u32 status)
 	case MT_WDT_STATUS_HW_IRQ_WDT_RST:
 		return "hardware watchdog reset";
 	}
+
+	if (status & wdt_sts_thermal)
+		return "thermal controller reset";
+
 	return NULL;
 }
 
@@ -760,7 +775,7 @@ static int mt_wdt_show_power_status(const struct mt_wdt *wdt,
 				    u8 __iomem *gpt_base)
 {
 	const u32 status = ioread32(gpt_base + wdt->data->gpt_status_reg);
-	const char *status_text = mt_wdt_status_text(status);
+	const char *status_text = mt_wdt_status_text(wdt->data, status);
 
 	if (status_text == NULL) {
 		mt_wdt_err(wdt, "SoC power status: unknown (%08lx)\n",
@@ -985,6 +1000,7 @@ static int mt_wdt_remove(struct platform_device *pdev)
 static const struct of_device_id MT_WDT_DT_IDS[] = {
 	{ .compatible = "mediatek,mt7622-wdt", .data = &mt7622_data },
 	{ .compatible = "mediatek,mt7986-wdt", .data = &mt7986_data },
+	{ .compatible = "mediatek,mt7988-wdt", .data = &mt7988_data },
 	{ /* sentinel */		      }
 };
 MODULE_DEVICE_TABLE(of, MT_WDT_DT_IDS);

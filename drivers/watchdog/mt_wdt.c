@@ -5,6 +5,7 @@
 
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/clk.h>
 #include <linux/bug.h>
 #include <linux/smp.h>
 #include <linux/init.h>
@@ -731,6 +732,7 @@ mt_wdt_devm_ioremap_gpt_base(const struct mt_wdt *wdt)
 	struct resource res;
 	const struct device_node *wdt_node = wdt->dev->of_node;
 	struct device_node *gpt_node;
+	struct clk *clk_src;
 
 	if (wdt_node == NULL)
 		return ERR_PTR(-ENOENT);
@@ -738,6 +740,12 @@ mt_wdt_devm_ioremap_gpt_base(const struct mt_wdt *wdt)
 	gpt_node = of_parse_phandle(wdt_node, MT_WDT_GPT_NODE, 0);
 	if (gpt_node == NULL)
 		return ERR_PTR(-ENODEV);
+
+	clk_src = of_clk_get(gpt_node, 0);
+	if (!IS_ERR(clk_src)) {
+		clk_prepare_enable(clk_src);
+		clk_put(clk_src);
+	}
 
 	ret = of_address_to_resource(gpt_node, 0, &res);
 	of_node_put(gpt_node);

@@ -130,5 +130,14 @@ struct eth_switch_rtl8221_ops {
 
 ETH_SWITCH_DECLARE_OPS(rtl8221);
 
+struct eth_switch_cl45_ops {
+	int (*r16_bh)(const u8 bus, const u8 phy, const u8 dev,
+		      const u16 addr, u16 *data);
+	int (*w16_bh)(const u8 bus, const u8 phy, const u8 dev,
+		      const u16 addr, const u16 data);
+};
+
+ETH_SWITCH_DECLARE_OPS(cl45);
+
 #endif /* __INCLUDE_LINUX_ETH_SWITCH_HOOKS_H */
 

@@ -8,6 +8,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/mt7988-clk.h>
 #include <dt-bindings/power/mt7988-power.h>
+#include <dt-bindings/reset/mt7988-resets.h>
 #include <dt-bindings/reset/ti-syscon.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/phy/phy.h>
@@ -418,7 +419,7 @@
 	};
 
 	watchdog: watchdog@1001c000 {
-		compatible = "mediatek,mt7988-wdt";
+		compatible = "mediatek,mt7988-wdt", "syscon";
 		reg = <0 0x1001c000 0 0x1000>;
 		timeout-sec = <30>;
 		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
@@ -842,19 +843,9 @@
 			 <&ethsys CK_ETHDMA_GP3_EN>,
 			 <&ethsys CK_ETHDMA_ESW_EN>,
 			 <&ethsys CK_ETHDMA_CRYPT0_EN>,
-			 <&sgmiisys0 CK_SGM0_TX_EN>,
-			 <&sgmiisys0 CK_SGM0_RX_EN>,
-			 <&sgmiisys1 CK_SGM1_TX_EN>,
-			 <&sgmiisys1 CK_SGM1_RX_EN>,
 			 <&ethwarp CK_ETHWARP_WOCPU2_EN>,
 			 <&ethwarp CK_ETHWARP_WOCPU1_EN>,
 			 <&ethwarp CK_ETHWARP_WOCPU0_EN>,
-			 <&topckgen CK_TOP_USXGMII_SBUS_0_SEL>,
-			 <&topckgen CK_TOP_USXGMII_SBUS_1_SEL>,
-			 <&topckgen CK_TOP_SGM_0_SEL>,
-			 <&topckgen CK_TOP_SGM_1_SEL>,
-			 <&topckgen CK_TOP_XFI_PHY_0_XTAL_SEL>,
-			 <&topckgen CK_TOP_XFI_PHY_1_XTAL_SEL>,
 			 <&topckgen CK_TOP_ETH_GMII_SEL>,
 			 <&topckgen CK_TOP_ETH_REFCK_50M_SEL>,
 			 <&topckgen CK_TOP_ETH_SYS_200M_SEL>,
@@ -870,13 +861,9 @@
 			 <&topckgen CK_TOP_MACSEC_SEL>,
 			 <&topckgen CK_TOP_NETSYS_TOPS_400M_SEL>;
 		clock-names = "xgp1", "xgp2", "xgp3", "fe", "gp2", "gp1",
-			      "gp3", "esw", "crypto", "sgmii_tx250m",
-			      "sgmii_rx250m", "sgmii2_tx250m", "sgmii2_rx250m",
+			      "gp3", "esw", "crypto",
 			      "ethwarp_wocpu2", "ethwarp_wocpu1",
-			      "ethwarp_wocpu0", "top_usxgmii0_sel",
-			      "top_usxgmii1_sel", "top_sgm0_sel",
-			      "top_sgm1_sel", "top_xfi_phy0_xtal_sel",
-			      "top_xfi_phy1_xtal_sel", "top_eth_gmii_sel",
+			      "ethwarp_wocpu0", "top_eth_gmii_sel",
 			      "top_eth_refck_50m_sel", "top_eth_sys_200m_sel",
 			      "top_eth_sys_sel", "top_eth_xgmii_sel",
 			      "top_eth_mii_sel", "top_netsys_sel",
@@ -888,18 +875,10 @@
 			      "macsec_bus_clk";
 		assigned-clocks = <&topckgen CK_TOP_NETSYS_2X_SEL>,
 				  <&topckgen CK_TOP_NETSYS_GSW_SEL>,
-				  <&topckgen CK_TOP_USXGMII_SBUS_0_SEL>,
-				  <&topckgen CK_TOP_USXGMII_SBUS_1_SEL>,
-				  <&topckgen CK_TOP_SGM_0_SEL>,
-				  <&topckgen CK_TOP_SGM_1_SEL>,
 				  <&topckgen CK_TOP_MACSEC_SEL>,
 				  <&topckgen CK_TOP_NETSYS_TOPS_400M_SEL>;
 		assigned-clock-parents = <&topckgen CK_TOP_CB_NET2_800M>,
 					 <&topckgen CK_TOP_CB_NET1_D4>,
-					 <&topckgen CK_TOP_NET1_D8_D4>,
-					 <&topckgen CK_TOP_NET1_D8_D4>,
-					 <&topckgen CK_TOP_CB_SGM_325M>,
-					 <&topckgen CK_TOP_CB_SGM_325M>,
 					 <&topckgen CK_TOP_CB_SGM_325M>,
 					 <&topckgen CK_TOP_CB_NET2_D2>;
 		mediatek,ethsys = <&ethsys>;
@@ -948,39 +927,70 @@
 
 	usxgmiisys0: usxgmiisys@10080000 {
 		compatible = "mediatek,mt7988-usxgmiisys",
-			     "mediatek,mt7988-usxgmiisys_0",
 			     "syscon";
 		reg = <0 0x10080000 0 0x1000>;
-		#clock-cells = <1>;
+		resets = <&watchdog MT7988_TOPRGU_XFI0_GRST>,
+			 <&watchdog MT7988_TOPRGU_SGMII0_GRST>;
+		reset-names = "xfi", "sgmii";
+		clocks = <&topckgen CK_TOP_USXGMII_SBUS_0_SEL>,
+			 <&topckgen CK_TOP_SGM_0_SEL>,
+			 <&sgmiisys0 CK_SGM0_TX_EN>,
+			 <&sgmiisys0 CK_SGM0_RX_EN>;
+		clock-names = "usxgmii", "sgmii_sel", "sgmii_tx", "sgmii_rx";
+		assigned-clocks = <&topckgen CK_TOP_USXGMII_SBUS_0_SEL>,
+				  <&topckgen CK_TOP_SGM_0_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_NET1_D8_D4>,
+					 <&topckgen CK_TOP_CB_SGM_325M>;
+		phys = <&xfi_pextp0>;
+		mediatek,sgmiisys = <&sgmiisys0>;
+		#pcs-cells = <0>;
 	};
 
 	usxgmiisys1: usxgmiisys@10081000 {
 		compatible = "mediatek,mt7988-usxgmiisys",
-			     "mediatek,mt7988-usxgmiisys_1",
 			     "syscon";
 		reg = <0 0x10081000 0 0x1000>;
-		#clock-cells = <1>;
+		resets = <&watchdog MT7988_TOPRGU_XFI1_GRST>,
+			 <&watchdog MT7988_TOPRGU_SGMII1_GRST>;
+		reset-names = "xfi", "sgmii";
+		clocks = <&topckgen CK_TOP_USXGMII_SBUS_1_SEL>,
+			 <&topckgen CK_TOP_SGM_1_SEL>,
+			 <&sgmiisys0 CK_SGM1_TX_EN>,
+			 <&sgmiisys0 CK_SGM1_RX_EN>;
+		clock-names = "usxgmii", "sgmii_sel", "sgmii_tx", "sgmii_rx";
+		assigned-clocks = <&topckgen CK_TOP_USXGMII_SBUS_1_SEL>,
+				  <&topckgen CK_TOP_SGM_1_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_NET1_D8_D4>,
+					 <&topckgen CK_TOP_CB_SGM_325M>;
+		phys = <&xfi_pextp1>;
+		mediatek,sgmiisys = <&sgmiisys1>;
+		#pcs-cells = <0>;
 	};
 
 	xfi_pextp0: xfi_pextp@11f20000 {
 		compatible = "mediatek,mt7988-xfi_pextp",
-			     "mediatek,mt7988-xfi_pextp_0",
 			     "syscon";
 		reg = <0 0x11f20000 0 0x10000>;
-		#clock-cells = <1>;
+		resets = <&watchdog MT7988_TOPRGU_XFI_PEXTP0_GRST>;
+		clocks = <&topckgen CK_TOP_XFI_PHY_0_XTAL_SEL>;
+		clock-names = "ref";
+		#phy-cells = <0>;
 	};
 
 	xfi_pextp1: xfi_pextp@11f30000 {
 		compatible = "mediatek,mt7988-xfi_pextp",
-			     "mediatek,mt7988-xfi_pextp_1",
 			     "syscon";
 		reg = <0 0x11f30000 0 0x10000>;
-		#clock-cells = <1>;
+		resets = <&watchdog MT7988_TOPRGU_XFI_PEXTP1_GRST>;
+		clocks = <&topckgen CK_TOP_XFI_PHY_1_XTAL_SEL>;
+		clock-names = "ref";
+		#phy-cells = <0>;
 	};
 
 	xfi_pll: xfi_pll@11f40000 {
 		compatible = "mediatek,mt7988-xfi_pll", "syscon";
 		reg = <0 0x11f40000 0 0x1000>;
+		resets = <&watchdog MT7988_TOPRGU_XFI_PLL_GRST>;
 		#clock-cells = <1>;
 	};
 

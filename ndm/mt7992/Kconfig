@@ -1,0 +1,68 @@
+if (MT7992_AP || MT7992_STA)
+
+comment "MT7992 common settings"
+
+config MT7992_6G_SUPPORT
+	bool "6GHz support"
+	default n
+
+config MT7992_LED_CONTROL_SUPPORT
+	bool "LED support"
+	default y
+
+config MT7992_LED_PHR_CONTROL_SUPPORT
+	bool "Soft-LED control support (NDM phr)"
+	depends on MT7992_LED_CONTROL_SUPPORT
+	default y
+
+config MT7992_DOT11R_FT_SUPPORT
+	bool "802.11r Fast BSS Transition"
+	default y
+
+config MT7992_DOT11K_RRM_SUPPORT
+	bool "802.11k Radio Resource Management"
+	default y
+
+config MT7992_DOT11V_WNM_SUPPORT
+	bool "802.11v Wireless Network Management"
+	default y
+
+config MT7992_DOT11U_GAS_SUPPORT
+	bool "802.11u Interworking/Gas Support"
+	default n
+
+config MT7992_MT_DFS_SUPPORT
+	bool "802.11h DFS support"
+	default y
+
+config MT7992_MT_BAND4_DFS_SUPPORT
+	bool "802.11h DFS band4 (165..177) support"
+	depends on MT7992_MT_DFS_SUPPORT
+	default n
+
+config MT7992_BACKGROUND_SCAN_SUPPORT
+	bool "Background Channels Scan support"
+	default n
+
+config MT7992_RF_LOCKDOWN_SUPPORT
+	bool "Single SKU RF lockdown support"
+	default n
+
+config MT7992_SNIFFER_SUPPORT
+	bool "SNIFFER support"
+	default n
+
+config MT7992_SNIFFER_RADIOTAP_SUPPORT
+	bool "Sniffer radiotap support"
+	default n
+
+config MT7992_CFG80211_SUPPORT
+	bool "CFG80211"
+	default n
+
+config MT7992_CUSTOMISED_HOSTAPD_SUPPORT
+	bool "Customized Hostapd Support"
+	depends on MT7992_CFG80211_SUPPORT
+	default n
+
+endif # (MT7992_AP || MT7992_STA)

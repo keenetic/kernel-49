@@ -405,6 +405,11 @@ source "ndm/mt7916_ap/Kconfig"
 source "ndm/mt7916/Kconfig"
 endmenu
 
+menu "MediaTek MT7992 PCIe Wireless driver"
+source "ndm/mt7992_ap/Kconfig"
+source "ndm/mt7992/Kconfig"
+endmenu
+
 menu "Common Wi-Fi settings"
 config ATE_SUPPORT
 	bool "ATE/QA support"

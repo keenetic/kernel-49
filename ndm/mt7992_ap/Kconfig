@@ -1,0 +1,59 @@
+config MT7992_AP
+	tristate "MT7992 802.11be AP support"
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+
+if MT7992_AP
+
+config MT7992_WDS_SUPPORT
+	bool "WDS support"
+	default n
+
+config MT7992_MBO_SUPPORT
+	bool "MBO support"
+	select MT7992_DOT11K_RRM_SUPPORT
+	select MT7992_DOT11R_FT_SUPPORT
+	select MT7992_DOT11V_WNM_SUPPORT
+	select MT7992_DOT11U_GAS_SUPPORT
+	default n
+
+config MT7992_PASSPOINT_R2
+	bool "Passpoint Release-2 support"
+	default n
+
+config MT7992_OCE_SUPPORT
+	bool "Optimized Connectivity Experience support"
+	depends on MT7992_MBO_SUPPORT
+	default n
+
+config MT7992_MAP_SUPPORT
+	bool "Multi-AP Support"
+	default y
+
+config MT7992_WAPP_SUPPORT
+	bool "MTK wapp daemon support"
+	depends on MT7992_MAP_SUPPORT
+	default n
+
+config MT7992_QOS_R1_SUPPORT
+	bool "MTK QoS R1 support"
+	default n
+
+config MT7992_BAND_STEERING
+	bool "Band Steering support"
+	default y
+
+config MT7992_GREENAP_SUPPORT
+	bool "GreenAP support"
+	default n
+
+config MT7992_AIR_MONITOR
+	bool "Air Monitor"
+	default n
+
+config MT7992_CSI_SUPPORT
+	bool "CSI support"
+	default n
+
+endif # MT7992_AP

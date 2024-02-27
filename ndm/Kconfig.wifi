@@ -371,7 +371,7 @@ config WIFI_DEBUG_SUPPORT
 	bool "Debug Mode support"
 	default n
 
-config WIFI_SYSTEM_DVT
+config WIFI_SYSDVT
 	bool "Design Validation Test support"
 	default n
 

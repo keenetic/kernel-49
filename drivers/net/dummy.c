@@ -38,10 +38,13 @@
 #include <net/rtnetlink.h>
 #include <linux/u64_stats_sync.h>
 
+#include <linux/ntc_shaper_hooks.h>
+
 #define DRV_NAME	"dummy"
 #define DRV_VERSION	"1.0"
 
 static int numdummies = 1;
+static int pass_ntc = 0;
 
 /* fake multicast ability */
 static void set_multicast_list(struct net_device *dev)
@@ -76,6 +79,119 @@ static struct rtnl_link_stats64 *dummy_get_stats64(struct net_device *dev,
 	return stats;
 }
 
+static inline void
+dummy_ntc__(ntc_shaper_hook_fn *fn,
+	    struct ntc_shaper_fwd_t *fwd,
+	    struct sk_buff *skb,
+	    const size_t req_len)
+{
+	const size_t len = skb_tail_pointer(skb) - skb_network_header(skb);
+
+	if (req_len > len) {
+		if (skb_tailroom(skb) < req_len) {
+			struct sk_buff *skb2 = skb_copy_expand(skb, 0,
+							       req_len,
+							       GFP_ATOMIC);
+
+			dev_kfree_skb(skb);
+
+			if (skb2 == NULL)
+				return;
+
+			skb = skb2;
+		}
+
+		skb_put(skb, req_len);
+	}
+
+	if (fn(skb, fwd) != NF_STOLEN)
+		dev_kfree_skb(skb);
+}
+
+static inline void
+dummy_ntc_ip4(ntc_shaper_hook_fn *fn,
+	      struct ntc_shaper_fwd_t *fwd,
+	      struct sk_buff *skb)
+{
+	struct iphdr *iph = (struct iphdr *)skb_network_header(skb);
+
+	if (iph->version != 4 ||
+	    (iph->protocol != IPPROTO_TCP &&
+	     iph->protocol != IPPROTO_UDP)) {
+		dev_kfree_skb(skb);
+
+		return;
+	}
+
+	fwd->is_ipv4 = true;
+
+	dummy_ntc__(fn, fwd, skb, ntohs(iph->tot_len));
+}
+
+static inline void
+dummy_ntc_ip6(ntc_shaper_hook_fn *fn,
+	      struct ntc_shaper_fwd_t *fwd,
+	      struct sk_buff *skb)
+{
+	struct ipv6hdr *ip6 = (struct ipv6hdr *)skb_network_header(skb);
+
+	if (ip6->version != 6 ||
+	    (ip6->nexthdr != IPPROTO_TCP &&
+	     ip6->nexthdr != IPPROTO_UDP)) {
+		dev_kfree_skb(skb);
+
+		return;
+	}
+
+	fwd->is_ipv4 = false;
+
+	dummy_ntc__(fn, fwd, skb, ntohs(ip6->payload_len));
+}
+
+static inline void
+dummy_ntc_(ntc_shaper_hook_fn *fn, struct sk_buff *skb)
+{
+	struct ntc_shaper_fwd_t fwd = {
+		.okfn		= NULL,
+		.net		= NULL,
+		.sk		= NULL,
+		.is_ipv4	= true,
+		.is_swnat	= false
+	};
+	const __be16 proto = eth_hdr(skb)->h_proto;
+
+	if (proto == htons(ETH_P_IP)) {
+		dummy_ntc_ip4(fn, &fwd, skb);
+
+		return;
+	}
+
+	if (proto == htons(ETH_P_IPV6)) {
+		dummy_ntc_ip6(fn, &fwd, skb);
+
+		return;
+	}
+
+	dev_kfree_skb(skb);
+}
+
+static inline void
+dummy_ntc(struct sk_buff *skb)
+{
+	ntc_shaper_hook_fn *fn = ntc_shaper_test_hook_get();
+
+	if (fn == NULL) {
+		ntc_shaper_test_hook_put();
+		dev_kfree_skb(skb);
+
+		return;
+	}
+
+	dummy_ntc_(fn, skb);
+
+	ntc_shaper_test_hook_put();
+}
+
 static netdev_tx_t dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct pcpu_dstats *dstats = this_cpu_ptr(dev->dstats);
@@ -85,7 +201,11 @@ static netdev_tx_t dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 	dstats->tx_bytes += skb->len;
 	u64_stats_update_end(&dstats->syncp);
 
-	dev_kfree_skb(skb);
+	if (pass_ntc)
+		dummy_ntc(skb);
+	else
+		dev_kfree_skb(skb);
+
 	return NETDEV_TX_OK;
 }
 
@@ -176,6 +296,8 @@ static struct rtnl_link_ops dummy_link_ops __read_mostly = {
 /* Number of dummy devices to be set up by this module. */
 module_param(numdummies, int, 0);
 MODULE_PARM_DESC(numdummies, "Number of dummy pseudo devices");
+module_param(pass_ntc, int, 0);
+MODULE_PARM_DESC(pass_ntc, "Enable NTC test target bypass");
 
 static int __init dummy_init_one(void)
 {

@@ -18,3 +18,6 @@ EXPORT_SYMBOL(ntc_shaper_check_bound_hook);
 __read_mostly enum nf_ct_ext_id nf_ct_ext_id_ntc;
 EXPORT_SYMBOL(nf_ct_ext_id_ntc);
 #endif
+
+ntc_shaper_hook_fn *ntc_shaper_test_hook;
+EXPORT_SYMBOL(ntc_shaper_test_hook);

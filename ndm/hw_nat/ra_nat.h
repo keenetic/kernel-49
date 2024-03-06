@@ -258,7 +258,7 @@ struct gmac_info {
 #endif
 
 extern int (*ra_sw_nat_hook_rx)(struct sk_buff *skb);
-extern int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, int gmac_info);
+extern int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, const struct gmac_info *gi);
 extern int (*ppe_del_entry_by_addr_hook)(const char *addr);
 extern int (*ppe_dev_has_accel_hook)(struct net_device *dev);
 extern void (*ppe_dev_register_hook)(struct net_device *dev);

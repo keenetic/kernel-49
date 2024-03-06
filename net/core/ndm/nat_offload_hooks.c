@@ -85,7 +85,7 @@ EXPORT_SYMBOL(prebind_from_rtcache);
 int (*ra_sw_nat_hook_rx)(struct sk_buff *skb) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_hook_rx);
 
-int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, int gmac_no) = NULL;
+int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, const struct gmac_info *gi) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_hook_tx);
 
 int (*ppe_del_entry_by_addr_hook)(const char *addr) = NULL;

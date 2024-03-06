@@ -38,7 +38,13 @@ struct wlan_tx_info {
 	u16 wcid;
 	u8 bssidx;
 	u8 ringidx;
-	u32 usr_info;
+	u16 usr_info;
+	u8 tid;
+	u8 is_fixedrate;
+	u8 is_prior;
+	u8 is_sp;
+	u8 hf;
+	u8 amsdu_en;
 };
 
 struct wlan_rx_info {

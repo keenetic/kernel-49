@@ -5,10 +5,12 @@
 #include <linux/ipv6.h>
 
 #if defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
+    defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7988)
 #define MTK_NETSYS_V2
-#elif defined(CONFIG_MACH_MT7988)
-#define MTK_NETSYS_V2
+#endif
+
+#if defined(CONFIG_MACH_MT7988)
 #define MTK_NETSYS_V3
 #endif
 
@@ -231,6 +233,43 @@ struct gmac_info {
 			uint32_t wi_rxid:	1;	/* WDMA/QDMA RX ring */
 		} bits;
 		uint32_t word;
+	};
+} __packed;
+
+#elif defined(MTK_NETSYS_V3)
+
+#define GMAC_ID_GDM3			15
+
+/* gmac_info fields */
+struct gmac_info {
+	union {
+		struct {
+			/* pse info */
+			uint32_t gmac_id:	4;	/* 0: external (WiFi), 1: GDM1, 2: GDM2, 3: WDMA, 15: GDM3 */
+			uint32_t tport_id:	4;	/* Bit0: QDMA */
+			uint32_t queue_id:	7;	/* QDMA QoS queue (0..127) */
+			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
+			uint32_t cdrt_id:	8;
+			uint32_t tops_entry:	6;
+			uint32_t wdmaid:	2;	/* WDMA0/1/2 */
+
+			/* winfo */
+			uint32_t wi_wcid:	16;	/* WCID */
+			uint32_t wi_bssid:	8;	/* BSSID */
+			uint32_t wi_rxid:	2;	/* WDMA RX ring */
+			uint32_t resv1:		6;
+
+			/* winfo PAO */
+			uint32_t usr_info:	16;
+			uint32_t tid:		4;
+			uint32_t is_fixedrate:	1;
+			uint32_t is_prior:	1;
+			uint32_t is_sp:		1;
+			uint32_t hf:		1;
+			uint32_t amsdu_en:	1;
+			uint32_t resv2:		7;
+		} bits;
+		uint32_t word[3];
 	};
 } __packed;
 

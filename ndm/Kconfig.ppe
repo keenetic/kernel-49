@@ -167,9 +167,17 @@ config  RA_HW_NAT_L2B
 config  RA_HW_NAT_IPV6
 	bool "IPv6 Acceleration"
 	depends on IPV6
-	default n
+	default y
 	help
 	  IPv6 routing accelerated by HNAT
+
+config  RA_HW_NAT66
+	bool "IPv6 NAT66 Acceleration"
+	depends on IP6_NF_NAT
+	depends on MACH_MT7988
+	default n
+	help
+	  IPv6 NAT66 accelerated by HNAT
 
 config  RA_HW_NAT_ADSL
 	bool "ADSL/ADSL2 Acceleration"

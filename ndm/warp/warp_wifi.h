@@ -68,7 +68,9 @@ struct ring_ctrl {
 	u32 cidx;
 	u32 didx;
 	u32 lens;
+	u32 attr_mask;
 	dma_addr_t cb_alloc_pa;
+	bool attr_enable;
 };
 
 struct rro_ctrl {

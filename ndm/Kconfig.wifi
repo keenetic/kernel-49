@@ -18,21 +18,18 @@ choice
 	bool "MT7622 integrated radio"
 	depends on MACH_MT7622
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7622
 
 	config FIRST_IF_MT7981
 	bool "MT7981 integrated radio"
 	depends on MACH_MT7981
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7981
 
 	config FIRST_IF_MT7986
 	bool "MT7986 integrated radio"
 	depends on MACH_MT7986
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7986
 
 	config FIRST_IF_MT7602E
@@ -45,36 +42,43 @@ choice
 	bool "MT7603E/MT7592N"
 	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7623)
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7603E
 
 	config FIRST_IF_MT7615E
 	bool "MT7615D/N"
 	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_MT7623)
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7615E
 
 	config FIRST_IF_MT7915
 	bool "MT7915D/A"
 	depends on (RALINK_MT7621 || ECONET_EN75XX_MP || MACH_EN7523 || MACH_MT7622 || MACH_MT7623)
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7915
 
 	config FIRST_IF_MT7916
 	bool "MT7916AN"
 	depends on (MACH_EN7523 || MACH_MT7622 || MACH_MT7623 || MACH_MT7988)
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7916
 
-	config FIRST_IF_MT7992
-	bool "MT7992 series"
+	config FIRST_IF_MT7990
+	bool "MT7990 series (Eagle), SKU BE19000/13000"
 	depends on (MACH_MT7988)
 	select MT_MAC
-	select WIFI_MT_MAC
+	select CHIP_MT7990
+
+	config FIRST_IF_MT7992
+	bool "MT7992 series (Kite), SKU BE7200/6500/5040"
+	depends on (MACH_MT7988)
+	select MT_MAC
 	select CHIP_MT7992
+
+	config FIRST_IF_MT7993
+	bool "MT7993 series (Griffin), SKU BE3600"
+	depends on (MACH_MT7988)
+	select MT_MAC
+	select CHIP_MT7993
 
 endchoice
 
@@ -90,14 +94,36 @@ choice
 endchoice
 
 choice
-	prompt "SKU type for Panther"
-	depends on FIRST_IF_MT7986
+	prompt "SKU type"
+	depends on (FIRST_IF_MT7986 || FIRST_IF_MT7990 || FIRST_IF_MT7992)
 
 	config FIRST_IF_SKU_AX4200
+	depends on FIRST_IF_MT7986
 	bool "AX4200"
 
 	config FIRST_IF_SKU_AX6000
+	depends on FIRST_IF_MT7986
 	bool "AX6000"
+
+	config FIRST_IF_SKU_BE5040
+	depends on FIRST_IF_MT7992
+	bool "BE5040 (MT7991AV), 1die"
+
+	config FIRST_IF_SKU_BE6500
+	depends on FIRST_IF_MT7992
+	bool "BE6500 (MT7992BV), 2die"
+
+	config FIRST_IF_SKU_BE7200
+	depends on FIRST_IF_MT7992
+	bool "BE7200 (MT7992AV), 2die"
+
+	config FIRST_IF_SKU_BE13000
+	depends on FIRST_IF_MT7990
+	bool "BE13000 (2.4/5/5)"
+
+	config FIRST_IF_SKU_BE19000
+	depends on FIRST_IF_MT7990
+	bool "BE19000 (2.4/5/6)"
 endchoice
 
 choice
@@ -150,28 +176,24 @@ choice
 	bool "MT7613E"
 	depends on PCI
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7663E
 
 	config SECOND_IF_MT7615E
 	bool "MT7615D/N"
 	depends on PCI
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7615E
 
 	config SECOND_IF_MT7915
 	bool "MT7915D/A"
 	depends on PCI
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7915
 
 	config SECOND_IF_MT7916
 	bool "MT7916AN"
 	depends on PCI
 	select MT_MAC
-	select WIFI_MT_MAC
 	select CHIP_MT7916
 
 endchoice
@@ -216,6 +238,9 @@ config RT_FIRST_CARD
 	default 7615 if FIRST_IF_MT7615E
 	default 7915 if FIRST_IF_MT7915
 	default 7916 if FIRST_IF_MT7916
+	default 7990 if FIRST_IF_MT7990
+	default 7992 if FIRST_IF_MT7992
+	default 7993 if FIRST_IF_MT7993
 
 config RT_SECOND_CARD
 	int
@@ -313,9 +338,27 @@ config CHIP_MT7986
 	bool
 	select RTMP_RBUS_SUPPORT
 
+config CHIP_MT7990
+	bool
+	select RTMP_PCI_SUPPORT
+
 config CHIP_MT7992
 	bool
 	select RTMP_PCI_SUPPORT
+
+config CHIP_MT7992_2PCIE
+	bool "MT7992 configuration with PCIe two 1-lane"
+	depends on CHIP_MT7992
+	default n
+
+config CHIP_MT7993
+	bool
+	select RTMP_PCI_SUPPORT
+
+config CHIP_MT7993_2PCIE
+	bool "MT7993 configuration with PCIe two 1-lane"
+	depends on CHIP_MT7993
+	default n
 
 config MTK_CONNINFRA
 	tristate "Mediatek MT7981/MT7986 on-SoC radio infrastructure connectivity"

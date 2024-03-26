@@ -602,6 +602,16 @@ int nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct)
 	return 0;
 }
 
+int nf_ntce_ctnetlink_is_blocked(const struct nf_conn *ct)
+{
+	struct nf_ct_ext_ntce_label *lbl = nf_ct_ext_find_ntce(ct);
+
+	if (lbl == NULL)
+		return 0;
+
+	return !!(lbl->flags & NTCE_NF_F_BLOCKED);
+}
+
 size_t nf_ntce_ctnetlink_size(const struct nf_conn *ct)
 {
 	return nla_total_size(0)

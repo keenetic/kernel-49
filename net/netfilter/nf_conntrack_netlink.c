@@ -78,8 +78,11 @@
 #define CTNL_PARSE_F_ONLY_ORIG_			(1 << 6)
 #define CTNL_PARSE_F_PROCESS_IFACES_		(1 << 7)
 #define CTNL_PARSE_F_OTHER_			(1 << 8)
-#define CTNL_PARSE_F_BLOCKED_			(1 << 9)
-#define CTNL_PARSE_F_ALL_			(0xffffffffu)
+#define CTNL_PARSE_F_ONLY_BLOCKED_NTCE_		(1 << 9)
+#define CTNL_PARSE_F_ALL_			((0xffffffffu) & ~(CTNL_PARSE_F_ONLY_BLOCKED_NTCE_))
+
+#define CTNL_PARSE_F_ONLY_BLOCKED_ \
+	(CTNL_PARSE_F_PROCESS_NTCE_ | CTNL_PARSE_F_ONLY_BLOCKED_NTCE_)
 
 MODULE_LICENSE("GPL");
 
@@ -619,6 +622,15 @@ static inline int nf_ntce_ctnetlink_dump_(struct sk_buff *skb,
 	return nf_ntce_ctnetlink_dump(skb, ct);
 }
 
+static inline int nf_ntce_ctnetlink_ntce_filter(const struct nf_conn *ct,
+						unsigned long dfl)
+{
+	if ((dfl & CTNL_PARSE_F_ONLY_BLOCKED_) != CTNL_PARSE_F_ONLY_BLOCKED_)
+		return 1;
+
+	return nf_ntce_ctnetlink_is_blocked(ct);
+}
+
 struct ctnetlink_filter {
 	struct {
 		u_int32_t val;
@@ -637,6 +649,9 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	struct nlattr *nest_parms;
 	unsigned int flags = portid ? NLM_F_MULTI : 0, event;
 	unsigned long dfl = (flt == NULL ? CTNL_PARSE_F_ALL_ : flt->flags);
+
+	if (!nf_ntce_ctnetlink_ntce_filter(ct, dfl))
+		return 0;
 
 	event = (NFNL_SUBSYS_CTNETLINK << 8 | IPCTNL_MSG_CT_NEW);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);

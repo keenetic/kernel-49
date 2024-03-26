@@ -52,6 +52,7 @@ int nf_ntce_init_proc(struct net *net);
 void nf_ntce_fini_proc(struct net *net);
 void nf_ntce_ct_show_labels(struct seq_file *s, const struct nf_conn *ct);
 int nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct);
+int nf_ntce_ctnetlink_is_blocked(const struct nf_conn *ct);
 size_t nf_ntce_ctnetlink_size(const struct nf_conn *ct);
 void nf_ntce_update_sc_ct(struct nf_conn *ct);
 
@@ -473,6 +474,12 @@ nf_ntce_ct_show_labels(struct seq_file *f, const struct nf_conn *ct)
 
 static inline int
 nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct)
+{
+	return 0;
+}
+
+static inline int
+nf_ntce_ctnetlink_is_blocked(const struct nf_conn *ct)
 {
 	return 0;
 }

@@ -503,6 +503,10 @@ static void l2tp_recv_dequeue_skb(struct l2tp_session *session, struct sk_buff *
 			 session->name, session->nr);
 	}
 
+#if IS_ENABLED(CONFIG_NETFILTER_XT_NDMMARK)
+	skb->ndm_mark = 0;
+#endif
+
 	/* call private receive handler */
 	if (session->recv_skb != NULL)
 		(*session->recv_skb)(session, skb, L2TP_SKB_CB(skb)->length);

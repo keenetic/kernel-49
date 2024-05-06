@@ -35,6 +35,7 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 	uint16_t tls_header_len;
 	uint8_t handshake_protocol;
 	uint8_t u8data;
+	const size_t full_length = skb_pagelen(skb);
 
 	if (!dtls) {
 		struct tcphdr _tcph;
@@ -61,11 +62,18 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 	}
 
 	/* Now at D/TLS header */
-	if (unlikely(l7offset > skb->len))
+	if (unlikely(l7offset > full_length))
 		return -ENOMEM;
 
 	/* Calculate packet data length */
-	data_len = skb->len - l7offset;
+	data_len = full_length - l7offset;
+
+#ifdef XT_TLS_DEBUG
+	pr_info("[xt_tls] L7 offset %d, fullsize %d, data %d\n",
+		(int)l7offset,
+		(int)full_length,
+		(int)data_len);
+#endif
 
 	/* Minimal size of TLS/DTLS header */
 	if (data_len < 15)
@@ -92,18 +100,29 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 	tls_header_len = ntohs(tls_header_len);
 	tls_header_len += (dtls ? 13 : 5);
 
-	if (skb_copy_bits(
-			skb,
-			l7offset + (dtls ? 13 : 5),
-			&handshake_protocol,
-			sizeof(handshake_protocol)))
-		return -EFAULT;
+#ifdef XT_TLS_DEBUG
+	pr_info("[xt_tls] TLS header length is %d\n",
+					(int)tls_header_len);
+#endif
 
 	/* Even if we don't have all the data, try matching anyway */
-	if (tls_header_len > data_len)
+	if (tls_header_len > data_len) {
 		tls_header_len = data_len;
 
+#ifdef XT_TLS_DEBUG
+		pr_info("[xt_tls] Clamp TLS header length to %d\n",
+					(int)tls_header_len);
+#endif
+	}
+
 	if (tls_header_len > 4) {
+		if (skb_copy_bits(
+				skb,
+				l7offset + (dtls ? 13 : 5),
+				&handshake_protocol,
+				sizeof(handshake_protocol)))
+			return -EFAULT;
+
 		/* Check only client hellos for now */
 		if (handshake_protocol == 0x01) {
 			u_int offset;
@@ -187,6 +206,12 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 				return -EPROTO;
 			}
 
+#ifdef XT_TLS_DEBUG
+			pr_info("[xt_tls] Match TLS packet\n");
+#endif
+
+			*is_tls = true;
+
 			/* Get the length of all the extensions */
 			if (skb_copy_bits(
 					skb,
@@ -207,14 +232,8 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 					"than offset w/extensions (%d > %d)\n",
 					(extensions_len + offset), tls_header_len);
 #endif
-				return -EPROTO;
+				return -E2BIG;
 			}
-
-#ifdef XT_TLS_DEBUG
-			pr_info("[xt_tls] Match TLS packet\n");
-#endif
-
-			*is_tls = true;
 
 			if (tls_only)
 				return 0;
@@ -323,7 +342,17 @@ static int get_tls_hostname(const struct sk_buff *skb, int thoff, bool tls_only,
 				extension_offset += extension_len;
 			}
 		}
+#ifdef XT_TLS_DEBUG
+		else {
+			pr_info("[xt_tls] Message is not a TLS ClientHello\n");
+		}
+#endif
 	}
+#ifdef XT_TLS_DEBUG
+	else {
+		pr_info("[xt_tls] TLS header length is smaller than 5 bytes\n");
+	}
+#endif
 
 	return *is_tls ? 0 : -EPROTO;
 }
@@ -355,6 +384,14 @@ tls_mt_(const struct sk_buff *skb, struct xt_action_param *par, bool dtls)
 				  &is_tls, &has_esni);
 	if (result == -ENOMEM)
 		par->hotdrop = true;
+
+	if (result == -E2BIG && is_tls) {
+		/* workaround for TLS-records, splitted in several TCP chunks */
+#ifdef XT_TLS_DEBUG
+		pr_info("[xt_tls] Workaround for oversized, match\n");
+#endif
+		return true;
+	}
 
 	if (result != 0)
 		return false;

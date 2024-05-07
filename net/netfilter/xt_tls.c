@@ -364,6 +364,7 @@ tls_mt_(const struct sk_buff *skb, struct xt_action_param *par, bool dtls)
 	const struct xt_tls_mt_info *info = par->matchinfo;
 	const bool invert = ((info->invert & XT_TLS_OP_HOST) != 0);
 	const bool block_esni = ((info->invert & XT_TLS_OP_BLOCK_ESNI) != 0);
+	const bool frag_match = ((info->invert & XT_TLS_OP_FRAG_MATCH) != 0);
 	const bool tls_only = (info->tls_host[0] == '\0');
 	int result;
 	bool match;
@@ -385,7 +386,7 @@ tls_mt_(const struct sk_buff *skb, struct xt_action_param *par, bool dtls)
 	if (result == -ENOMEM)
 		par->hotdrop = true;
 
-	if (result == -E2BIG && is_tls) {
+	if (frag_match && result == -E2BIG && is_tls) {
 		/* workaround for TLS-records, splitted in several TCP chunks */
 #ifdef XT_TLS_DEBUG
 		pr_info("[xt_tls] Workaround for oversized, match\n");

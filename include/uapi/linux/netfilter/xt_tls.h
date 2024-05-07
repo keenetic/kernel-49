@@ -3,6 +3,7 @@
 
 #define XT_TLS_OP_HOST				0x01
 #define XT_TLS_OP_BLOCK_ESNI		0x02
+#define XT_TLS_OP_FRAG_MATCH		0x04
 
 /* match info */
 struct xt_tls_mt_info {

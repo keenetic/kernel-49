@@ -324,9 +324,35 @@ static uint32_t parts_size_default_get(enum part part,
 				       struct mtd_info *master)
 {
 	uint32_t size = PART_SIZE_UNKNOWN;
+#if !defined(CONFIG_ARCH_VEXPRESS)
 	bool is_nor = master->type == MTD_NORFLASH;
+#endif
 
-#if defined(CONFIG_MACH_MT7622)
+#if defined(CONFIG_ARCH_VEXPRESS)
+	/* QEMU */
+	switch (part) {
+	case PART_U_BOOT:
+		size = PART_BOOT_SIZE;
+		break;
+	case PART_U_CONFIG:
+		size = PART_ENV_SIZE;
+		break;
+	case PART_RF_EEPROM:
+		size = PART_E2P_SIZE;
+		break;
+	case PART_CONFIG_1:
+		size = master->erasesize * 4;
+		break;
+	case PART_U_STATE:
+		size = master->erasesize;
+		break;
+	case PART_RESERVE:
+		size = PART_BOOT_SIZE;
+		break;
+	default:
+		break;
+	}
+#elif defined(CONFIG_MACH_MT7622)
 	switch (part) {
 	case PART_ROM_HDR:
 		size = master->erasesize;
@@ -680,13 +706,8 @@ static uint32_t part_rootfs_offset(struct mtd_info *master,
 				   uint32_t begin, uint32_t size)
 {
 	size_t len;
-	uint32_t off, magic, kernel_min_size;
-
-	/* kernel min size ~1MB */
-	if (master->type == MTD_NORFLASH)
-		kernel_min_size = master->erasesize * 10;	/* 64K * 10 */
-	else
-		kernel_min_size = master->erasesize * 5;	/* 128K * 5 */
+	uint32_t off, magic;
+	const uint32_t kernel_min_size = SZ_1M;
 
 	/* Skip kernel first blocks to speedup */
 	for (off = begin + kernel_min_size;
@@ -1401,7 +1422,8 @@ static int u_state_commit(void)
 
 static bool di_is_enabled(void)
 {
-#if IS_ENABLED(CONFIG_VIRTIO) && IS_ENABLED(CONFIG_MTD_BLOCK2MTD)
+#if defined(CONFIG_ARCH_VEXPRESS)
+	/* QEMU */
 	return true;
 #elif defined(CONFIG_OF_FLATTREE)
 	const unsigned char *val;

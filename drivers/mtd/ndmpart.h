@@ -7,7 +7,13 @@
 #define PART_RF_EEPROM_AX_BOARD
 #endif
 
-#if defined(CONFIG_MACH_MT7622)
+#if defined(CONFIG_ARCH_VEXPRESS)
+/* QEMU */
+#define PART_BOOT_SIZE			0x100000
+#define PART_ENV_SIZE			0x080000
+#define PART_E2P_SIZE			0x040000
+
+#elif defined(CONFIG_MACH_MT7622)
 /* Partitions size hardcoded in MTK uboot, mt7622_evb.h */
 #define PART_BL2_SIZE_NOR		0x040000
 #define PART_BL2_SIZE_NAND		0x080000

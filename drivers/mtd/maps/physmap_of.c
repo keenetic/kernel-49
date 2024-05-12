@@ -102,7 +102,11 @@ static struct mtd_info *obsolete_probe(struct platform_device *dev,
    default is use. These take precedence over other device tree
    information. */
 static const char * const part_probe_types_def[] = {
-	"cmdlinepart", "RedBoot", "ofpart", "ofoldpart", NULL };
+	"cmdlinepart", "RedBoot", "ofpart", "ofoldpart",
+#ifdef CONFIG_MTD_NDM_PARTS
+	"ndmpart",
+#endif
+	NULL };
 
 static const char * const *of_get_probes(struct device_node *dp)
 {
@@ -283,6 +287,11 @@ static int of_flash_probe(struct platform_device *dev)
 
 	err = 0;
 	info->cmtd = NULL;
+#if defined(CONFIG_ARCH_VEXPRESS)
+	/* QEMU */
+	if (info->list_size > 0)
+		info->cmtd = info->list[0].mtd;
+#else
 	if (info->list_size == 1) {
 		info->cmtd = info->list[0].mtd;
 	} else if (info->list_size > 1) {
@@ -292,6 +301,8 @@ static int of_flash_probe(struct platform_device *dev)
 		info->cmtd = mtd_concat_create(mtd_list, info->list_size,
 					       dev_name(&dev->dev));
 	}
+#endif
+
 	if (info->cmtd == NULL)
 		err = -ENXIO;
 

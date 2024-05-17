@@ -42,6 +42,7 @@
 #include <linux/magic.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/sizes.h>
 
 #ifdef CONFIG_NMBM_MTD
 #include <linux/mtd/nmbm/nmbm-mtd.h>

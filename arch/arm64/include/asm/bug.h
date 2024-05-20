@@ -41,6 +41,7 @@
 	"0:	.long 1f - 0b\n\t"			\
 _BUGVERBOSE_LOCATION(__FILE__, __LINE__)		\
 		".short " #flags "\n\t"			\
+		".align 2\n\t"				\
 		".popsection\n"				\
 	"1:	"
 #else

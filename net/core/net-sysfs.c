@@ -565,6 +565,25 @@ static ssize_t ndm_security_level_show(struct device *dev,
 static DEVICE_ATTR_RW(ndm_security_level);
 #endif
 
+static int change_out_hoplimit_ip4(struct net_device *dev, unsigned long hl)
+{
+	if (hl != dev->out_hoplimit_ip4)
+		dev->out_hoplimit_ip4 = hl;
+
+	return 0;
+}
+
+static ssize_t out_hoplimit_ip4_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t len)
+{
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	return netdev_store(dev, attr, buf, len, change_out_hoplimit_ip4);
+}
+NETDEVICE_SHOW_RW(out_hoplimit_ip4, fmt_ulong);
+
 static struct attribute *net_class_attrs[] = {
 	&dev_attr_netdev_group.attr,
 	&dev_attr_type.attr,
@@ -596,6 +615,7 @@ static struct attribute *net_class_attrs[] = {
 #if IS_ENABLED(CONFIG_NDM_SECURITY_LEVEL)
 	&dev_attr_ndm_security_level.attr,
 #endif
+	&dev_attr_out_hoplimit_ip4.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(net_class);

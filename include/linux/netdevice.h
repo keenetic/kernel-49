@@ -1911,6 +1911,7 @@ struct net_device {
 		NDM_SECURITY_LEVEL_PUBLIC
 	} ndm_security_level:8;
 #endif
+	unsigned long		out_hoplimit_ip4;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

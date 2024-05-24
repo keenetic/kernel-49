@@ -43,6 +43,7 @@ ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	struct iphdr *iph;
 	const struct ipt_TTL_info *info = par->targinfo;
 	int new_ttl;
+	int set_ttl = 0;
 
 	if (!skb_make_writable(skb, skb->len))
 		return NF_DROP;
@@ -52,6 +53,7 @@ ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	switch (info->mode) {
 	case IPT_TTL_SET:
 		new_ttl = info->ttl;
+		set_ttl = 1;
 		break;
 	case IPT_TTL_INC:
 		new_ttl = iph->ttl + info->ttl;
@@ -74,8 +76,12 @@ ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct)
-		ct->fast_ext = 1;
+	if (likely(ct)) {
+		if (likely(set_ttl))
+			ct->fast_out_hoplimit = new_ttl;
+		else
+			ct->fast_ext = 1;
+	}
 #endif
 
 	if (new_ttl != iph->ttl) {

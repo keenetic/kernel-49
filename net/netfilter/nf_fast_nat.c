@@ -52,6 +52,8 @@ fast_nat_path_egress(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	int ret;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
 
 	if (iph->ttl <= 1) {
 		icmp_send(skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
@@ -59,7 +61,28 @@ fast_nat_path_egress(struct net *net, struct sock *sk, struct sk_buff *skb)
 		return -EPERM;
 	}
 
-	ip_decrease_ttl(iph);
+	ct = nf_ct_get(skb, &ctinfo);
+
+	if (likely(ct)) {
+		if (unlikely(ct->fast_out_hoplimit != 0 &&
+			     ct->fast_out_hoplimit ==
+				skb_dst(skb)->dev->out_hoplimit_ip4))
+		{
+			const u8 new_ttl = ct->fast_out_hoplimit;
+
+			csum_replace2(&iph->check, htons(iph->ttl << 8),
+				      htons(new_ttl << 8));
+			iph->ttl = new_ttl;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+			FOE_ALG_MARK(skb);
+#endif
+
+		} else {
+			ip_decrease_ttl(iph);
+		}
+	}
+
 	xt_ndmmark_set_fwd(skb);
 
 	/* Direct send packets to output */

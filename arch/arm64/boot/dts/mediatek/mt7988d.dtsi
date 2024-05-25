@@ -26,10 +26,10 @@
 	status = "disabled";
 };
 
-&usbtphy {
+&usbxphy {
 	status = "disabled";
 };
 
-&xhci1 {
+&xhci0 {
 	status = "disabled";
 };

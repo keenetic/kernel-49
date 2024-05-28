@@ -66,6 +66,8 @@
 #define MIB_TABLE_SIZE		(FOE_ENTRY_COUNT * MIB_ENTRY_SIZE)
 #define PSP_TABLE_SIZE		(FOE_ENTRY_COUNT * PSP_ENTRY_SIZE)
 
+#define PSE_PORTS_NUM		16
+
 struct ppe_tbl {
 	void *virt;
 	dma_addr_t phys;
@@ -84,6 +86,7 @@ struct ra_foe_resources {
 #ifdef FOE_HAS_PSP_TABLE
 	struct ppe_tbl psp[MAX_PPE_NUM];
 #endif
+	u8 ppe_map[PSE_PORTS_NUM];
 };
 
 int get_foe_resources(void *foe_res_ptr, size_t foe_res_len);

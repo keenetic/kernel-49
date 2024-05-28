@@ -69,7 +69,7 @@ choice
 	select CHIP_MT7990
 
 	config FIRST_IF_MT7992
-	bool "MT7992 series (Kite), SKU BE7200/6500/5040"
+	bool "MT7992 series (Kite), SKU BE7200/6500/5040/3600SDB"
 	depends on (MACH_MT7988)
 	select MT_MAC
 	select CHIP_MT7992
@@ -104,6 +104,10 @@ choice
 	config FIRST_IF_SKU_AX6000
 	depends on FIRST_IF_MT7986
 	bool "AX6000"
+
+	config FIRST_IF_SKU_BE3600SDB
+	depends on FIRST_IF_MT7992
+	bool "BE3600SDB (Selectable Dual Band), 2die"
 
 	config FIRST_IF_SKU_BE5040
 	depends on FIRST_IF_MT7992

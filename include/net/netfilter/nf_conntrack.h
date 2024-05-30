@@ -117,6 +117,7 @@ struct nf_conn {
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	u_int8_t fast_ext;
 	u_int8_t fast_out_hoplimit;
+	u_int8_t fast_in_hoplimit;
 #endif
 
 #if IS_ENABLED(CONFIG_FAST_NAT) || IS_ENABLED(CONFIG_NF_CONNTRACK_RTCACHE)

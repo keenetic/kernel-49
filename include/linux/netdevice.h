@@ -1912,6 +1912,7 @@ struct net_device {
 	} ndm_security_level:8;
 #endif
 	unsigned long		out_hoplimit_ip4;
+	unsigned long		in_hoplimit_ip4;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

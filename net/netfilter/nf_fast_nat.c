@@ -66,8 +66,7 @@ fast_nat_path_egress(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (likely(ct)) {
 		if (unlikely(ct->fast_out_hoplimit != 0 &&
 			     ct->fast_out_hoplimit ==
-				skb_dst(skb)->dev->out_hoplimit_ip4))
-		{
+				skb_dst(skb)->dev->out_hoplimit_ip4)) {
 			const u8 new_ttl = ct->fast_out_hoplimit;
 
 			csum_replace2(&iph->check, htons(iph->ttl << 8),
@@ -77,7 +76,19 @@ fast_nat_path_egress(struct net *net, struct sock *sk, struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 			FOE_ALG_MARK(skb);
 #endif
+		} else
+		if (unlikely(ct->fast_in_hoplimit != 0 &&
+			     ct->fast_in_hoplimit !=
+				skb_dst(skb)->dev->out_hoplimit_ip4)) {
+			const u8 new_ttl = ct->fast_in_hoplimit - 1;
 
+			csum_replace2(&iph->check, htons(iph->ttl << 8),
+				      htons(new_ttl << 8));
+			iph->ttl = new_ttl;
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+			FOE_ALG_MARK(skb);
+#endif
 		} else {
 			ip_decrease_ttl(iph);
 		}
@@ -202,10 +213,10 @@ int fast_nat_do_bind(struct nf_conn *ct,
 
 		if (ct->status & statusbit) {
 			struct nf_conntrack_tuple target;
+			struct net_device* dev = skb->dev;
 
 			if (mtype == NF_NAT_MANIP_SRC && !skb_valid_dst(skb)) {
 				const struct iphdr *iph = ip_hdr(skb);
-				struct net_device *dev = skb->dev;
 
 				if (ip_route_input(skb, iph->daddr, iph->saddr,
 						   iph->tos, dev))
@@ -225,6 +236,9 @@ int fast_nat_do_bind(struct nf_conn *ct,
 			if (!nat_l3proto->manip_pkt(skb, iphdroff, nat_l4proto,
 						    &target, mtype))
 				return NF_DROP;
+
+			if (dev->in_hoplimit_ip4 != 0)
+				ct->fast_in_hoplimit = dev->in_hoplimit_ip4;
 		}
 		i++;
 	} while (i < 2);

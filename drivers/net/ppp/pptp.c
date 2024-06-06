@@ -314,9 +314,17 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 			rcu_read_lock();
 			swnat_prebind = rcu_dereference(prebind_from_pptptx);
 			if (likely(swnat_prebind != NULL)) {
+				struct swnat_pptp_t pptp =
+				{
+					.skb = skb,
+					.iph_int = (struct iphdr *)iph_int,
+					.sock = sk,
+					.saddr = iph->saddr,
+					.daddr = iph->daddr
+				};
+
 				sock_hold(sk);
-				swnat_prebind(skb, (struct iphdr *)iph_int, sk,
-					      iph->saddr, iph->daddr);
+				swnat_prebind(&pptp);
 
 				SWNAT_PPP_SET_MARK(skb);
 			}

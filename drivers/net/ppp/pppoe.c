@@ -978,8 +978,15 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 			rcu_read_lock();
 			swnat_prebind = rcu_dereference(prebind_from_pppoetx);
 			if (likely(swnat_prebind != NULL)) {
+				struct swnat_pppoe_t pppoe =
+				{
+					.skb = skb,
+					.sock = sk,
+					.sid = ph->sid
+				};
+
 				sock_hold(sk);
-				swnat_prebind(skb, sk, ph->sid);
+				swnat_prebind(&pppoe);
 
 				SWNAT_PPP_SET_MARK(skb);
 			}

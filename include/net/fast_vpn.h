@@ -2,6 +2,7 @@
 #define __FAST_VPN_H_
 
 #include <linux/list.h>
+#include <linux/netfilter/nf_conntrack_common.h>
 
 struct iphdr;
 struct ipv6hdr;
@@ -111,44 +112,79 @@ extern int (*go_swnat)(struct sk_buff *skb);
 
 extern void (*prebind_from_eth)(struct sk_buff *skb);
 
-extern void (*prebind_from_fastnat)(struct sk_buff *skb,
-				    __be32 orig_saddr,
-				    __be16 orig_sport,
-				    struct nf_conn *ct,
-				    enum ip_conntrack_info ctinfo);
+struct swnat_fastnat_t
+{
+	struct sk_buff *skb;
+	__be32 orig_saddr;
+	__be16 orig_sport;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+};
 
-extern void (*prebind_from_l2tptx)(struct sk_buff *skb,
-				   struct sock *sock,
-				   __be16 l2w_tid,
-				   __be16 l2w_sid,
-				   __be16 w2l_tid,
-				   __be16 w2l_sid,
-				   __be32 saddr,
-				   __be32 daddr,
-				   __be16 sport,
-				   __be16 dport);
+extern void (*prebind_from_fastnat)(struct swnat_fastnat_t *fastnat);
 
-extern void (*prebind_from_pptptx)(struct sk_buff *skb,
-				   struct iphdr *iph_int,
-				   struct sock *sock,
-				   __be32 saddr,
-				   __be32 daddr);
+struct swnat_l2tp_t
+{
+	struct sk_buff *skb;
+	struct sock *sock;
+	__be16 l2w_tid;
+	__be16 l2w_sid;
+	__be16 w2l_tid;
+	__be16 w2l_sid;
+	__be32 saddr;
+	__be32 daddr;
+	__be16 sport;
+	__be16 dport;
+};
 
-extern void (*prebind_from_pppoetx)(struct sk_buff *skb,
-				    struct sock *sock,
-				    __be16 sid);
+extern void (*prebind_from_l2tptx)(struct swnat_l2tp_t *l2tp);
 
-extern void (*prebind_from_nat46tx)(struct sk_buff *skb,
-				    struct iphdr *ip4,
-				    struct ipv6hdr *ip6);
+struct swnat_pptp_t
+{
+	struct sk_buff *skb;
+	struct iphdr *iph_int;
+	struct sock *sock;
+	__be32 saddr;
+	__be32 daddr;
+};
 
-extern void (*prebind_from_encap46tx)(struct sk_buff *skb,
-				      const struct iphdr *ip4,
-				      const struct ipv6hdr *ip6);
+extern void (*prebind_from_pptptx)(struct swnat_pptp_t *pptp);
 
-extern void (*prebind_from_rtcache)(struct sk_buff *skb,
-				    struct nf_conn *ct,
-				    enum ip_conntrack_info ctinfo);
+struct swnat_pppoe_t
+{
+	struct sk_buff *skb;
+	struct sock *sock;
+	__be16 sid;
+};
+
+extern void (*prebind_from_pppoetx)(struct swnat_pppoe_t *pppoe);
+
+struct swnat_nat46_t
+{
+	struct sk_buff *skb;
+	struct iphdr *ip4;
+	struct ipv6hdr *ip6;
+};
+
+extern void (*prebind_from_nat46tx)(struct swnat_nat46_t *nat46);
+
+struct swnat_encap46_t
+{
+	struct sk_buff *skb;
+	const struct iphdr *ip4;
+	const struct ipv6hdr *ip6;
+};
+
+extern void (*prebind_from_encap46tx)(struct swnat_encap46_t *encap46);
+
+struct swnat_rtcache_t
+{
+	struct sk_buff *skb;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+};
+
+extern void (*prebind_from_rtcache)(struct swnat_rtcache_t *rtcache);
 
 extern void (*prebind_from_ct_mark)(struct nf_conn *ct);
 /* End of prebind hooks */

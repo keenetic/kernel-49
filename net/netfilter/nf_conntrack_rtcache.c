@@ -187,7 +187,14 @@ swnat_rtcache_prebind__(struct sk_buff *skb,
 
 	swnat_prebind = rcu_dereference(prebind_from_rtcache);
 	if (swnat_prebind) {
-		swnat_prebind(skb, ct, ctinfo);
+		struct swnat_rtcache_t rtcache =
+		{
+			.skb = skb,
+			.ct = ct,
+			.ctinfo = ctinfo
+		};
+
+		swnat_prebind(&rtcache);
 		SWNAT_RTCACHE_SET_MARK(skb);
 	}
 

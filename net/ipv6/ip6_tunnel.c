@@ -1237,7 +1237,13 @@ route_lookup:
 			rcu_read_lock();
 			swnat_prebind = rcu_dereference(prebind_from_encap46tx);
 			if (likely(swnat_prebind != NULL)) {
-				swnat_prebind(skb, ipv4h, ipv6h);
+				struct swnat_encap46_t encap46 =
+				{
+					.skb = skb,
+					.ip4 = ipv4h,
+					.ip6 = ipv6h
+				};
+				swnat_prebind(&encap46);
 
 				SWNAT_RESET_MARKS(skb);
 				SWNAT_ENCAP46_SET_MARK(skb);

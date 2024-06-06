@@ -2052,12 +2052,21 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 		/* Get rid of junky binds, do swnat only when src IP changed */
 		if (orig_src != new_src && !ntce_skip_swnat) {
-			typeof(prebind_from_fastnat) swnat_prebind;
+			typeof(prebind_from_fastnat) swnat_prebind =
+				rcu_dereference(prebind_from_fastnat);
 
 			/* rcu_read_lock()ed by nf_hook_thresh */
-			swnat_prebind = rcu_dereference(prebind_from_fastnat);
 			if (swnat_prebind) {
-				swnat_prebind(skb, orig_src, orig_port, ct, ctinfo);
+				struct swnat_fastnat_t fastnat =
+				{
+					.skb = skb,
+					.orig_saddr = orig_src,
+					.orig_sport = orig_port,
+					.ct = ct,
+					.ctinfo = ctinfo
+				};
+
+				swnat_prebind(&fastnat);
 
 				/* Set mark for further binds */
 				SWNAT_FNAT_SET_MARK(skb);

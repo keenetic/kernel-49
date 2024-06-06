@@ -423,18 +423,22 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 			swnat_prebind = rcu_dereference(prebind_from_l2tptx);
 			if (likely(swnat_prebind != NULL)) {
 				struct inet_sock *inet = inet_sk(tunnel->sock);
+				struct swnat_l2tp_t l2tp =
+				{
+					.skb = skb,
+					.sock = sk,
+					.l2w_tid = htons(tunnel->peer_tunnel_id),
+					.l2w_sid = htons(session->peer_session_id),
+					.w2l_tid = htons(tunnel->tunnel_id),
+					.w2l_sid = htons(session->session_id),
+					.saddr = inet->inet_saddr,
+					.daddr = inet->inet_daddr,
+					.sport = inet->inet_sport,
+					.dport = inet->inet_dport
+				};
 
 				sock_hold(sk);
-				swnat_prebind(skb,
-					sk,
-					htons(tunnel->peer_tunnel_id),
-					htons(session->peer_session_id),
-					htons(tunnel->tunnel_id),
-					htons(session->session_id),
-					inet->inet_saddr,
-					inet->inet_daddr,
-					inet->inet_sport,
-					inet->inet_dport);
+				swnat_prebind(&l2tp);
 
 				SWNAT_PPP_SET_MARK(skb);
 			}

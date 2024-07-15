@@ -114,6 +114,10 @@ enum ip_conntrack_status {
 #define IPS_NDM_FROM_WAN_BIT		(23)
 #define IPS_NDM_FROM_WAN		(1 << IPS_NDM_FROM_WAN_BIT)
 
+/* connection origin is a public interface */
+#define IPS_NDM_FROM_PUBLIC_BIT		(23)
+#define IPS_NDM_FROM_PUBLIC		(1 << IPS_NDM_FROM_PUBLIC_BIT)
+
 /* Connection tracking event types */
 enum ip_conntrack_events {
 	IPCT_NEW,		/* new conntrack */

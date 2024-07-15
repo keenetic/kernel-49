@@ -103,14 +103,10 @@ __nf_ct_ext_ndm_skip(struct sk_buff *skb, struct nf_conn *ct)
 	xt_ndmmark_kernel_set_ndm_skip(skb);
 }
 
-static void
-__nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
-		     struct nf_conn *ct, const bool input)
+static unsigned short
+__nf_ct_ext_ndm_security_level(struct net_device *dev, s32 *ifindex)
 {
-	struct nf_ct_ext_ntc_label *lbl;
-	unsigned short sl;
-	s32 ifindex;
-	bool is_vpn_server = false;
+	unsigned short sl = NDM_SECURITY_LEVEL_NONE;
 
 	rcu_read_lock_bh();
 
@@ -129,10 +125,23 @@ __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	/* an index and a security level of an active L3 interface */
-	ifindex = (s32)dev->ifindex;
+	*ifindex = (s32)dev->ifindex;
 	sl = dev->ndm_security_level;
 
 	rcu_read_unlock_bh();
+
+	return sl;
+}
+
+static void
+__nf_ct_ext_ndm_fill(struct net *net, struct sk_buff *skb,
+		     struct net_device *dev, struct nf_conn *ct,
+		     const bool input)
+{
+	struct nf_ct_ext_ntc_label *lbl;
+	bool is_vpn_server = false;
+	s32 ifindex = -1;
+	const unsigned short sl = __nf_ct_ext_ndm_security_level(dev, &ifindex);
 
 	if (ifindex <= 0 || sl == NDM_SECURITY_LEVEL_NONE) {
 		if (sl == NDM_SECURITY_LEVEL_NONE &&
@@ -153,6 +162,13 @@ __nf_ct_ext_ndm_fill(struct sk_buff *skb, struct net_device *dev,
 
 	if (sl == NDM_SECURITY_LEVEL_PUBLIC || is_vpn_server) {
 		const s32 wan_iface = READ_ONCE(lbl->wan_iface);
+
+		if (!is_vpn_server &&
+		     input &&
+		    !test_bit(IPS_NDM_FROM_PUBLIC_BIT, &ct->status)) {
+			set_bit(IPS_NDM_FROM_PUBLIC_BIT, &ct->status);
+			atomic_inc(&net->ct.public_count);
+		}
 
 		if (wan_iface > 0) {
 			/* WAN <-> WAN connection */
@@ -226,7 +242,7 @@ nf_ct_ext_ndm_input(u8 pf, struct net *net, struct sk_buff *skb,
 		return;
 	}
 
-	__nf_ct_ext_ndm_fill(skb, dev, ct, true);
+	__nf_ct_ext_ndm_fill(net, skb, dev, ct, true);
 	dev_put(dev);
 }
 
@@ -247,7 +263,7 @@ void nf_ct_ext_ndm_output(struct sk_buff *skb)
 	    nf_ct_is_untracked(ct))
 		return;
 
-	__nf_ct_ext_ndm_fill(skb, skb->dev, ct, false);
+	__nf_ct_ext_ndm_fill(read_pnet(&ct->ct_net), skb, skb->dev, ct, false);
 }
 EXPORT_SYMBOL(nf_ct_ext_ndm_output);
 
@@ -272,6 +288,22 @@ nf_ct_ext_ndm_mark_skb(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (test_bit(IPS_NDM_SKIPPED_BIT, &ct->status))
 		xt_ndmmark_kernel_set_ndm_skip(skb);
+}
+
+static unsigned short
+nf_ct_ext_ndm_sl(struct net *net, struct sk_buff *skb)
+{
+	unsigned short sl = NDM_SECURITY_LEVEL_NONE;
+	struct net_device *dev = dev_get_by_index(net, skb->skb_iif);
+	s32 ifindex = -1;
+
+	if (unlikely(!dev))
+		return sl;
+
+	sl = __nf_ct_ext_ndm_security_level(dev, &ifindex);
+	dev_put(dev);
+
+	return sl;
 }
 
 #else
@@ -451,6 +483,25 @@ EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 unsigned int nf_conntrack_max __read_mostly;
 EXPORT_SYMBOL(nf_conntrack_max);
 seqcount_t nf_conntrack_generation __read_mostly;
+
+unsigned int nf_conntrack_public_max __read_mostly;
+
+atomic_t nf_conntrack_public_locked __read_mostly;
+unsigned long nf_conntrack_public_locked_until __read_mostly;
+unsigned int nf_conntrack_public_lockout_time __read_mostly;
+spinlock_t nf_conntrack_public_lock;
+
+int nf_conntrack_public_status(void)
+{
+	int res = 0;
+
+	if (unlikely(atomic_read(&nf_conntrack_public_locked))) {
+		res = jiffies_to_msecs(
+			nf_conntrack_public_locked_until - jiffies);
+	}
+
+	return res;
+}
 
 DEFINE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
@@ -1442,6 +1493,25 @@ static void gc_worker(struct work_struct *work)
 		cond_resched_rcu_qs();
 	} while (++buckets < goal);
 
+	if (unlikely(atomic_read(&nf_conntrack_public_locked))) {
+		bool unlocked = false;
+
+		spin_lock_bh(&nf_conntrack_public_lock);
+
+		if (unlikely(time_after(
+		    jiffies, nf_conntrack_public_locked_until))) {
+			atomic_set(&nf_conntrack_public_locked, 0);
+			unlocked = true;
+		}
+
+		spin_unlock_bh(&nf_conntrack_public_lock);
+
+		if (unlikely(unlocked)) {
+			net_warn_ratelimited(
+				"public connections unlocked\n");
+		}
+	}
+
 	if (gc_work->exiting)
 		return;
 
@@ -1489,6 +1559,7 @@ static void conntrack_gc_work_init(struct conntrack_gc_work *gc_work)
 
 static struct nf_conn *
 __nf_conntrack_alloc(struct net *net,
+		     struct sk_buff *skb,
 		     const struct nf_conntrack_zone *zone,
 		     const struct nf_conntrack_tuple *orig,
 		     const struct nf_conntrack_tuple *repl,
@@ -1505,6 +1576,41 @@ __nf_conntrack_alloc(struct net *net,
 			atomic_dec(&net->ct.count);
 			net_warn_ratelimited("nf_conntrack: table full, dropping packet\n");
 			return ERR_PTR(-ENOMEM);
+		}
+	}
+
+	if (nf_conntrack_public_max &&
+	    skb != NULL &&
+	    nf_ct_ext_ndm_sl(net, skb) == NDM_SECURITY_LEVEL_PUBLIC) {
+		bool locked = false;
+		bool was_locked = false;
+
+		spin_lock(&nf_conntrack_public_lock);
+
+		was_locked = !!atomic_read(&nf_conntrack_public_locked);
+
+		if (unlikely(!was_locked &&
+		     atomic_read(&net->ct.public_count) >=
+			nf_conntrack_public_max)) {
+			nf_conntrack_public_locked_until =
+				jiffies +
+				msecs_to_jiffies(nf_conntrack_public_lockout_time);
+			atomic_inc(&nf_conntrack_public_locked);
+			locked = true;
+		}
+
+		spin_unlock(&nf_conntrack_public_lock);
+
+		if (unlikely(!was_locked && locked)) {
+			net_warn_ratelimited(
+				"lockout threshold reached (%u), public connections locked for %u s\n",
+				atomic_read(&net->ct.public_count),
+				nf_conntrack_public_lockout_time / 1000);
+		}
+
+		if (unlikely(was_locked || locked)) {
+			atomic_dec(&net->ct.count);
+			return ERR_PTR(-E2BIG);
 		}
 	}
 
@@ -1546,7 +1652,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 				   const struct nf_conntrack_tuple *repl,
 				   gfp_t gfp)
 {
-	return __nf_conntrack_alloc(net, zone, orig, repl, gfp, 0);
+	return __nf_conntrack_alloc(net, NULL, zone, orig, repl, gfp, 0);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 
@@ -1554,6 +1660,7 @@ void nf_conntrack_free(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 	typeof(nacct_conntrack_free) pfunc;
+	const int ct_public = test_bit(IPS_NDM_FROM_PUBLIC_BIT, &ct->status);
 
 	rcu_read_lock();
 	pfunc = rcu_dereference(nacct_conntrack_free);
@@ -1571,6 +1678,9 @@ void nf_conntrack_free(struct nf_conn *ct)
 	kmem_cache_free(nf_conntrack_cachep, ct);
 	smp_mb__before_atomic();
 	atomic_dec(&net->ct.count);
+
+	if (ct_public)
+		atomic_dec(&net->ct.public_count);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
@@ -1601,7 +1711,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
-	ct = __nf_conntrack_alloc(net, zone, tuple, &repl_tuple, GFP_ATOMIC,
+	ct = __nf_conntrack_alloc(net, skb, zone, tuple, &repl_tuple, GFP_ATOMIC,
 				  hash);
 	if (IS_ERR(ct))
 		return (struct nf_conntrack_tuple_hash *)ct;
@@ -2698,6 +2808,8 @@ int nf_conntrack_init_start(void)
 	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_conntrack_locks[i]);
 
+	spin_lock_init(&nf_conntrack_public_lock);
+
 #ifdef CONFIG_X86_64
 	if (!nf_conntrack_htable_size) {
 		/* Idea from tcp.c: use 1/16384 of memory.
@@ -2752,6 +2864,7 @@ int nf_conntrack_init_start(void)
 		return -ENOMEM;
 
 	nf_conntrack_max = max_factor * nf_conntrack_htable_size;
+	nf_conntrack_public_max = 0;
 
 	nf_conntrack_cachep = kmem_cache_create("nf_conntrack",
 						sizeof(struct nf_conn), 0,
@@ -2879,6 +2992,7 @@ int nf_conntrack_init_net(struct net *net)
 	int cpu;
 
 	atomic_set(&net->ct.count, 0);
+	atomic_set(&net->ct.public_count, 0);
 
 	net->ct.pcpu_lists = alloc_percpu(struct ct_pcpu);
 	if (!net->ct.pcpu_lists)

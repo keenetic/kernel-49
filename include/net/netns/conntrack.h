@@ -93,5 +93,6 @@ struct netns_ct {
 	unsigned int		labels_used;
 	u8			label_words;
 #endif
+	atomic_t		public_count;
 };
 #endif

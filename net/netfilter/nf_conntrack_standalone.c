@@ -585,6 +585,19 @@ static void nf_conntrack_standalone_fini_proc(struct net *net)
 /* Sysctl support */
 
 #ifdef CONFIG_SYSCTL
+
+static int nf_conntrack_public_lockout_status = 0;
+
+static int nf_conntrack_public_lockout_status_(struct ctl_table *table,
+					       int write,
+					       void __user *buffer,
+					       size_t *lenp, loff_t *ppos)
+{
+	nf_conntrack_public_lockout_status = nf_conntrack_public_status();
+
+	return proc_dointvec(table, write, buffer, lenp, ppos);
+}
+
 /* Log invalid packets of a given protocol */
 static int log_invalid_proto_min __read_mostly;
 static int log_invalid_proto_max __read_mostly = 255;
@@ -730,6 +743,34 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
+	{
+		.procname	= "nf_conntrack_public_count",
+		.data		= &init_net.ct.public_count,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_public_max",
+		.data		= &nf_conntrack_public_max,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_public_lockout_time",
+		.data		= &nf_conntrack_public_lockout_time,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_public_lockout_status",
+		.data		= &nf_conntrack_public_lockout_status,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= nf_conntrack_public_lockout_status_,
+	},
 	{ }
 };
 

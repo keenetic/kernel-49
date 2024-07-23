@@ -26,8 +26,9 @@ struct gre_eoip_hdr {
 
 #define GREPROTO_CISCO		0
 #define GREPROTO_PPTP		1
-#define GREPROTO_MAX		2
-#define GRE_IP_PROTO_MAX	2
+#define GREPROTO_NDM		2
+#define GREPROTO_MAX		3
+#define GRE_IP_PROTO_MAX	3
 
 /* handle protocols with non-standard GRE header by ids that do not overlap
  * with possible standard GRE protocol versions (0x00 - 0x7f)

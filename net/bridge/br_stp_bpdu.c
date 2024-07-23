@@ -17,11 +17,14 @@
 #include <linux/llc.h>
 #include <linux/slab.h>
 #include <linux/pkt_sched.h>
+#include <linux/inetdevice.h>
 #include <net/net_namespace.h>
 #include <net/llc.h>
 #include <net/llc_pdu.h>
 #include <net/stp.h>
+#include <net/gre.h>
 #include <asm/unaligned.h>
+#include <net/addrconf.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"
@@ -37,6 +40,133 @@ static int br_send_bpdu_finish(struct net *net, struct sock *sk,
 	return dev_queue_xmit(skb);
 }
 
+struct stp_encap {
+	uint32_t tag;
+};
+
+#define ENCAP_TAG	0x4e444d53 /* ASCII 'NDMS' */
+#define ETH_P_STP	0x8181
+
+#define ENCAP_RESERVE (sizeof(struct stp_encap) +\
+		       sizeof(struct gre_base_hdr) +\
+		       sizeof(struct ipv6hdr) +\
+		       VLAN_ETH_HLEN)
+
+static void br_send_bpdu_encap_dest(struct net_device* dev,
+				    struct ipv6hdr* ip6)
+{
+	struct inet6_ifaddr *ifa;
+	struct inet6_dev *idev6 = __in6_dev_get(dev);
+
+	if (unlikely(!idev6))
+		return;
+
+	list_for_each_entry_rcu(ifa, &idev6->addr_list, if_list) {
+		if (ifa->flags & (IFA_F_TENTATIVE |
+				  IFA_F_DEPRECATED))
+			continue;
+
+		if (!(ipv6_addr_type(&ifa->addr) & IPV6_ADDR_LINKLOCAL))
+			continue;
+
+		memcpy(ip6->saddr.s6_addr, ifa->addr.s6_addr, 16);
+		return;
+	}
+
+	list_for_each_entry(ifa, &idev6->addr_list, if_list) {
+		if (ifa->flags & (IFA_F_TENTATIVE |
+				  IFA_F_DEPRECATED))
+			continue;
+
+		memcpy(ip6->saddr.s6_addr + 8, ifa->addr.s6_addr + 8, 8);
+		return;
+	}
+}
+
+static void br_send_bpdu_encap(struct net_bridge_port *p,
+			       const unsigned char *data, int length)
+{
+	struct sk_buff *skb = dev_alloc_skb(length + ENCAP_RESERVE);
+	struct stp_encap se;
+	struct gre_base_hdr greh;
+	struct ipv6hdr ip6;
+
+	if (!skb)
+		return;
+
+	skb->dev = p->dev;
+	skb->priority = TC_PRIO_CONTROL;
+
+	skb_reserve(skb, ENCAP_RESERVE);
+	memcpy(__skb_put(skb, length), data, length);
+
+	if (p->br->stp_log == BR_LOG_STP_ENABLE)
+		br_stp_bdpu_send_print_encap(p->br, p->dev, skb);
+
+	se.tag = ENCAP_TAG;
+
+	memcpy(__skb_push(skb, sizeof(se)), &se, sizeof(se));
+
+	memset(&greh, 0, sizeof(greh));
+	greh.flags = htons(GREPROTO_NDM);
+	greh.protocol = htons(ETH_P_STP);
+
+	memcpy(__skb_push(skb, sizeof(greh)), &greh, sizeof(greh));
+	skb_reset_transport_header(skb);
+
+	memset(&ip6, 0, sizeof(ip6));
+	ip6.version = 6;
+	ip6.nexthdr = IPPROTO_GRE;
+
+	ip6.saddr = in6addr_linklocal_allnodes;
+	ip6.daddr = in6addr_linklocal_allnodes;
+
+	rcu_read_lock();
+
+	br_send_bpdu_encap_dest(p->br->dev, &ip6);
+
+	rcu_read_unlock();
+
+	ip6.hop_limit = 1;
+	ip6.payload_len = htons(length + sizeof(se) + sizeof(greh));
+
+	memcpy(__skb_push(skb, sizeof(ip6)), &ip6, sizeof(ip6));
+	skb_reset_network_header(skb);
+
+	if (is_vlan_dev(p->dev) && vlan_dev_vlan_id(p->dev) > 1) {
+		struct vlan_ethhdr eth;
+
+		memset(&eth, 0, sizeof(eth));
+		memcpy(&eth.h_source, p->dev->dev_addr, sizeof(eth.h_source));
+		ipv6_eth_mc_map(&ip6.daddr, eth.h_dest);
+		eth.h_vlan_proto = vlan_dev_vlan_proto(p->dev);
+		eth.h_vlan_TCI = htons(vlan_dev_vlan_id(p->dev));
+		eth.h_vlan_encapsulated_proto = htons(ETH_P_IPV6);
+
+		memcpy(__skb_push(skb, sizeof(eth)), &eth, sizeof(eth));
+		skb_reset_mac_header(skb);
+
+		skb->protocol = htons(ETH_P_8021Q);
+
+	} else {
+		struct ethhdr eth;
+
+		memset(&eth, 0, sizeof(eth));
+		memcpy(&eth.h_source, p->dev->dev_addr, sizeof(eth.h_source));
+		ipv6_eth_mc_map(&ip6.daddr, eth.h_dest);
+		eth.h_proto = htons(ETH_P_IPV6);
+
+		memcpy(__skb_push(skb, sizeof(eth)), &eth, sizeof(eth));
+		skb_reset_mac_header(skb);
+
+		skb->protocol = htons(ETH_P_IPV6);
+	}
+
+	BR_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT,
+		dev_net(p->dev), NULL, skb, NULL, skb->dev,
+		br_send_bpdu_finish);
+}
+
 static void br_send_bpdu(struct net_bridge_port *p,
 			 const unsigned char *data, int length)
 {
@@ -44,6 +174,11 @@ static void br_send_bpdu(struct net_bridge_port *p,
 
 	if (p->stp_choke == BR_PORT_STP_CHOKE)
 		return;
+
+	if (p->br->stp_encap == BR_STP_ENCAP) {
+		br_send_bpdu_encap(p, data, length);
+		return;
+	}
 
 	skb = dev_alloc_skb(length+LLC_RESERVE);
 	if (!skb)
@@ -151,8 +286,8 @@ void br_send_tcn_bpdu(struct net_bridge_port *p)
  *
  * NO locks, but rcu_read_lock
  */
-void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
-		struct net_device *dev)
+static void br_stp_rcv_(const struct stp_proto *proto, struct sk_buff *skb,
+			struct net_device *dev, const bool encap)
 {
 	struct net_bridge_port *p;
 	struct net_bridge *br;
@@ -182,7 +317,7 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	if (p->state == BR_STATE_DISABLED)
 		goto out;
 
-	if (!ether_addr_equal(eth_hdr(skb)->h_dest, br->group_addr))
+	if (!encap && !ether_addr_equal(eth_hdr(skb)->h_dest, br->group_addr))
 		goto out;
 
 	if (p->flags & BR_BPDU_GUARD) {
@@ -195,8 +330,12 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	if (p->stp_choke == BR_PORT_STP_CHOKE)
 		goto out;
 
-	if (br->stp_log == BR_LOG_STP_ENABLE)
-		br_stp_bdpu_recv_print(br, dev, skb);
+	if (br->stp_log == BR_LOG_STP_ENABLE) {
+		if (encap)
+			br_stp_bdpu_recv_print_encap(br, dev, skb);
+		else
+			br_stp_bdpu_recv_print(br, dev, skb);
+	}
 
 	buf = skb_pull(skb, 3);
 
@@ -257,4 +396,109 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	spin_unlock(&br->lock);
  err:
 	kfree_skb(skb);
+}
+
+void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
+		struct net_device *dev)
+{
+	struct net_bridge_port *p;
+	struct net_bridge *br;
+
+	if (skb->dev == NULL)
+		return;
+
+	p = br_port_get_check_rcu(skb->dev);
+	if (!p)
+		return;
+
+	br = p->br;
+	spin_lock(&br->lock);
+
+	if (br->stp_encap != BR_STP_ENCAP) {
+		spin_unlock(&br->lock);
+
+		return;
+	}
+
+	spin_unlock(&br->lock);
+
+	br_stp_rcv_(proto, skb, dev, false);
+}
+
+static int br_stp_encap_gre_rcv_(struct sk_buff *skb)
+{
+	struct stp_encap *se;
+	struct gre_base_hdr *greh;
+
+	if (!pskb_may_pull(skb, sizeof(*greh)))
+		goto drop;
+
+	greh = (struct gre_base_hdr *)skb->data;
+
+	if (greh->flags != htons(GREPROTO_NDM) ||
+	    greh->protocol != htons(ETH_P_STP))
+		goto drop;
+
+	skb_pull(skb, sizeof(*greh));
+
+	if (!pskb_may_pull(skb, sizeof(*se)))
+		goto drop;
+
+	se = (struct stp_encap *)skb->data;
+
+	if (se->tag != ENCAP_TAG)
+		goto drop;
+
+	skb_pull(skb, sizeof(*se));
+
+	br_stp_rcv_(NULL, skb, skb->dev, true);
+
+	return 0;
+
+drop:
+	kfree_skb(skb);
+	return 0;
+}
+
+static bool br_stp_is_encap(struct net_bridge *br)
+{
+	spin_lock(&br->lock);
+
+	if (br->stp_encap != BR_STP_ENCAP) {
+		spin_unlock(&br->lock);
+
+		return false;
+	}
+
+	spin_unlock(&br->lock);
+
+	return true;
+}
+
+int br_stp_encap_gre_rcv(struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+
+	if (dev == NULL)
+		goto drop;
+
+	if (!(dev->priv_flags & IFF_EBRIDGE)) {
+		struct net_bridge_port *p;
+
+		if (rcu_access_pointer(dev->rx_handler) != br_handle_frame)
+			goto drop;
+
+		p = br_port_get_rcu(dev);
+
+		if (p == NULL || !br_stp_is_encap(p->br))
+			goto drop;
+
+	} else if (!br_stp_is_encap(netdev_priv(dev)))
+		goto drop;
+
+	return br_stp_encap_gre_rcv_(skb);
+
+drop:
+	kfree_skb(skb);
+	return 0;
 }

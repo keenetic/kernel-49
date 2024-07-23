@@ -163,6 +163,28 @@ static ssize_t stp_log_store(struct device *d,
 }
 static DEVICE_ATTR_RW(stp_log);
 
+static ssize_t stp_encap_show(struct device *d,
+			      struct device_attribute *attr, char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br->stp_encap);
+}
+
+static int set_stp_encap(struct net_bridge *br, unsigned long val)
+{
+	br_stp_set_encap(br, val);
+
+	return 0;
+}
+
+static ssize_t stp_encap_store(struct device *d,
+			     struct device_attribute *attr, const char *buf,
+			     size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_stp_encap);
+}
+static DEVICE_ATTR_RW(stp_encap);
+
 static ssize_t group_fwd_mask_show(struct device *d,
 				   struct device_attribute *attr,
 				   char *buf)
@@ -803,6 +825,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_ageing_time.attr,
 	&dev_attr_stp_state.attr,
 	&dev_attr_stp_log.attr,
+	&dev_attr_stp_encap.attr,
 	&dev_attr_group_fwd_mask.attr,
 	&dev_attr_priority.attr,
 	&dev_attr_bridge_id.attr,

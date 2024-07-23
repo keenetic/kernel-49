@@ -69,7 +69,11 @@ void br_send_tcn_bpdu(struct net_bridge_port *);
 
 void br_stp_bdpu_recv_print(struct net_bridge *,
 			    struct net_device *, struct sk_buff *);
+void br_stp_bdpu_recv_print_encap(struct net_bridge *,
+				  struct net_device *, struct sk_buff *);
 void br_stp_bdpu_send_print(struct net_bridge *,
 			    struct net_device *, struct sk_buff *);
+void br_stp_bdpu_send_print_encap(struct net_bridge *,
+				  struct net_device *, struct sk_buff *);
 
 #endif

@@ -35,6 +35,9 @@
 #define ETH_P_LLDP					0x88cc
 #endif /* ETH_P_LLDP */
 
+static const u8 mac_linklocal_allnodes[] =
+	{ 0x33, 0x33, 0x00, 0x00, 0x00, 0x01 };
+
 struct br_lldpdu_hdr {
 	u8 tlv_type;
 	u8 tlv_length;
@@ -262,6 +265,20 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 			igmpsn = rcu_dereference(igmpsn_hook);
 			if (igmpsn)
 				igmpsn(skb);
+		}
+
+		if (skb->protocol == htons(ETH_P_IPV6) &&
+		    pskb_may_pull(skb, sizeof(struct ipv6hdr))) {
+			struct ipv6hdr* ip6 = (struct ipv6hdr*)skb->data;
+
+			if (ip6->nexthdr == IPPROTO_GRE &&
+			    ether_addr_equal(mac_linklocal_allnodes, dest) &&
+			    !memcmp(&ip6->daddr, &in6addr_linklocal_allnodes,
+				sizeof(in6addr_linklocal_allnodes))) {
+				skb_pull(skb, sizeof(struct ipv6hdr));
+				br_stp_encap_gre_rcv(skb);
+				goto out;
+			}
 		}
 
 		mdst = br_mdb_get(br, skb, vid);

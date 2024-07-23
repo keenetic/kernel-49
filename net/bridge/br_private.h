@@ -380,6 +380,11 @@ struct net_bridge
 		BR_LOG_STP_ENABLE,
 	} stp_log;
 
+	enum {
+		BR_STP_NORMAL,
+		BR_STP_ENCAP
+	} stp_encap;
+
 	unsigned char			topology_change;
 	unsigned char			topology_change_detected;
 
@@ -1093,6 +1098,7 @@ void br_stp_enable_bridge(struct net_bridge *br);
 void br_stp_disable_bridge(struct net_bridge *br);
 void br_stp_set_enabled(struct net_bridge *br, unsigned long val);
 void br_stp_set_log(struct net_bridge *br, unsigned long val);
+void br_stp_set_encap(struct net_bridge *br, unsigned long val);
 void br_stp_enable_port(struct net_bridge_port *p);
 void br_stp_disable_port(struct net_bridge_port *p);
 bool br_stp_recalculate_bridge_id(struct net_bridge *br);
@@ -1106,6 +1112,7 @@ ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id);
 struct stp_proto;
 void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 		struct net_device *dev);
+int br_stp_encap_gre_rcv(struct sk_buff *skb);
 
 /* br_stp_timer.c */
 void br_stp_timer_init(struct net_bridge *br);

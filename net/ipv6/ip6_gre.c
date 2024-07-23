@@ -537,7 +537,7 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 		dst->ops->update_pmtu(dst, NULL, skb, dst->dev->mtu);
 
 	return ip6_tnl_xmit(skb, dev, dsfield, fl6, encap_limit, pmtu,
-			    NEXTHDR_GRE);
+			    NEXTHDR_GRE, NULL);
 }
 
 static inline int ip6gre_xmit_ipv4(struct sk_buff *skb, struct net_device *dev)

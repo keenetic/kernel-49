@@ -236,6 +236,13 @@ void br_stp_set_log(struct net_bridge *br, unsigned long val)
 	br->stp_log = (val ? BR_LOG_STP_ENABLE : BR_LOG_STP_DISABLE);
 }
 
+void br_stp_set_encap(struct net_bridge *br, unsigned long val)
+{
+	ASSERT_RTNL();
+
+	br->stp_encap = (val ? BR_STP_ENCAP : BR_STP_NORMAL);
+}
+
 /* called under bridge lock */
 void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *addr)
 {

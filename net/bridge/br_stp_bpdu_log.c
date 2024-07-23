@@ -358,19 +358,21 @@ stp_print_mstp_bpdu(const struct stp_bpdu *bpdu, size_t length,
  */
 static void
 br_stp_bdpu_print(struct net_bridge *br, struct net_device *dev,
-		  struct sk_buff *skb, const bool send)
+		  struct sk_buff *skb, const bool send, const bool encap)
 {
 	char buf[STP_PRINT_BUF_SIZE];
 	const struct stp_bpdu *bpdu;
 	u16 mstp_len;
 
 	if (send)
-		pr_info("[%s -> %s] Send BDPU from %pM",
+		pr_info("[%s -> %s] Send %sBDPU from %pM",
 			br->dev->name, dev->name,
+			encap ? "ENCAP" : "",
 			dev->dev_addr);
 	else
-		pr_info("[%s <- %s] Recv BDPU from %pM",
+		pr_info("[%s <- %s] Recv %sBDPU from %pM",
 			br->dev->name, dev->name,
+			encap ? "ENCAP" : "",
 			&eth_hdr(skb)->h_source);
 
 	if (is_vlan_dev(dev))
@@ -472,12 +474,26 @@ void
 br_stp_bdpu_recv_print(struct net_bridge *br,
 		       struct net_device *dev, struct sk_buff *skb)
 {
-	br_stp_bdpu_print(br, dev, skb, false);
+	br_stp_bdpu_print(br, dev, skb, false, false);
+}
+
+void
+br_stp_bdpu_recv_print_encap(struct net_bridge *br,
+			     struct net_device *dev, struct sk_buff *skb)
+{
+	br_stp_bdpu_print(br, dev, skb, false, true);
 }
 
 void
 br_stp_bdpu_send_print(struct net_bridge *br,
 		       struct net_device *dev, struct sk_buff *skb)
 {
-	br_stp_bdpu_print(br, dev, skb, true);
+	br_stp_bdpu_print(br, dev, skb, true, false);
+}
+
+void
+br_stp_bdpu_send_print_encap(struct net_bridge *br,
+			     struct net_device *dev, struct sk_buff *skb)
+{
+	br_stp_bdpu_print(br, dev, skb, true, true);
 }

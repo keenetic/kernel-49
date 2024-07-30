@@ -298,6 +298,15 @@ static void gre_destroy(struct nf_conn *ct)
 		nf_ct_gre_keymap_destroy(master);
 }
 
+static int gre_sweep_user_ok(struct nf_conn *ct)
+{
+	if (!test_bit(IPS_SEEN_REPLY_BIT, &ct->status) &&
+	    !test_bit(IPS_ASSURED_BIT, &ct->status))
+		return 1;
+
+	return 0;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -373,6 +382,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 	.packet		 = gre_packet,
 	.new		 = gre_new,
 	.destroy	 = gre_destroy,
+	.sweep_user_ok	 = gre_sweep_user_ok,
 	.me 		 = THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr = nf_ct_port_tuple_to_nlattr,

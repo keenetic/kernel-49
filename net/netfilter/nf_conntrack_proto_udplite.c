@@ -169,6 +169,15 @@ static int udplite_error(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
+static int udplite_sweep_user_ok(struct nf_conn *ct)
+{
+	if (!test_bit(IPS_SEEN_REPLY_BIT, &ct->status) &&
+	    !test_bit(IPS_ASSURED_BIT, &ct->status))
+		return 1;
+
+	return 0;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -283,6 +292,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
 	.get_timeouts		= udplite_get_timeouts,
 	.new			= udplite_new,
 	.error			= udplite_error,
+	.sweep_user_ok		= udplite_sweep_user_ok,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
@@ -316,6 +326,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
 	.get_timeouts		= udplite_get_timeouts,
 	.new			= udplite_new,
 	.error			= udplite_error,
+	.sweep_user_ok		= udplite_sweep_user_ok,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,

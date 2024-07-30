@@ -101,6 +101,15 @@ static int udp_packet(struct nf_conn *ct,
 	return NF_ACCEPT;
 }
 
+static int udp_sweep_user_ok(struct nf_conn *ct)
+{
+	if (!test_bit(IPS_SEEN_REPLY_BIT, &ct->status) &&
+	    !test_bit(IPS_ASSURED_BIT, &ct->status))
+		return 1;
+
+	return 0;
+}
+
 /* Called when a new connection for this protocol found. */
 static bool udp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		    unsigned int dataoff, unsigned int *timeouts)
@@ -274,6 +283,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 __read_mostly =
 #else
 	.error			= udp_error,
 #endif
+	.sweep_user_ok		= udp_sweep_user_ok,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
@@ -307,6 +317,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 __read_mostly =
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
 	.error			= udp_error,
+	.sweep_user_ok		= udp_sweep_user_ok,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,

@@ -598,6 +598,20 @@ static int nf_conntrack_public_lockout_status_(struct ctl_table *table,
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 
+static int nf_conntrack_sweep = 0;
+
+static int nf_conntrack_sweep_(struct ctl_table *table,
+			       int write,
+			       void __user *buffer,
+			       size_t *lenp, loff_t *ppos)
+{
+	const int res = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	nf_conntrack_sweep_user(nf_conntrack_sweep);
+
+	return res;
+}
+
 /* Log invalid packets of a given protocol */
 static int log_invalid_proto_min __read_mostly;
 static int log_invalid_proto_max __read_mostly = 255;
@@ -770,6 +784,13 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
 		.proc_handler	= nf_conntrack_public_lockout_status_,
+	},
+	{
+		.procname	= "nf_conntrack_sweep",
+		.data		= &nf_conntrack_sweep,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= nf_conntrack_sweep_,
 	},
 	{ }
 };

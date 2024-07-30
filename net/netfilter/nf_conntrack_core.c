@@ -2571,6 +2571,40 @@ static int kill_all(struct nf_conn *i, void *data)
 	return 1;
 }
 
+static int sweep_user(struct nf_conn *ct, void *data)
+{
+	int res = 0;
+	const struct nf_conntrack_tuple *tuple;
+
+	rcu_read_lock();
+
+	tuple = nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL);
+
+	if (likely(tuple)) {
+		struct nf_conntrack_l4proto *l4proto;
+
+		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
+					       tuple->dst.protonum);
+
+		if (l4proto && l4proto->sweep_user_ok)
+			res = l4proto->sweep_user_ok(ct);
+	}
+
+	rcu_read_unlock();
+
+	return res;
+}
+
+void nf_conntrack_sweep_user(const int count)
+{
+	struct net *net = &init_net;
+
+	if (atomic_read(&net->ct.count) < count)
+		return;
+
+	nf_ct_iterate_cleanup(net, sweep_user, NULL, 0, 0);
+}
+
 void nf_ct_free_hashtable(void *hash, unsigned int size)
 {
 	if (is_vmalloc_addr(hash))

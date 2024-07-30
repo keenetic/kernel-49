@@ -99,6 +99,14 @@ static bool generic_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return ret;
 }
 
+static int generic_sweep_user_ok(struct nf_conn *ct)
+{
+	if (!test_bit(IPS_SEEN_REPLY_BIT, &ct->status))
+		return 1;
+
+	return 0;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -194,6 +202,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 	.packet			= generic_packet,
 	.get_timeouts		= generic_get_timeouts,
 	.new			= generic_new,
+	.sweep_user_ok		= generic_sweep_user_ok,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= generic_timeout_nlattr_to_obj,

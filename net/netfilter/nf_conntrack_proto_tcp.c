@@ -1194,6 +1194,15 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
+static int tcp_sweep_user_ok(struct nf_conn *ct)
+{
+	if (ct->proto.tcp.state == TCP_CONNTRACK_TIME_WAIT ||
+	    ct->proto.tcp.state == TCP_CONNTRACK_CLOSE_WAIT)
+		return 1;
+
+	return 0;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -1578,6 +1587,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 __read_mostly =
 	.get_timeouts		= tcp_get_timeouts,
 	.new 			= tcp_new,
 	.error			= tcp_error,
+	.sweep_user_ok		= tcp_sweep_user_ok,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= tcp_to_nlattr,
 	.nlattr_size		= tcp_nlattr_size,
@@ -1615,6 +1625,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 __read_mostly =
 	.get_timeouts		= tcp_get_timeouts,
 	.new 			= tcp_new,
 	.error			= tcp_error,
+	.sweep_user_ok		= tcp_sweep_user_ok,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= tcp_to_nlattr,
 	.nlattr_size		= tcp_nlattr_size,

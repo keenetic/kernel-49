@@ -334,6 +334,7 @@ extern unsigned int nf_conntrack_public_max;
 extern unsigned int nf_conntrack_public_lockout_time;
 
 int nf_conntrack_public_status(void);
+void nf_conntrack_sweep_user(const int count);
 
 /* must be called with rcu read lock held */
 static inline void

@@ -228,6 +228,14 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	return icmp_error_message(net, tmpl, skb, ctinfo, hooknum);
 }
 
+static int icmp_sweep_user_ok(struct nf_conn *ct)
+{
+	if (!test_bit(IPS_SEEN_REPLY_BIT, &ct->status))
+		return 1;
+
+	return 0;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -371,6 +379,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 	.get_timeouts		= icmp_get_timeouts,
 	.new			= icmp_new,
 	.error			= icmp_error,
+	.sweep_user_ok		= icmp_sweep_user_ok,
 	.destroy		= NULL,
 	.me			= NULL,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

@@ -611,20 +611,22 @@ static void option_instat_callback(struct urb *urb);
 
 /* Device flags */
 
-/* Highest interface number which can be used with NCTRL() and RSVD() */
-#define FLAG_IFNUM_MAX	7
+/* Highest interface number which can be used with RSVD() */
+#define FLAG_IFNUM_RSVD_MAX			15
+/* Highest interface number which can be used with NCTRL() */
+#define FLAG_IFNUM_NCTRL_MAX		13
 
 /* Interface does not support modem-control requests */
-#define NCTRL(ifnum)	((BIT(ifnum) & 0xff) << 8)
+#define NCTRL(ifnum)	(BIT((ifnum) + 16))
 
 /* Interface is reserved */
-#define RSVD(ifnum)	((BIT(ifnum) & 0xff) << 0)
+#define RSVD(ifnum)	(BIT(ifnum))
 
 /* Interface must have two endpoints */
-#define NUMEP2		BIT(16)
+#define NUMEP2		BIT(30)
 
 /* Device needs ZLP */
-#define ZLP		BIT(17)
+#define ZLP		BIT(31)
 
 
 static const struct usb_device_id option_ids[] = {
@@ -1990,7 +1992,7 @@ static const struct usb_device_id option_ids[] = {
 	  .driver_info = RSVD(5) | RSVD(6) },
 	{ USB_DEVICE_INTERFACE_CLASS(0x1e0e, 0x9003, 0xff) },	/* Simcom SIM7500/SIM7600 MBIM mode */
 	{ USB_DEVICE_INTERFACE_CLASS(0x1e0e, 0x9011, 0xff),	/* Simcom SIM7500/SIM7600 RNDIS mode */
-	  .driver_info = RSVD(7) },
+	  .driver_info = RSVD(7) | RSVD(8) },
 	{ USB_DEVICE_INTERFACE_CLASS(0x1e0e, 0x9205, 0xff) },	/* Simcom SIM7070/SIM7080/SIM7090 AT+ECM mode */
 	{ USB_DEVICE_INTERFACE_CLASS(0x1e0e, 0x9206, 0xff) },	/* Simcom SIM7070/SIM7080/SIM7090 AT-only mode */
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S_X200),
@@ -2310,7 +2312,7 @@ module_usb_serial_driver(serial_drivers, option_ids);
 
 static bool iface_is_reserved(unsigned long device_flags, u8 ifnum)
 {
-	if (ifnum > FLAG_IFNUM_MAX)
+	if (ifnum > FLAG_IFNUM_RSVD_MAX)
 		return false;
 
 	return device_flags & RSVD(ifnum);
@@ -2359,7 +2361,7 @@ static int option_probe(struct usb_serial *serial,
 
 static bool iface_no_modem_control(unsigned long device_flags, u8 ifnum)
 {
-	if (ifnum > FLAG_IFNUM_MAX)
+	if (ifnum > FLAG_IFNUM_NCTRL_MAX)
 		return false;
 
 	return device_flags & NCTRL(ifnum);

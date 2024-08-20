@@ -22,10 +22,6 @@
 	status = "disabled";
 };
 
-&wed2 {
-	status = "disabled";
-};
-
 &usbxphy {
 	status = "disabled";
 };

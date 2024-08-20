@@ -346,6 +346,11 @@ config CHIP_MT7990
 	bool
 	select RTMP_PCI_SUPPORT
 
+config CHIP_MT7990_2PCIE
+	bool "MT7990 configuration with PCIe two 2-lane (MT7988A host)"
+	depends on CHIP_MT7990
+	default n
+
 config CHIP_MT7992
 	bool
 	select RTMP_PCI_SUPPORT

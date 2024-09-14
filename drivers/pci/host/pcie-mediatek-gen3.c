@@ -1129,7 +1129,6 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_pcie_port *port;
 	struct pci_host_bridge *host;
-	struct pci_bus *bus, *child;
 	int err;
 
 	host = devm_pci_alloc_host_bridge(dev, sizeof(*port));
@@ -1151,22 +1150,12 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 	host->swizzle_irq = pci_common_swizzle;
 	host->sysdata = port;
 
-	err = pci_scan_root_bus_bridge(host);
+	err = pci_host_probe(host);
 	if (err < 0) {
 		mtk_pcie_irq_teardown(port);
 		mtk_pcie_power_down(port);
 		return err;
 	}
-
-	bus = host->bus;
-
-	pci_bus_size_bridges(bus);
-	pci_bus_assign_resources(bus);
-
-	list_for_each_entry(child, &bus->children, node)
-		pcie_bus_configure_settings(child);
-
-	pci_bus_add_devices(bus);
 
 	return 0;
 }

@@ -1158,7 +1158,6 @@ static int mtk_pcie_request_resources(struct mtk_pcie *pcie)
 static int mtk_pcie_register_host(struct pci_host_bridge *host)
 {
 	struct mtk_pcie *pcie = pci_host_bridge_priv(host);
-	struct pci_bus *child;
 	int err;
 
 	host->busnr = pcie->busn.start;
@@ -1170,17 +1169,9 @@ static int mtk_pcie_register_host(struct pci_host_bridge *host)
 	if (IS_ENABLED(CONFIG_PCI_MSI) && pcie->soc->has_msi)
 		host->msi = &mtk_pcie_msi_chip;
 
-	err = pci_scan_root_bus_bridge(host);
+	err = pci_host_probe(host);
 	if (err < 0)
 		return err;
-
-	pci_bus_size_bridges(host->bus);
-	pci_bus_assign_resources(host->bus);
-
-	list_for_each_entry(child, &host->bus->children, node)
-		pcie_bus_configure_settings(child);
-
-	pci_bus_add_devices(host->bus);
 
 	return 0;
 }

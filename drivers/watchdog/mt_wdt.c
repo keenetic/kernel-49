@@ -747,6 +747,7 @@ mt_wdt_devm_ioremap_gpt_base(const struct mt_wdt *wdt)
 	struct resource res;
 	const struct device_node *wdt_node = wdt->dev->of_node;
 	struct device_node *gpt_node;
+	void __iomem *base;
 	struct clk *clk_src;
 
 	if (wdt_node == NULL)
@@ -768,7 +769,11 @@ mt_wdt_devm_ioremap_gpt_base(const struct mt_wdt *wdt)
 	if (ret != 0)
 		return ERR_PTR(ret);
 
-	return devm_ioremap(wdt->dev, res.start, resource_size(&res));
+	base = devm_ioremap(wdt->dev, res.start, resource_size(&res));
+	if (!base)
+		return ERR_PTR(-ENOMEM);
+
+	return base;
 }
 
 static int mt_wdt_show_power_status(const struct mt_wdt *wdt,

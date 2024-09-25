@@ -345,10 +345,10 @@ static uint32_t parts_size_default_get(enum part part,
 		size = master->erasesize * 4;
 		break;
 	case PART_U_STATE:
-		size = master->erasesize;
+		size = PART_UST_SIZE;
 		break;
 	case PART_RESERVE:
-		size = PART_BOOT_SIZE;
+		size = PART_RSV_SIZE;
 		break;
 	default:
 		break;
@@ -409,12 +409,10 @@ static uint32_t parts_size_default_get(enum part part,
 		size = master->erasesize * 4;
 		break;
 	case PART_U_STATE:
-		size = master->erasesize;
+		size = is_nor ? PART_UST_SIZE_NOR : PART_UST_SIZE_NAND;
 		break;
 	case PART_RESERVE:
 		size = is_nor ? PART_RSV_SIZE_NOR : PART_RSV_SIZE_NAND;
-		/* subtract U_STATE */
-		size -= master->erasesize;
 		break;
 	default:
 		break;

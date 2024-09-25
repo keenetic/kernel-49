@@ -1,3 +1,4 @@
+dts-dirs += airoha
 dts-dirs += al
 dts-dirs += altera
 dts-dirs += amd

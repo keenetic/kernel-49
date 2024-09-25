@@ -84,6 +84,22 @@ config ARCH_HISI
 	help
 	  This enables support for Hisilicon ARMv8 SoC family
 
+config ARCH_AIROHA
+	bool "Airoha SoC Family"
+	select ARM_GIC
+	help
+	  This enables support for Airoha AN75xx ARMv8 SoCs
+
+if ARCH_AIROHA
+
+config MACH_AN7581
+	bool "MediaTek AN7581 series SoC support"
+
+config MACH_AN7583
+	bool "MediaTek AN7583 series SoC support"
+
+endif
+
 config ARCH_MEDIATEK
 	bool "MediaTek SoC Family"
 	select ARM_GIC

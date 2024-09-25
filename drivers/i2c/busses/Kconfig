@@ -325,6 +325,13 @@ config I2C_POWERMAC
 
 comment "I2C system bus drivers (mostly embedded / system-on-chip)"
 
+config I2C_AIROHA
+	tristate "Airoha I2C controller"
+	depends on ARCH_AIROHA
+	help
+	  Say Y here to include support for I2C controller in the
+	  Airoha SoCs.
+
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
 	depends on ARCH_AT91

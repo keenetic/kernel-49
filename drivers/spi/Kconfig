@@ -60,6 +60,12 @@ config SPI_MEM
 
 comment "SPI Master Controller Drivers"
 
+config SPI_AIROHA
+	tristate "Airoha SPI controller for SNAND"
+	depends on ARCH_AIROHA
+	help
+	  This selects a driver for the Airoha SPI controller.
+
 config SPI_ALTERA
 	tristate "Altera SPI Controller"
 	select SPI_BITBANG

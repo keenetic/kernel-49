@@ -11,6 +11,7 @@ obj-$(CONFIG_IMX_WEIM)		+= imx-weim.o
 obj-$(CONFIG_MIPS_CDMM)		+= mips_cdmm.o
 obj-$(CONFIG_MVEBU_MBUS) 	+= mvebu-mbus.o
 obj-$(CONFIG_MTK_SUBSYS_IOC)	+= mtk-subsys-ioc.o
+obj-$(CONFIG_ARCH_AIROHA)	+= airoha-pbus.o airoha-rbus.o mtk-rbus.o
 obj-$(CONFIG_ARCH_MEDIATEK)	+= mtk-rbus.o
 
 # Interconnect bus driver for OMAP SoCs.

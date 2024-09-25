@@ -2,6 +2,13 @@
 # ARM CPU Frequency scaling drivers
 #
 
+config ARM_AIROHA_CPUFREQ
+	tristate "Airoha CPUfreq driver"
+	depends on ARCH_AIROHA
+	select PM_OPP
+	help
+	  This add the CPUFreq driver support for SoCs with generic dt modification.
+
 # big LITTLE core layer and glue drivers
 config ARM_BIG_LITTLE_CPUFREQ
 	tristate "Generic ARM big LITTLE CPUfreq driver"

@@ -50,6 +50,7 @@ obj-$(CONFIG_X86_SFI_CPUFREQ)		+= sfi-cpufreq.o
 
 ##################################################################################
 # ARM SoC drivers
+obj-$(CONFIG_ARM_AIROHA_CPUFREQ)	+= airoha_cpufreq.o
 obj-$(CONFIG_ARM_BIG_LITTLE_CPUFREQ)	+= arm_big_little.o
 # big LITTLE per platform glues. Keep DT_BL_CPUFREQ as the last entry in all big
 # LITTLE drivers, so that it is probed last.

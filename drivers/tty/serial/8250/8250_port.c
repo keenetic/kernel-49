@@ -300,6 +300,15 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 4, 8, 14},
 		.flags		= UART_CAP_FIFO,
 	},
+#ifdef CONFIG_ARCH_AIROHA
+	[PORT_AIROHA] = {
+		.name		= "Airoha 16550",
+		.fifo_size	= 1,
+		.tx_loadsz	= 1,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_00 | UART_FCR_CLEAR_RCVR,
+		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
+	},
+#endif
 };
 
 /* Uart divisor latch read */

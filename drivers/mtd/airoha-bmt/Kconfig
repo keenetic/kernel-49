@@ -1,0 +1,6 @@
+
+config AIROHA_BMT
+	bool "Enable MTD based NAND BMT management"
+	depends on ARCH_AIROHA
+	depends on MTD
+	default y

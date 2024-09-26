@@ -715,6 +715,13 @@ config ASPEED_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called aspeed_wdt.
 
+config AIROHA_WDT
+	tristate "Airoha AN758x softirq watchdog"
+	depends on ARCH_AIROHA
+	depends on ARM64
+	help
+	  Driver for the Airoha AN758x SoC softirq watchdog timer.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT

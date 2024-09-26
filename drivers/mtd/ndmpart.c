@@ -48,6 +48,10 @@
 #include <linux/mtd/nmbm/nmbm-mtd.h>
 #endif /* CONFIG_NMBM_MTD */
 
+#ifdef CONFIG_AIROHA_BMT
+#include <linux/mtd/airoha-bmt.h>
+#endif /* CONFIG_AIROHA_BMT */
+
 #ifdef MTD_NDM_PARTITION_UPDATE
 #include <linux/crc32.h>
 #include <linux/reboot.h>
@@ -177,13 +181,27 @@ static int ndmpart_image_cur = 1;
 static bool ndmpart_di_is_enabled;
 #endif
 
+#if defined(CONFIG_MACH_MT7622)
+#define HAS_PART_ROM_HDR
+#define HAS_PART_ATF
+#endif
+
+#if defined(CONFIG_MACH_MT7622) || \
+    defined(CONFIG_MACH_MT7981) || \
+    defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7988)
+#define HAS_PART_PRELOADER
+#endif
+
 static struct part_dsc parts[PART_MAX] = {
 	/* Image 1 */
-#if defined(CONFIG_MACH_MT7622)
+#ifdef HAS_PART_ROM_HDR
 	[PART_ROM_HDR] = {
 		.name		= "ROM-Header",
 		.read_only	= true
 	},
+#endif /* HAS_PART_ROM_HDR */
+#ifdef HAS_PART_PRELOADER
 	[PART_PRELOADER] = {
 		.name		= "Preloader",
 #ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
@@ -192,6 +210,8 @@ static struct part_dsc parts[PART_MAX] = {
 #endif
 		.read_only	= true
 	},
+#endif /* HAS_PART_PRELOADER */
+#ifdef HAS_PART_ATF
 	[PART_ATF] = {
 		.name		= "ATF",
 #ifdef CONFIG_MTD_NDM_ATF_UPDATE
@@ -200,19 +220,7 @@ static struct part_dsc parts[PART_MAX] = {
 #endif
 		.read_only	= true
 	},
-#endif /* CONFIG_MACH_MT7622 */
-#if defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986) || \
-    defined(CONFIG_MACH_MT7988)
-	[PART_PRELOADER] = {
-		.name		= "Preloader",
-#ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
-		.image		= preloader_bin,
-		.image_len	= &preloader_bin_len,
-#endif
-		.read_only	= true
-	},
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 || CONFIG_MACH_MT7988 */
+#endif /* HAS_PART_ATF */
 	[PART_U_BOOT] = {
 		.name		= "U-Boot",
 #ifdef CONFIG_MTD_NDM_BOOT_UPDATE
@@ -391,11 +399,15 @@ static uint32_t parts_size_default_get(enum part part,
 	}
 #elif defined(CONFIG_MACH_MT7981) || \
       defined(CONFIG_MACH_MT7986) || \
-      defined(CONFIG_MACH_MT7988)
+      defined(CONFIG_MACH_MT7988) || \
+      defined(CONFIG_MACH_AN7581) || \
+      defined(CONFIG_MACH_AN7583)
 	switch (part) {
+#ifdef HAS_PART_PRELOADER
 	case PART_PRELOADER:
 		size = is_nor ? PART_BL2_SIZE_NOR : PART_BL2_SIZE_NAND;
 		break;
+#endif /* HAS_PART_PRELOADER */
 	case PART_U_BOOT:
 		size = is_nor ? PART_FIP_SIZE_NOR : PART_FIP_SIZE_NAND;
 		break;
@@ -748,6 +760,10 @@ static int create_mtd_partitions(struct mtd_info *m,
 	if (!is_nmbm_mtd(m))
 		return 0;
 #endif /* CONFIG_NMBM_MTD */
+
+#ifdef CONFIG_AIROHA_BMT
+	airoha_bmt_attach(m);
+#endif /* CONFIG_AIROHA_BMT */
 
 	use_dump = use_storage = false;
 	if (CONFIG_MTD_NDM_DUMP_SIZE)

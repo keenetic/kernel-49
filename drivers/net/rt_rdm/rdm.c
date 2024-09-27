@@ -15,7 +15,12 @@
 #include <asm/rt2880/rt_mmap.h>
 #endif
 
-#ifdef CONFIG_ARCH_MEDIATEK
+#if defined(CONFIG_ARM) || \
+    defined(CONFIG_ARM64)
+#define ARCH_USE_IOMEM_MAP
+#endif
+
+#ifdef ARCH_USE_IOMEM_MAP
 #include <linux/io.h>
 
 struct bus_desc {
@@ -63,12 +68,28 @@ static struct bus_desc mtk_bus_desc[] = {
 	{ NULL, MEDIATEK_EIP197_BASE,  MEDIATEK_EIP197_SIZE  },
 };
 
+#elif defined(CONFIG_MACH_AN7581) || \
+      defined(CONFIG_MACH_AN7583)
+#include "rdm_an7581.h"
+
+static struct bus_desc mtk_bus_desc[] = {
+	{ NULL, AIROHA_PERI0_BASE,   AIROHA_PERI0_SIZE   },
+	{ NULL, AIROHA_XHCI_BASE,    AIROHA_XHCI_SIZE    },
+	{ NULL, AIROHA_PON_PHY_BASE, AIROHA_PON_PHY_SIZE },
+	{ NULL, AIROHA_SCU1_BASE,    AIROHA_SCU1_SIZE    },
+	{ NULL, AIROHA_ETHSYS_BASE,  AIROHA_ETHSYS_SIZE  },
+	{ NULL, AIROHA_PON_MAC_BASE, AIROHA_PON_MAC_SIZE },
+	{ NULL, AIROHA_EIP93_BASE,   AIROHA_EIP93_SIZE   },
+	{ NULL, AIROHA_PERI1_BASE,   AIROHA_PERI1_SIZE   },
+	{ NULL, AIROHA_PCIE_BASE,    AIROHA_PCIE_SIZE    },
+};
+
 #else
 
-#error "please define MACH for CONFIG_ARCH_MEDIATEK"
+#error "please define MACH"
 
 #endif
-#endif /* CONFIG_ARCH_MEDIATEK */
+#endif /* ARCH_USE_IOMEM_MAP */
 
 #define RDM_SYSCTL_ADDR		RALINK_SYSCTL_BASE // system control
 #define RDM_WIRELESS_ADDR	RALINK_11N_MAC_BASE // wireless control
@@ -84,20 +105,25 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned long baseaddr, addr = 0;
 	u32 rtvalue, offset, count = 0;
-#ifdef CONFIG_ARCH_MEDIATEK
+#ifdef ARCH_USE_IOMEM_MAP
 	size_t i;
 #endif
 
 	baseaddr = register_control;
+
 	if (cmd == RT_RDM_CMD_SHOW) {
 		offset = *(u32 *)arg;
+		offset &= ~0x3;
 		rtvalue = (u32)(*(volatile u32 *)(baseaddr + offset));
 		printk("0x%x\n", rtvalue);
 	} else if (cmd == RT_RDM_CMD_DUMP)  {
-		for (count=0; count < RT_RDM_DUMP_RANGE ; count++) {
-			offset = *(u32 *)arg + (count * 16);
-			addr = baseaddr + offset;
-			printk("%08X: ", register_bus + offset);
+		offset = *(u32 *)arg;
+		offset &= ~0x3;
+		for (count = 0; count < RT_RDM_DUMP_RANGE ; count++) {
+			u32 row_offs = offset + (count * 16);
+
+			addr = baseaddr + row_offs;
+			printk(KERN_CONT "%08X: ", register_bus + row_offs);
 			printk("%08X %08X %08X %08X\n",
 				(u32)(*(volatile u32 *)(addr)),
 				(u32)(*(volatile u32 *)(addr+4)),
@@ -106,10 +132,11 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 	} else if (cmd == RT_RDM_CMD_READ) {
 		offset = *(u32 *)arg;
+		offset &= ~0x3;
 		rtvalue = (u32)(*(volatile u32 *)(baseaddr + offset));
 		put_user(rtvalue, (int __user *)arg);
 	} else if (cmd == RT_RDM_CMD_SET_BASE_SYS) {
-#ifdef CONFIG_ARCH_MEDIATEK
+#ifdef ARCH_USE_IOMEM_MAP
 		register_control = (unsigned long)mtk_bus_desc[ETHSYS].base_map;
 #else
 		register_control = RDM_SYSCTL_ADDR;
@@ -117,7 +144,7 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		register_bus = RDM_SYSCTL_ADDR;
 		printk("switch register base addr to system register 0x%08x\n", register_bus);
 	} else if (cmd == RT_RDM_CMD_SET_BASE_WLAN) {
-#ifdef CONFIG_ARCH_MEDIATEK
+#ifdef ARCH_USE_IOMEM_MAP
 		register_control = (unsigned long)mtk_bus_desc[WBSYS].base_map;
 #else
 		register_control = RDM_WIRELESS_ADDR;
@@ -128,7 +155,7 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		printk("current register base addr is 0x%08x\n", register_bus);
 	} else if (cmd == RT_RDM_CMD_SET_BASE) {
 		register_bus = *(u32 *)arg;
-#ifdef CONFIG_ARCH_MEDIATEK
+#ifdef ARCH_USE_IOMEM_MAP
 		offset = 0;
 
 		if (register_bus < mtk_bus_desc[0].base)
@@ -151,6 +178,7 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		printk("switch register base addr to 0x%08x\n", register_bus);
 	} else if (((cmd & 0xffff) == RT_RDM_CMD_WRITE) || ((cmd & 0xffff) == RT_RDM_CMD_WRITE_SILENT)) {
 		offset = cmd >> 16;
+		offset &= ~0x3;
 		*(volatile u32 *)(baseaddr + offset) = *(u32 *)arg;
 		if ((cmd & 0xffff) == RT_RDM_CMD_WRITE)
 			printk("write offset 0x%x, value 0x%x\n", offset, *(u32 *)arg);
@@ -182,7 +210,7 @@ static const struct file_operations rdm_fops = {
 
 static void free_bus_resources(void)
 {
-#ifdef CONFIG_ARCH_MEDIATEK
+#ifdef ARCH_USE_IOMEM_MAP
 	size_t i;
 
 	/* iounmap registers */
@@ -200,7 +228,7 @@ static void free_bus_resources(void)
 int __init rdm_init(void)
 {
 	int result;
-#ifdef CONFIG_ARCH_MEDIATEK
+#ifdef ARCH_USE_IOMEM_MAP
 	size_t i;
 
 	/* iomap registers */

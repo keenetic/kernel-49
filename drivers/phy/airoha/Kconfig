@@ -1,0 +1,10 @@
+#
+# PHY drivers for Airoha devices
+#
+config PHY_AIROHA_USB
+	tristate "Airoha USB PHY driver"
+	depends on ARCH_AIROHA && OF
+	select GENERIC_PHY
+	help
+	  Say 'Y' here to add support for Airoha USB driver,
+	  it supports multiple usb2.0 and usb3.0 ports

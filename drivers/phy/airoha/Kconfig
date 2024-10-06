@@ -1,6 +1,15 @@
 #
 # PHY drivers for Airoha devices
 #
+config PHY_AIROHA_PCIE
+	tristate "Airoha PCIe PHY driver"
+	depends on ARCH_AIROHA && OF
+	select GENERIC_PHY
+	help
+	  Say Y here to add support for Airoha PCIe PHY driver.
+	  This driver create the basic PHY instance and provides initialize
+	  callback for PCIe Gen3 port.
+
 config PHY_AIROHA_USB
 	tristate "Airoha USB PHY driver"
 	depends on ARCH_AIROHA && OF

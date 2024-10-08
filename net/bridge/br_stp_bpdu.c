@@ -405,24 +405,30 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	struct net_bridge *br;
 
 	if (skb->dev == NULL)
-		return;
+		goto drop;
 
 	p = br_port_get_check_rcu(skb->dev);
 	if (!p)
-		return;
+		goto drop;
 
 	br = p->br;
 	spin_lock(&br->lock);
 
-	if (br->stp_encap != BR_STP_ENCAP) {
+	if (br->stp_encap == BR_STP_ENCAP) {
 		spin_unlock(&br->lock);
 
-		return;
+		goto drop;
 	}
 
 	spin_unlock(&br->lock);
 
 	br_stp_rcv_(proto, skb, dev, false);
+
+	return;
+
+drop:
+
+	kfree_skb(skb);
 }
 
 static int br_stp_encap_gre_rcv_(struct sk_buff *skb)

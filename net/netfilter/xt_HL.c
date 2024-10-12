@@ -77,9 +77,9 @@ ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 #if IS_ENABLED(CONFIG_FAST_NAT)
 	ct = nf_ct_get(skb, &ctinfo);
 	if (likely(ct)) {
-		if (likely(set_ttl)) {
-			bool match = false;
+		bool match = false;
 
+		if (likely(set_ttl)) {
 			if (par->hooknum == NF_INET_POST_ROUTING &&
 			    par->out->out_hoplimit_ip4 != 0 &&
 			    par->out->out_hoplimit_ip4 == new_ttl) {
@@ -93,10 +93,10 @@ ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 				match = true;
 				ct->fast_in_hoplimit = new_ttl;
 			}
-
-			if (unlikely(!match))
-				ct->fast_ext = 1;
 		}
+
+		if (unlikely(!match))
+			ct->fast_ext = 1;
 	}
 #endif
 

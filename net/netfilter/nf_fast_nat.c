@@ -55,12 +55,6 @@ fast_nat_path_egress(struct net *net, struct sock *sk, struct sk_buff *skb)
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 
-	if (iph->ttl <= 1) {
-		icmp_send(skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
-		kfree_skb(skb);
-		return -EPERM;
-	}
-
 	ct = nf_ct_get(skb, &ctinfo);
 
 	if (likely(ct)) {
@@ -90,6 +84,12 @@ fast_nat_path_egress(struct net *net, struct sock *sk, struct sk_buff *skb)
 			FOE_ALG_MARK(skb);
 #endif
 		} else {
+			if (iph->ttl <= 1) {
+				icmp_send(skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
+				kfree_skb(skb);
+				return -EPERM;
+			}
+
 			ip_decrease_ttl(iph);
 		}
 	}

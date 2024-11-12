@@ -95,9 +95,6 @@ static int w25n02kv_ooblayout_ecc(struct mtd_info *mtd, int section,
 	if (section > 3)
 		return -ERANGE;
 
-	if (mtd->oobsize < 128)
-		return -ERANGE;
-
 	region->offset = 64 + (16 * section);
 	region->length = 13;
 

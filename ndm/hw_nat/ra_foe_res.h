@@ -24,12 +24,19 @@
 #elif defined(CONFIG_MACH_MT7988)
 #define FOE_ENTRY_SIZE_IP4	128
 #define FOE_ENTRY_SIZE_IP6	128
+#elif defined(CONFIG_MACH_AN7552) || \
+      defined(CONFIG_MACH_AN7581) || \
+      defined(CONFIG_MACH_AN7583)
+#define FOE_ENTRY_SIZE_IP4	80
+#define FOE_ENTRY_SIZE_IP6	80
 #else
 #define FOE_ENTRY_SIZE_IP4	64
 #define FOE_ENTRY_SIZE_IP6	80
 #endif
 
-#if defined(CONFIG_RA_HW_NAT_TBL_1K)
+#if defined(CONFIG_RA_HW_NAT_TBL_OFF)
+#define FOE_ENTRY_COUNT		0
+#elif defined(CONFIG_RA_HW_NAT_TBL_1K)
 #define FOE_ENTRY_COUNT		1024
 #elif defined(CONFIG_RA_HW_NAT_TBL_2K)
 #define FOE_ENTRY_COUNT		2048
@@ -41,6 +48,8 @@
 #define FOE_ENTRY_COUNT		16384
 #elif defined(CONFIG_RA_HW_NAT_TBL_32K)
 #define FOE_ENTRY_COUNT		32768
+#elif defined(CONFIG_RA_HW_NAT_TBL_64K)
+#define FOE_ENTRY_COUNT		65536
 #else
 #error "FoE table size not defined"
 #endif
@@ -59,6 +68,59 @@
 #define MAX_PPE_NUM		1
 #endif
 
+struct ppe_tbl {
+	void *virt;
+	dma_addr_t phys;
+	u32 size;
+};
+
+#if defined(CONFIG_ARCH_AIROHA)
+
+#if defined(CONFIG_MACH_AN7552)
+#define FOE_ENTRY_NUM_SRAM	512
+#elif defined(CONFIG_MACH_AN7581)
+#define FOE_ENTRY_NUM_SRAM	8192	/* 8192 per PPE */
+#elif defined(CONFIG_MACH_AN7583)
+#define FOE_ENTRY_NUM_SRAM	8192
+#endif
+
+#if FOE_ENTRY_COUNT > 32768 && MAX_PPE_NUM > 1
+#error "Dual PPE mode support max 32K FoE entries in DRAM"
+#endif
+
+#if defined(CONFIG_RA_HW_NAT_TBL_SRAM_OFF)
+#define FOE_ENTRY_NUM_SRAM	0
+#endif
+
+#if FOE_ENTRY_COUNT == 65536
+#define FOE_ENTRY_NUM_DRAM	(FOE_ENTRY_COUNT - FOE_ENTRY_NUM_SRAM)
+#else
+#define FOE_ENTRY_NUM_DRAM	 FOE_ENTRY_COUNT
+#endif
+
+#define FOE_ENTRY_TOTAL		(FOE_ENTRY_NUM_SRAM + FOE_ENTRY_NUM_DRAM)
+
+#if MAX_PPE_NUM > 1 && !defined(CONFIG_RA_HW_NAT_TBL_OFF)
+#define FOE_TABLE_SIZE		((32768 + FOE_ENTRY_NUM_DRAM) * FOE_ENTRY_SIZE)
+#else
+#define FOE_TABLE_SIZE		(FOE_ENTRY_NUM_DRAM * FOE_ENTRY_SIZE)
+#endif
+
+#define PSE_SPORT_NUM		32	/* SPORT max 5 bits */
+#define PSE_FPORT_NUM		10
+
+struct ra_foe_resources {
+	void __iomem *fe_base;
+	void __iomem *qdma_base;
+	struct ppe_tbl foe;
+	u8 ppe_sp_map[PSE_SPORT_NUM];
+	u8 cdm_sp_map[PSE_SPORT_NUM];
+	u8 ppe_fp_map[PSE_FPORT_NUM];
+	u8 cdm_fp_map[PSE_FPORT_NUM];
+};
+
+#else
+
 #define MIB_ENTRY_SIZE		16
 #define PSP_ENTRY_SIZE		16
 
@@ -66,16 +128,10 @@
 #define MIB_TABLE_SIZE		(FOE_ENTRY_COUNT * MIB_ENTRY_SIZE)
 #define PSP_TABLE_SIZE		(FOE_ENTRY_COUNT * PSP_ENTRY_SIZE)
 
-#define PSE_PORTS_NUM		16
-
-struct ppe_tbl {
-	void *virt;
-	dma_addr_t phys;
-	u32 size;
-};
+#define PSE_PORTS_NUM		16	/* SPORT max 4 bits */
 
 struct ra_foe_resources {
-#if defined(CONFIG_ARCH_MEDIATEK)
+#ifdef CONFIG_ARCH_MEDIATEK
 	void __iomem *ethdma_sys_base;
 	void __iomem *ethdma_fe_base;
 #endif
@@ -88,6 +144,8 @@ struct ra_foe_resources {
 #endif
 	u8 ppe_map[PSE_PORTS_NUM];
 };
+
+#endif
 
 int get_foe_resources(void *foe_res_ptr, size_t foe_res_len);
 

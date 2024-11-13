@@ -14,11 +14,23 @@
 #define MTK_NETSYS_V3
 #endif
 
+#if defined(CONFIG_MACH_AN7552) || \
+    defined(CONFIG_MACH_AN7581) || \
+    defined(CONFIG_MACH_AN7583)
+#define AIROHA_NPU_V2
+#endif
+
 struct PdmaRxDescInfo4 {
 	uint16_t MAGIC_TAG;
 	union {
 		struct {
-#ifdef MTK_NETSYS_V2
+#if defined(AIROHA_NPU_V2)
+			uint32_t FOE_Entry:16;
+			uint32_t CRSN:5;
+			uint32_t SPORT:5;
+			uint32_t Rsv0:5;
+			uint32_t ALG:1;
+#elif defined(MTK_NETSYS_V2)
 			uint32_t FOE_Entry:15;
 			uint32_t Rsv0:3;
 			uint32_t CRSN:5;
@@ -50,7 +62,9 @@ struct PdmaRxDescInfo4 {
  * DEFINITIONS AND MACROS
  */
 
-#ifdef MTK_NETSYS_V2
+#if defined(AIROHA_NPU_V2)
+#define FOE_INV_ENTRY		0xffff
+#elif defined(MTK_NETSYS_V2)
 #define FOE_INV_ENTRY		0x7fff
 #else
 #define FOE_INV_ENTRY		0x3fff
@@ -72,7 +86,9 @@ struct PdmaRxDescInfo4 {
 #define FOE_MAGIC_PPE			0x7276
 #define FOE_MAGIC_WED			0x7278
 
-#ifdef MTK_NETSYS_V2
+#if defined(AIROHA_NPU_V2)
+#define FOE_MAGIC_PPE_DWORD		0xffff7276UL	/* FOE_Entry=0xffff */
+#elif defined(MTK_NETSYS_V2)
 #define FOE_MAGIC_PPE_DWORD		0x7fff7276UL	/* FOE_Entry=0x7fff */
 #else
 #ifdef __BIG_ENDIAN
@@ -124,7 +140,7 @@ struct PdmaRxDescInfo4 {
 /* PPE internal CRSN values 0x01..0x1E */
 #define CRSN_PPE_INVALID 0x1F
 
-#if defined(MTK_NETSYS_V2) && IS_ENABLED(CONFIG_MTK_WARP)
+#if defined(MTK_NETSYS_V2) || defined(AIROHA_NPU_V2)
 #define IS_MAGIC_TAG_VALID(skb) \
 	((FOE_MAGIC_TAG(skb) == FOE_MAGIC_GE) || \
 	 (FOE_MAGIC_TAG(skb) == FOE_MAGIC_WED))
@@ -233,6 +249,42 @@ struct gmac_info {
 			uint32_t wi_rxid:	1;	/* WDMA/QDMA RX ring */
 		} bits;
 		uint32_t word;
+	};
+} __packed;
+
+#elif defined(CONFIG_MACH_AN7552) || \
+      defined(CONFIG_MACH_AN7581) || \
+      defined(CONFIG_MACH_AN7583)
+
+#undef GMAC_ID_WDMA
+#define GMAC_ID_GDM3			3
+#define GMAC_ID_GDM4			9
+#define GMAC_ID_NPU			6
+#define GMAC_ID_WDMA			11	/* virtual value (unused PSE port) */
+
+/* gmac_info fields */
+struct gmac_info {
+	union {
+		struct {
+			/* assume LE for an75xx */
+			uint32_t gmac_id:	4;	/* 0: external (WiFi), 1: GDM1, 2: GDM2, 3: GDM3, ... */
+			uint32_t channel_id:	5;	/* QDMA virtual channel */
+			uint32_t nbq_id:	5;	/* Non blocking queue */
+			uint32_t fast:		1;	/* HWFQ fast path (link speed > 1Gbps) */
+			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
+			uint32_t queue_id:	3;	/* QDMA QoS queue (0..7) */
+			uint32_t tunnel:	1;
+			uint32_t tunnel_id:	6;
+			uint32_t resv1:		6;
+
+			/* wifi info */
+			uint32_t wdmaid:	1;	/* WDMA0/1 */
+			uint32_t wi_rxid:	1;	/* WDMA/QDMA RX ring */
+			uint32_t wi_wcid:	10;	/* WCID */
+			uint32_t wi_bssid:	6;	/* BSSID */
+			uint32_t resv2:		14;
+		} bits;
+		uint32_t word[2];
 	};
 } __packed;
 

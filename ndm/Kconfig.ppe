@@ -14,7 +14,8 @@ config  HNAT_ENHANCED
 
 config  RA_HW_NAT_DUAL_PPE
 	bool "Dual PPE0 plus PPE1 offload"
-	depends on (MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
+	depends on (MACH_MT7981 || MACH_MT7986 || MACH_MT7988 || MACH_AN7581)
+	depends on !RA_HW_NAT_TBL_64K
 	default n
 
 config  RA_HW_NAT_TRIPLE_PPE
@@ -29,12 +30,20 @@ config  RA_HW_NAT_BINDING_THRESHOLD
 	  When flow rate > Binding Threshold  (# Packets Per Second),
 	  the state will change to bind state
 
+config  RA_HW_NAT_TBL_SRAM_OFF
+	bool "Disable FoE Table in SRAM"
+	depends on (MACH_AN7552 || MACH_AN7581 || MACH_AN7583)
+	default n
+
 choice
-	prompt "Foe Table Size"
+	prompt "FoE Table Size (in DRAM)"
 	default RA_HW_NAT_TBL_16K
 	help
 	  Number of entries in FoE Table
 
+	config  RA_HW_NAT_TBL_OFF
+		bool "SRAM only"
+		depends on (MACH_AN7552 || MACH_AN7581 || MACH_AN7583) && !RA_HW_NAT_TBL_SRAM_OFF
 	config  RA_HW_NAT_TBL_1K
 		bool "1K"
 	config  RA_HW_NAT_TBL_2K
@@ -47,7 +56,10 @@ choice
 		bool "16K"
 	config  RA_HW_NAT_TBL_32K
 		bool "32K"
-		depends on (MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
+		depends on (MACH_MT7981 || MACH_MT7986 || MACH_MT7988 || MACH_AN7552 || MACH_AN7581 || MACH_AN7583)
+	config  RA_HW_NAT_TBL_64K
+		bool "64K"
+		depends on (MACH_AN7552 || MACH_AN7581 || MACH_AN7583)
 endchoice
 
 choice
@@ -159,7 +171,7 @@ config  RA_HW_NAT_PACKET_SAMPLING
 
 config  RA_HW_NAT_L2B
 	bool "L2 Bridge Acceleration"
-	depends on ECONET_EN75XX_MP
+	depends on (ECONET_EN75XX_MP || ARCH_AIROHA)
 	default n
 	help
 	  L2 bridge forwards accelerated by HNAT
@@ -211,7 +223,8 @@ config  RA_HW_NAT_WIFI
 
 config  RA_HW_NAT_WHNAT
 	bool "WiFi Warp Acceleration"
-	depends on RA_HW_NAT_WIFI && (ECONET_EN7528 || MACH_MT7622 || MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
+	depends on RA_HW_NAT_WIFI
+	depends on (ECONET_EN7528 || MACH_MT7622 || MACH_MT7981 || MACH_MT7986 || MACH_MT7988 || MACH_AN7552 || MACH_AN7581 || MACH_AN7583)
 
 config  RA_HW_NAT_NIC_USB
 	bool "USBNET Acceleration"

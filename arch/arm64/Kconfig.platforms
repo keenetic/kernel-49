@@ -93,10 +93,10 @@ config ARCH_AIROHA
 if ARCH_AIROHA
 
 config MACH_AN7581
-	bool "MediaTek AN7581 series SoC support"
+	bool "Airoha AN7581 series SoC support"
 
 config MACH_AN7583
-	bool "MediaTek AN7583 series SoC support"
+	bool "Airoha AN7583 series SoC support"
 
 endif
 

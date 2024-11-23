@@ -278,11 +278,14 @@ struct gmac_info {
 			uint32_t resv1:		6;
 
 			/* wifi info */
+			uint32_t tx_npu:	1;	/* NPU_TX -> TDMA, WARP_TX -> WDMA */
 			uint32_t wdmaid:	1;	/* WDMA0/1 */
 			uint32_t wi_rxid:	1;	/* WDMA/QDMA RX ring */
-			uint32_t wi_wcid:	10;	/* WCID */
-			uint32_t wi_bssid:	6;	/* BSSID */
-			uint32_t resv2:		14;
+			uint32_t wi_wcid:	11;	/* WCID */
+			uint32_t wi_bssid:	7;	/* BSSID */
+			uint32_t is_tcp:	1;
+			uint32_t tid:		4;
+			uint32_t resv2:		6;
 		} bits;
 		uint32_t word[2];
 	};

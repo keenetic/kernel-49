@@ -73,6 +73,7 @@ static struct bus_desc mtk_bus_desc[] = {
 #include "rdm_an7581.h"
 
 static struct bus_desc mtk_bus_desc[] = {
+	{ NULL, AIROHA_NPU_BASE,     AIROHA_NPU_SIZE     },
 	{ NULL, AIROHA_PERI0_BASE,   AIROHA_PERI0_SIZE   },
 	{ NULL, AIROHA_XHCI_BASE,    AIROHA_XHCI_SIZE    },
 	{ NULL, AIROHA_PON_PHY_BASE, AIROHA_PON_PHY_SIZE },

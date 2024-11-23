@@ -1,6 +1,9 @@
 #ifndef __RT_RDM_AN7581_H__
 #define __RT_RDM_AN7581_H__
 
+#define AIROHA_NPU_BASE		0x1ec00000
+#define AIROHA_NPU_SIZE		0x00013000
+
 #define AIROHA_PERI0_BASE	0x1fa00000
 #define AIROHA_PERI0_SIZE	0x000a2000
 
@@ -32,6 +35,7 @@
 #define RALINK_11N_MAC_BASE	AIROHA_ETHSYS_BASE
 
 enum {
+	NPU,
 	PERI_0,
 	XHCI,
 	PON_PHY,

@@ -8,8 +8,11 @@
 #define MBOX2HOST_IDX		(8)
 
 #define MASK_CORE_ID		(0xf)
-#define MASK_RET_STATUS		(0x7)
 #define MASK_FUNC_ID		(0xf)
+#define MASK_RET_STATUS		(0x7)
+
+#define NPU_MAILBOX_ERROR	0
+#define NPU_MAILBOX_SUCCESS	1
 
 union mboxArg {
 	struct {
@@ -58,7 +61,10 @@ struct npuMboxInfo {
 	unsigned long va;
 	u32 pa;
 	u16 len;
-	struct npuMboxFlags flags;
+	union {
+		struct npuMboxFlags flags;
+		u32 flags_word;
+	};
 	u32 blockTimeout;	/* unit: 100us */
 	h_mbox_cb_t cb;
 };

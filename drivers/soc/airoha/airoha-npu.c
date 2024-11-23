@@ -6,6 +6,7 @@
 #include <linux/memblock.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <asm/cacheflush.h>
 
 #include <soc/airoha/npu_mbox_api.h>
 
@@ -19,6 +20,7 @@ extern u32 airoha_get_l2c_sram(void);
 #define HWF_DSCP_SRAM_QDMA2	16384
 #elif defined(CONFIG_MACH_AN7581)
 #define NPU_WIFI_TX
+#define NPU_WIFI_BA
 #define NPU_MAX_CORE_NUM	8	/* NPU_V2 */
 #define HWF_DSCP_SRAM_QDMA1	16384
 #define HWF_DSCP_SRAM_QDMA2	20480
@@ -45,15 +47,17 @@ extern u32 airoha_get_l2c_sram(void);
 #define NPU_INT_M2H		6
 #define NPU_INT_WDG		7
 
-#define NPU_DEBUG_BASE		0x305000
-#define NPU_CLUSTER_BASE	0x306000
+#define NPU_FW_DATA_SIZE	0x8000
+
+#define NPU_DEBUG_BASE		0x05000
+#define NPU_CLUSTER_BASE	0x06000
 #define CR_PC_BASE_ADDR		NPU_DEBUG_BASE
 
 #define CR_CORE_BOOT_TRIGGER	(NPU_CLUSTER_BASE + 0x000)
 #define CR_CORE_BOOT_CONFIG	(NPU_CLUSTER_BASE + 0x004)
 #define CR_CORE_BOOT_BASE	(NPU_CLUSTER_BASE + 0x020)
 
-#define NPU_MBOX_BASE		0x30c000
+#define NPU_MBOX_BASE		0x0c000
 #define CR_MBOX_INTR_STATUS	(NPU_MBOX_BASE + 0x000)
 #define CR_MBOX_INT_MASK0	(NPU_MBOX_BASE + 0x004)
 #define CR_MBOX_INT_MASK8	(NPU_MBOX_BASE + 0x024)
@@ -79,12 +83,11 @@ extern u32 airoha_get_l2c_sram(void);
 #define CR_NPU_MIB20		(NPU_MBOX_BASE + 0x190)
 #define CR_NPU_MIB21		(NPU_MBOX_BASE + 0x194)
 
-#define NPU_HOSTADAPTER_BASE	0x30d000
-
-#define NPU_UART_BASE		0x310000
-#define NPU_TIME0_BASE		0x310100
-#define NPU_TIME1_BASE		0x310200
-#define NPU_SCU_BASE		0x311000
+#define NPU_HOSTADAPTER_BASE	0x0d000
+#define NPU_UART_BASE		0x10000
+#define NPU_TIME0_BASE		0x10100
+#define NPU_TIME1_BASE		0x10200
+#define NPU_SCU_BASE		0x11000
 
 #define NPU_MBOX2HOST_BIT	(1U << MBOX2HOST_IDX)
 
@@ -99,7 +102,7 @@ struct airoha_npu_mbox {
 
 struct airoha_npu {
 	struct device *dev;
-	void __iomem *rbus_base;
+	void __iomem *sram_base;
 	void __iomem *pbus_base;
 	phys_addr_t rsv_pa;
 	void *rsv_va;
@@ -108,6 +111,7 @@ struct airoha_npu {
 	int irq_m2h;
 	int irq[NPU_MAX_INT_NUM];
 	int irq_wdg[NPU_MAX_CORE_NUM];
+	u32 rsv_size;
 	u8 force_to_cpu;
 };
 
@@ -130,7 +134,7 @@ void reserve_memblocks_npu(void)
 	phys_addr_t pa;
 	u32 len;
 
-#ifdef CONFIG_RA_HW_NAT_WIFI
+#ifdef CONFIG_RA_HW_NAT_WHNAT
 	 /* NPU support phy address range ~0xbfffffff */
 	align = 64;
 	len = NPU_PKT_BUF_SIZE;
@@ -144,11 +148,13 @@ void reserve_memblocks_npu(void)
 	g_npu_tx_pkt_buf_addr = (u32)pa;
 	pr_info("memblock: reserve %5uK for %s\n", len >> 10, "NPU wifi TX data");
 #endif
+#ifdef NPU_WIFI_BA
 	len = NPU_BA_NODE_SIZE;
 	pa = memblock_alloc_range(len, align, start, 0xbfffffff, MEMBLOCK_NONE);
 	g_npu_ba_node_addr = (u32)pa;
 	pr_info("memblock: reserve %5uK for %s\n", len >> 10, "NPU wifi BA data");
-#endif /* CONFIG_RA_HW_NAT_WIFI */
+#endif
+#endif /* CONFIG_RA_HW_NAT_WHNAT */
 
 	align = 64 << 10;
 	len = HWF_DSCP_SRAM_QDMA1 * 256;
@@ -205,6 +211,17 @@ static void set_npu_reg_data(struct airoha_npu *npu, u32 reg, u32 val)
 	writel(val, npu->pbus_base + reg);
 }
 
+struct device *get_npu_dev(void)
+{
+	struct airoha_npu *npu = g_npu;
+
+	if (npu)
+		return npu->dev;
+
+	return NULL;
+}
+EXPORT_SYMBOL(get_npu_dev);
+
 int get_npu_irq(int index)
 {
 	struct airoha_npu *npu = g_npu;
@@ -220,7 +237,7 @@ u32 get_npu_hostadpt_reg(u32 hadap_ofs)
 {
 	struct airoha_npu *npu = g_npu;
 
-	if (!npu)
+	if (!npu || hadap_ofs > 0xffc)
 		return 0;
 
 	return get_npu_reg_data(npu, NPU_HOSTADAPTER_BASE + hadap_ofs);
@@ -231,7 +248,7 @@ void set_npu_hostadpt_reg(u32 hadap_ofs, u32 val)
 {
 	struct airoha_npu *npu = g_npu;
 
-	if (!npu)
+	if (!npu || hadap_ofs >= 0xffc)
 		return;
 
 	set_npu_reg_data(npu, NPU_HOSTADAPTER_BASE + hadap_ofs, val);
@@ -251,13 +268,30 @@ void set_npu_sram_power_save(u32 reg, u32 val)
 }
 EXPORT_SYMBOL(set_npu_sram_power_save);
 
-void boot_npu_all_cores(void)
+void boot_npu_all_cores(bool uart_on)
 {
 	struct airoha_npu *npu = g_npu;
-	u32 core, cores_en = 0;
+	u32 core, cores_en = 0, uart_reg = 0;
 
 	if (!npu)
 		return;
+
+	if (!uart_on)
+		uart_reg = 1;
+
+	 /* set npu_test_area_base */
+	set_npu_reg_data(npu, CR_NPU_MIB10, (u32)npu->rsv_pa + 0x200000);
+
+	 /* set l2c_sram size */
+	set_npu_reg_data(npu, CR_NPU_MIB11, airoha_get_l2c_sram());
+
+	/* disable FPGA */
+	set_npu_reg_data(npu, CR_NPU_MIB12, 0);
+
+	/* enable/disable NPU TX uart */
+	set_npu_reg_data(npu, CR_NPU_MIB21, uart_reg);
+
+	usleep_range(1000, 2000);
 
 	/* set booting address */
 	for (core = 0; core < NPU_MAX_CORE_NUM; core++) {
@@ -273,22 +307,22 @@ void boot_npu_all_cores(void)
 	set_npu_reg_data(npu, CR_CORE_BOOT_CONFIG, cores_en);
 
 	/* start NPU cores */
-	set_npu_reg_data(npu, CR_CORE_BOOT_TRIGGER, 0x1);
+	set_npu_reg_data(npu, CR_CORE_BOOT_TRIGGER, 1);
 
-	msleep(100);
+	usleep_range(150000, 160000);
 }
 EXPORT_SYMBOL(boot_npu_all_cores);
 
-void host_set_npu_core_on_off(int core, int on)
+void host_set_npu_core_on_off(u8 core, bool core_on)
 {
 	struct airoha_npu *npu = g_npu;
 	u32 tmp;
 
-	if (!npu)
+	if (!npu || core >= NPU_MAX_CORE_NUM)
 		return;
 
 	tmp = get_npu_reg_data(npu, CR_CORE_BOOT_CONFIG);
-	if (on)
+	if (core_on)
 		tmp |=  (1U << core);
 	else
 		tmp &= ~(1U << core);
@@ -298,30 +332,9 @@ void host_set_npu_core_on_off(int core, int on)
 	usleep_range(1000, 2000);
 	set_npu_reg_data(npu, CR_CORE_BOOT_TRIGGER, 1);
 
-	msleep(100);
+	usleep_range(150000, 160000);
 }
 EXPORT_SYMBOL(host_set_npu_core_on_off);
-
-void set_npu_needed_info(void)
-{
-	struct airoha_npu *npu = g_npu;
-
-	if (!npu)
-		return;
-
-	 /* set npu_test_area_base */
-	set_npu_reg_data(npu, CR_NPU_MIB10, (u32)npu->rsv_pa + 0x200000);
-
-	 /* set l2c_sram size */
-	set_npu_reg_data(npu, CR_NPU_MIB11, airoha_get_l2c_sram());
-
-	/* disable FPGA */
-	set_npu_reg_data(npu, CR_NPU_MIB12, 0);
-
-	 /* enable NPU TX uart */
-	set_npu_reg_data(npu, CR_NPU_MIB21, 0);
-}
-EXPORT_SYMBOL(set_npu_needed_info);
 
 u8 npu_wifi_offload_get_force_to_cpu_flag(void)
 {
@@ -347,28 +360,33 @@ EXPORT_SYMBOL(npu_wifi_offload_set_force_to_cpu_flag);
 
 /*
  * buf_type: 0 for npu_init_code (to DRAM),
- *           1 for npu global data (to NPU_16K_SRAM)
+ *           1 for npu global data (to NPU_32K_SRAM)
  */
 int npu_load_firmware(const u8 *buf, u32 buf_size, int buf_type)
 {
 	struct airoha_npu *npu = g_npu;
 	u8 *dst;
-	u32 i;
+	u32 i, len;
 
 	if (!npu)
 		return -1;
 
-	if (buf_type == 0)
+	if (buf_type == 0) {
 		dst = (u8 *)npu->rsv_va;
-	else
-		dst = (u8 *)npu->pbus_base;
+		len = npu->rsv_size;
+	} else {
+		dst = (u8 *)npu->sram_base;
+		len = NPU_FW_DATA_SIZE;
+	}
+
+	if (buf_size > len)
+		return -EINVAL;
 
 	for (i = 0; i < buf_size; i++)
 		WRITE_ONCE(dst[i], buf[i]);
 
 	if (buf_type == 0)
-		dma_sync_single_for_device(npu->dev, npu->rsv_pa, buf_size,
-					   DMA_TO_DEVICE);
+		__flush_dcache_area(dst, buf_size);
 
 	return 0;
 }
@@ -425,17 +443,17 @@ int host_notify_npuMbox(struct npuMboxInfo *mi)
 	struct device *dev;
 	union mboxArg arg;
 	u32 val, reg_shift;
-	int res = 0;
+	int res = NPU_MAILBOX_ERROR;
 	int timeoutCnt = 300; /* default 30ms */
 	unsigned long flags;
 
 	if (!npu)
-		return 0;
+		return NPU_MAILBOX_ERROR;
 
 	if (mi->core_id >= NPU_MAX_CORE_NUM || mi->func_id >= MAX_MBOX_FUNC) {
 		dev_err(dev, "(core_id:%d >= %d) || (func_id:%d >= %d)\n",
 			mi->core_id, NPU_MAX_CORE_NUM, mi->func_id, MAX_MBOX_FUNC);
-		return 0;
+		return NPU_MAILBOX_ERROR;
 	}
 
 	mbox = &npu->mbox_obj[mi->core_id];
@@ -467,7 +485,7 @@ int host_notify_npuMbox(struct npuMboxInfo *mi)
 	} else {
 		if (mbox->va[mi->func_id] == 0) {
 			spin_unlock_irqrestore(&mbox->lock, flags);
-			return 0;
+			return NPU_MAILBOX_ERROR;
 		}
 	}
 
@@ -527,15 +545,12 @@ static bool npu_is_wdg_enabled(struct airoha_npu *npu, int wdg_no)
 	u32 wdg_ctrl_reg, shift_bit, val;
 
 #if defined(NPU_V2_S) || defined(NPU_V2_P)
-	wdg_ctrl_reg = NPU_TIME0_BASE;
+	wdg_ctrl_reg = (wdg_no > 3) ? NPU_TIME1_BASE : NPU_TIME0_BASE;
 	shift_bit = wdg_en_bit[wdg_no];
 #else
 	wdg_ctrl_reg = NPU_TIME0_BASE + (wdg_no << 8);
 	shift_bit = wdg_en_bit[0];
 #endif
-
-	if (wdg_no > 3)
-		wdg_ctrl_reg = NPU_TIME1_BASE;
 
 	val = get_npu_reg_data(npu, wdg_ctrl_reg);
 	if (val & (1U << shift_bit))
@@ -550,7 +565,7 @@ static void npu_clear_wdg_intr(struct airoha_npu *npu, int wdg_no)
 	u32 wdg_ctrl_reg, shift_bit, tmr_en_bits, val;
 
 #if defined(NPU_V2_S) || defined(NPU_V2_P)
-	wdg_ctrl_reg = NPU_TIME0_BASE;
+	wdg_ctrl_reg = (wdg_no > 3) ? NPU_TIME1_BASE : NPU_TIME0_BASE;
 	tmr_en_bits = 0x1e0001ef;	/* keep enable_bits (4 cntTimers + 4 wdogTimers) */
 	shift_bit = wdg_intr_bit[wdg_no];
 #else
@@ -558,9 +573,6 @@ static void npu_clear_wdg_intr(struct airoha_npu *npu, int wdg_no)
 	tmr_en_bits = 0x02000027;	/* keep enable_bits (3 cntTimers + 1 wdogTimer) */
 	shift_bit = wdg_intr_bit[0];
 #endif
-
-	if (wdg_no > 3)
-		wdg_ctrl_reg = NPU_TIME1_BASE;
 
 	val = get_npu_reg_data(npu, wdg_ctrl_reg);
 	val &= tmr_en_bits;
@@ -658,14 +670,14 @@ static int airoha_npu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, npu);
 
-	/* get NPU RBUS base address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	npu->rbus_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(npu->rbus_base))
-		return PTR_ERR(npu->rbus_base);
+	/* get NPU SRAM base address */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sram");
+	npu->sram_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(npu->sram_base))
+		return PTR_ERR(npu->sram_base);
 
 	/* get NPU PBUS base address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pbus");
 	npu->pbus_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(npu->pbus_base))
 		return PTR_ERR(npu->pbus_base);
@@ -717,6 +729,8 @@ static int airoha_npu_probe(struct platform_device *pdev)
 
 	if (!npu->rsv_va)
 		return -ENOMEM;
+
+	npu->rsv_size = (u32)resource_size(res);
 
 	if (dma_set_coherent_mask(npu->dev, NPU_DMA_MASK) == 0)
 		dev_info(npu->dev, "NPU use 1GB DMA for coherent map\n");

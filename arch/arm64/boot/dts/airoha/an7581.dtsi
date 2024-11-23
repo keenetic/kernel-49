@@ -243,7 +243,8 @@
 	npu@1e800000 {
 		compatible = "econet,ecnt-npu";
 		reg = <0x0 0x1e800000 0x0 0x78000>,		// NPU 480K SRAM
-		      <0x0 0x1e900000 0x0 0x313000>;		// NPU  32K SRAM, registers
+		      <0x0 0x1e900000 0x0 0x8000>,		// NPU  32K SRAM
+		      <0x0 0x1ec00000 0x0 0x13000>;		// NPU registers
 		memory-region = <&npu_reserved>;
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
@@ -260,6 +261,7 @@
 			     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,	// npu timer5 wdog intr
 			     <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,	// npu timer6 wdog intr
 			     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;	// npu timer7 wdog intr
+		reg-names = "rbus", "sram", "pbus";
 	};
 
 	rbus@1fa00000 {

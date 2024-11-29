@@ -100,11 +100,7 @@ struct ppe_tbl {
 
 #define FOE_ENTRY_TOTAL		(FOE_ENTRY_NUM_SRAM + FOE_ENTRY_NUM_DRAM)
 
-#if MAX_PPE_NUM > 1 && !defined(CONFIG_RA_HW_NAT_TBL_OFF)
-#define FOE_TABLE_SIZE		((32768 + FOE_ENTRY_NUM_DRAM) * FOE_ENTRY_SIZE)
-#else
 #define FOE_TABLE_SIZE		(FOE_ENTRY_NUM_DRAM * FOE_ENTRY_SIZE)
-#endif
 
 #define PSE_SPORT_NUM		32	/* SPORT max 5 bits */
 #define PSE_FPORT_NUM		10

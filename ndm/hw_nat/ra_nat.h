@@ -62,9 +62,7 @@ struct PdmaRxDescInfo4 {
  * DEFINITIONS AND MACROS
  */
 
-#if defined(AIROHA_NPU_V2)
-#define FOE_INV_ENTRY		0xffff
-#elif defined(MTK_NETSYS_V2)
+#if defined(MTK_NETSYS_V2) || defined(AIROHA_NPU_V2)
 #define FOE_INV_ENTRY		0x7fff
 #else
 #define FOE_INV_ENTRY		0x3fff
@@ -86,9 +84,7 @@ struct PdmaRxDescInfo4 {
 #define FOE_MAGIC_PPE			0x7276
 #define FOE_MAGIC_WED			0x7278
 
-#if defined(AIROHA_NPU_V2)
-#define FOE_MAGIC_PPE_DWORD		0xffff7276UL	/* FOE_Entry=0xffff */
-#elif defined(MTK_NETSYS_V2)
+#if defined(MTK_NETSYS_V2) || defined(AIROHA_NPU_V2)
 #define FOE_MAGIC_PPE_DWORD		0x7fff7276UL	/* FOE_Entry=0x7fff */
 #else
 #ifdef __BIG_ENDIAN

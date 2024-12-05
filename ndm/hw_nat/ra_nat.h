@@ -129,6 +129,10 @@ struct PdmaRxDescInfo4 {
 #define UN_HIT 0x0D
 #endif
 
+#ifndef HIT_UNBIND_RATE_REACH
+#define HIT_UNBIND_RATE_REACH 0x0F
+#endif
+
 #ifndef HIT_BIND_KEEPALIVE_DUP_OLD_HDR
 #define HIT_BIND_KEEPALIVE_DUP_OLD_HDR 0x15
 #endif
@@ -145,6 +149,14 @@ struct PdmaRxDescInfo4 {
 	((FOE_MAGIC_TAG(skb) == FOE_MAGIC_GE))
 #endif
 
+#if defined(MTK_NETSYS_V2)
+#define IS_MAGIC_TAG_LRO_PATH(skb) \
+	 (FOE_MAGIC_TAG(skb) == FOE_MAGIC_WED)
+#elif defined(AIROHA_NPU_V2)
+#define IS_MAGIC_TAG_LRO_PATH(skb) \
+	IS_MAGIC_TAG_VALID(skb)
+#endif
+
 #define IS_DPORT_PPE_VALID(skb) \
 	(*((uint32_t *)(FOE_INFO_START_ADDR(skb))) == FOE_MAGIC_PPE_DWORD)
 
@@ -154,6 +166,9 @@ struct PdmaRxDescInfo4 {
 
 #define FOE_ALG_MARK(skb) \
 	FOE_ALG_SKIP(skb)
+
+#define FOE_SKB_IS_READY_BIND(skb) \
+	(FOE_AI(skb) == HIT_UNBIND_RATE_REACH && FOE_ALG(skb) == 0)
 
 #define FOE_SKB_IS_KEEPALIVE(skb) \
 	(FOE_AI(skb) == HIT_BIND_KEEPALIVE_DUP_OLD_HDR)
@@ -257,6 +272,7 @@ struct gmac_info {
 #define GMAC_ID_GDM4			9
 #define GMAC_ID_NPU			6
 #define GMAC_ID_WDMA			11	/* virtual value (unused PSE port) */
+#define GMAC_ID_LRO			12	/* virtual value (unused PSE port) */
 
 /* gmac_info fields */
 struct gmac_info {
@@ -289,6 +305,7 @@ struct gmac_info {
 
 #elif defined(MTK_NETSYS_V3)
 
+#define GMAC_ID_LRO			10	/* virtual value (unused PSE port) */
 #define GMAC_ID_GDM3			15
 
 /* gmac_info fields */
@@ -326,12 +343,14 @@ struct gmac_info {
 
 #else
 
+#define GMAC_ID_LRO			6	/* virtual value (unused PSE port) */
+
 /* gmac_info fields */
 struct gmac_info {
 	union {
 		struct {
 			/* assume LE for all mt76xx/mt79xx */
-			uint32_t gmac_id:	2;	/* 0: external (WiFi), 1: GDM1, 2: GDM2, 3: WDMA */
+			uint32_t gmac_id:	3;	/* 0: external (WiFi), 1: GDM1, 2: GDM2, 3: WDMA */
 			uint32_t queue_id:	7;	/* QDMA QoS queue (0..127) */
 			uint32_t hwfq:		1;	/* send via QDMA HWFQ */
 			uint32_t is_wan:	1;	/* assume upstream path */
@@ -339,7 +358,7 @@ struct gmac_info {
 			uint32_t wi_bssid:	6;	/* BSSID */
 			uint32_t wi_wcid:	10;	/* WCID */
 			uint32_t wi_rxid:	2;	/* WDMA RX ring */
-			uint32_t resv:		2;
+			uint32_t resv:		1;
 		} bits;
 		uint32_t word;
 	};
@@ -353,6 +372,9 @@ extern int (*ppe_del_entry_by_addr_hook)(const char *addr);
 extern int (*ppe_dev_has_accel_hook)(struct net_device *dev);
 extern void (*ppe_dev_register_hook)(struct net_device *dev);
 extern void (*ppe_dev_unregister_hook)(struct net_device *dev);
+#if defined(MTK_NETSYS_V2) || defined(AIROHA_NPU_V2)
+extern void (*lro_prebind_hook)(struct sk_buff *skb, __be16 dport, bool ipv6);
+#endif
 
 //////////////////////////////////////////////////////////////////////
 

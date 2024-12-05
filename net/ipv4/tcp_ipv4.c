@@ -84,6 +84,10 @@
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
 
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#include <../ndm/hw_nat/ra_nat.h>
+#endif
+
 int sysctl_tcp_tw_reuse __read_mostly;
 int sysctl_tcp_low_latency __read_mostly;
 
@@ -1648,6 +1652,18 @@ int tcp_v4_rcv(struct sk_buff *skb)
 
 	th = (const struct tcphdr *)skb->data;
 	iph = ip_hdr(skb);
+
+#if IS_ENABLED(CONFIG_RA_HW_NAT)
+#if defined(MTK_NETSYS_V2) || defined(AIROHA_NPU_V2)
+	if (IS_MAGIC_TAG_LRO_PATH(skb) && FOE_SKB_IS_READY_BIND(skb)) {
+		typeof(lro_prebind_hook) lro_prebind;
+
+		lro_prebind = rcu_dereference(lro_prebind_hook);
+		if (likely(lro_prebind))
+			lro_prebind(skb, th->dest, false);
+	}
+#endif
+#endif
 	/* This is tricky : We move IPCB at its correct location into TCP_SKB_CB()
 	 * barrier() makes sure compiler wont play fool^Waliasing games.
 	 */
@@ -1819,6 +1835,7 @@ do_time_wait:
 	}
 	goto discard_it;
 }
+EXPORT_SYMBOL(tcp_v4_rcv);
 
 static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),

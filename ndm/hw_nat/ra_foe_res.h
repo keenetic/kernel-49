@@ -113,6 +113,7 @@ struct ra_foe_resources {
 	u8 cdm_sp_map[PSE_SPORT_NUM];
 	u8 ppe_fp_map[PSE_FPORT_NUM];
 	u8 cdm_fp_map[PSE_FPORT_NUM];
+	u8 lro_rings;
 };
 
 #else
@@ -139,6 +140,7 @@ struct ra_foe_resources {
 	struct ppe_tbl psp[MAX_PPE_NUM];
 #endif
 	u8 ppe_map[PSE_PORTS_NUM];
+	u8 lro_rings;
 };
 
 #endif

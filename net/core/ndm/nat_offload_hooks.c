@@ -5,6 +5,7 @@
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/fast_vpn.h>
+#include <../ndm/hw_nat/ra_nat.h>
 
 #if IS_ENABLED(CONFIG_FAST_NAT)
 /* fastvpn */
@@ -75,4 +76,9 @@ EXPORT_SYMBOL(ppe_dev_register_hook);
 
 void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
 EXPORT_SYMBOL(ppe_dev_unregister_hook);
+
+#if defined(MTK_NETSYS_V2) || defined(AIROHA_NPU_V2)
+void (*lro_prebind_hook)(struct sk_buff *skb, __be16 dport, bool ipv6) = NULL;
+EXPORT_SYMBOL(lro_prebind_hook);
+#endif
 #endif

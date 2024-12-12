@@ -142,4 +142,4 @@ module_exit(exit_ndm_storage);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NDM");
-MODULE_DESCRIPTION("MTD merged Storage map driver for Keenetic");
+MODULE_DESCRIPTION("MTD merged Storage map driver for NDMS");

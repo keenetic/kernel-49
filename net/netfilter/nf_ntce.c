@@ -17,7 +17,7 @@ EXPORT_SYMBOL(nf_ct_ext_id_ntce);
 #define NF_NTCE_IFACES_HASH_NUM		1024	/* must be 2^X */
 #define NF_NTCE_IFACES_COUNT		64	/* max 255 */
 
-#define NF_NTCE_QOS_MAP_SIZE		50
+#define NF_NTCE_QOS_MAP_SIZE		75
 
 struct nf_ntce_if_ent {
 	int iface;

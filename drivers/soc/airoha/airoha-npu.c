@@ -436,28 +436,14 @@ EXPORT_SYMBOL(npu_load_firmware);
  *  -- when isBlockingMode==0, after NPU finishs its callback, NPU will notify Host to execute
  *      the "cb". Set "cb" as "NULL" if not needed.
  */
-int host_notify_npuMbox(struct npuMboxInfo *mi)
+static inline int
+__host_notify_npu_mbox(struct airoha_npu *npu, struct airoha_npu_mbox *mbox,
+		       struct npuMboxInfo *mi)
 {
-	struct airoha_npu *npu = g_npu;
-	struct airoha_npu_mbox *mbox;
-	struct device *dev;
 	union mboxArg arg;
 	u32 val, reg_shift;
 	int res = NPU_MAILBOX_ERROR;
 	int timeoutCnt = 300; /* default 30ms */
-	unsigned long flags;
-
-	if (!npu)
-		return NPU_MAILBOX_ERROR;
-
-	if (mi->core_id >= NPU_MAX_CORE_NUM || mi->func_id >= MAX_MBOX_FUNC) {
-		dev_err(dev, "(core_id:%d >= %d) || (func_id:%d >= %d)\n",
-			mi->core_id, NPU_MAX_CORE_NUM, mi->func_id, MAX_MBOX_FUNC);
-		return NPU_MAILBOX_ERROR;
-	}
-
-	mbox = &npu->mbox_obj[mi->core_id];
-	dev = npu->dev;
 
 	arg.hWord = 0;
 
@@ -470,8 +456,6 @@ int host_notify_npuMbox(struct npuMboxInfo *mi)
 		arg.bits.block_mode = 1;
 	}
 
-	spin_lock_irqsave(&mbox->lock, flags);
-
 	mbox->mbox8_cb[mi->func_id] = mi->cb;
 
 	arg.bits.func_id = (mi->func_id & MASK_FUNC_ID);
@@ -483,10 +467,8 @@ int host_notify_npuMbox(struct npuMboxInfo *mi)
 		mbox->pa[mi->func_id] = mi->pa;
 		mbox->size[mi->func_id] = mi->len;
 	} else {
-		if (mbox->va[mi->func_id] == 0) {
-			spin_unlock_irqrestore(&mbox->lock, flags);
+		if (mbox->va[mi->func_id] == 0)
 			return NPU_MAILBOX_ERROR;
-		}
 	}
 
 	set_npu_reg_data(npu, CR_MBQ0_CTRL0 + reg_shift, mbox->pa[mi->func_id]);
@@ -505,19 +487,50 @@ int host_notify_npuMbox(struct npuMboxInfo *mi)
 
 		timeoutCnt--;
 
-		if (timeoutCnt >= 0) {
-			if (mi->core_id == CORE5 && mi->func_id == MFUNC_DBA)
-				udelay(40);
-			else
-				udelay(100);
-		} else {
-			dev_err(dev, "%s timeout for core_id: %d, func_id: %d\n",
-				__func__, mi->core_id, mi->func_id);
+		if (timeoutCnt < 0) {
+			dev_err(npu->dev, "timeout for core_id: %d, func_id: %d\n",
+				mi->core_id, mi->func_id);
 			break;
 		}
+
+		udelay(100);
 	}
 
-	spin_unlock_irqrestore(&mbox->lock, flags);
+	return res;
+}
+
+int host_notify_npuMbox(struct npuMboxInfo *mi)
+{
+	struct airoha_npu *npu = g_npu;
+	struct airoha_npu_mbox *mbox;
+	unsigned long flags;
+	int res;
+	bool hirq;
+
+	if (!npu)
+		return NPU_MAILBOX_ERROR;
+
+	if (mi->core_id >= NPU_MAX_CORE_NUM || mi->func_id >= MAX_MBOX_FUNC) {
+		dev_err(npu->dev, "(core_id:%d >= %d) || (func_id:%d >= %d)\n",
+			mi->core_id, NPU_MAX_CORE_NUM, mi->func_id, MAX_MBOX_FUNC);
+		return NPU_MAILBOX_ERROR;
+	}
+
+	hirq = (mi->core_id == CORE5 && mi->func_id == MFUNC_DBA);
+
+	mbox = &npu->mbox_obj[mi->core_id];
+
+	if (hirq)
+		spin_lock_irqsave(&mbox->lock, flags);
+	else
+		spin_lock_bh(&mbox->lock);
+
+	res = __host_notify_npu_mbox(npu, mbox, mi);
+
+	if (hirq)
+		spin_unlock_irqrestore(&mbox->lock, flags);
+	else
+		spin_unlock_bh(&mbox->lock);
 
 	return res;
 }

@@ -43,6 +43,7 @@ enum npuMboxFuncId {
 	MFUNC_NOTIFY,
 	MFUNC_DBA,
 	MFUNC_TR471,
+	MFUNC_HWNAT,
 	MFUNC_MAX_CASE
 };
 

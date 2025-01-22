@@ -111,7 +111,7 @@
 			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
-		clock-frequency = <12996200>;
+		clock-frequency = <12996600>;
 	};
 
 	infracfg_ao: infracfg_ao@10001000 {

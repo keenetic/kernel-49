@@ -479,6 +479,8 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 	return 0;
 }
 
+extern atomic_t xhci_uas_enable;
+
 /* Works only for digits and letters, but small and fast */
 #define TOLOWER(x) ((x) | 0x20)
 
@@ -500,6 +502,9 @@ void usb_stor_adjust_quirks(struct usb_device *udev, unsigned long *fflags)
 			US_FL_NO_ATA_1X | US_FL_NO_REPORT_OPCODES |
 			US_FL_MAX_SECTORS_240 | US_FL_NO_REPORT_LUNS |
 			US_FL_ALWAYS_SYNC);
+
+	if (atomic_read(&xhci_uas_enable) == 0)
+		*fflags |= US_FL_IGNORE_UAS;
 
 	p = quirks;
 	while (*p) {

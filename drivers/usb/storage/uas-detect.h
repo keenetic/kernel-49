@@ -117,11 +117,10 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 
 	usb_stor_adjust_quirks(udev, &flags);
 
-	if (flags & US_FL_IGNORE_UAS) {
-		dev_warn(&udev->dev,
-			"UAS is blacklisted for this device, using usb-storage instead\n");
+	if (flags & US_FL_IGNORE_UAS)
 		return 0;
-	}
+
+	dev_warn(&udev->dev, "UAS is whitelisted for this device\n");
 
 	if (udev->bus->sg_tablesize == 0) {
 		dev_warn(&udev->dev,

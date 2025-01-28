@@ -9,3 +9,4 @@ obj-y += nat_offload_hooks.o
 obj-y += nf_conntrack_hooks.o
 obj-y += ndm_timer.o
 obj-y += ndm_percpu.o
+obj-y += xhci_uasp.o

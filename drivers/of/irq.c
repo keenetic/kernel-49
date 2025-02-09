@@ -554,6 +554,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 						desc->interrupt_parent);
 			if (ret) {
 				of_node_clear_flag(desc->dev, OF_POPULATED);
+				of_node_put(desc->dev);
 				kfree(desc);
 				continue;
 			}

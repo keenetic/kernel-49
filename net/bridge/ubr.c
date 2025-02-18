@@ -242,6 +242,7 @@ static void ubr_send_arp_reply(struct sk_buff *skb,
 		(struct arphdr *)((u8 *)eth_src + ETH_HLEN);
 	struct sk_buff *skb2;
 	u8 *p_src;
+	u8 *src_hw = NULL;	/* Set sender MAC as interface MAC */
 	unsigned int data_len;
 	__be32 source_ip, target_ip;
 
@@ -260,12 +261,16 @@ static void ubr_send_arp_reply(struct sk_buff *skb,
 	    target_ip == 0)
 		return;
 
+	if (ubr->slave_dev && is_netdev_rawip(ubr->slave_dev)) {
+		src_hw = ubr->slave_dev->dev_addr;
+	}
+
 	skb2 = arp_create(ARPOP_REPLY, ETH_P_ARP,
 			  source_ip,	/* Set target IP as source IP address */
 			  ubr->dev,
 			  target_ip,	/* Set sender IP as target IP address */
 			  eth_src->h_source,
-			  NULL,		/* Set sender MAC as interface MAC */
+			  src_hw,
 			  p_src);	/* Set target MAC as source MAC */
 
 	if (skb2 == NULL)

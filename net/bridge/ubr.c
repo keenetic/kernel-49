@@ -174,7 +174,8 @@ static rx_handler_result_t ubr_handle_frame(struct sk_buff **pskb)
 			return RX_HANDLER_CONSUMED;
 		}
 
-		ether_addr_copy(eth->h_source, ubr->dev->dev_addr);
+		/* take any addr from slave, crucial that it differs from ubr */
+		ether_addr_copy(eth->h_source, ubr->slave_dev->dev_addr);
 
 		skb->protocol = eth_type_trans(skb, ubr->dev);
 	}

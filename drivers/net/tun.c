@@ -997,6 +997,36 @@ static void tun_set_headroom(struct net_device *dev, int new_hr)
 	tun->align = new_hr;
 }
 
+void tun_reset_stats(struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+	int i;
+
+	local_bh_disable();
+
+	for_each_possible_cpu(i) {
+		struct tun_pcpu_stats *p = per_cpu_ptr(tun->pcpu_stats, i);
+
+		u64_stats_update_begin(&p->syncp);
+		p->rx_bytes = 0;
+		p->rx_packets = 0;
+		p->tx_bytes = 0;
+		p->tx_packets = 0;
+		/* u32 counters */
+		p->rx_dropped = 0;
+		p->rx_frame_errors = 0;
+		p->tx_dropped = 0;
+		u64_stats_update_end(&p->syncp);
+	}
+
+	dev->stats.tx_errors = 0;
+	dev->stats.tx_dropped = 0;
+	dev->stats.rx_errors = 0;
+	dev->stats.rx_dropped = 0;
+
+	local_bh_enable();
+}
+
 static struct rtnl_link_stats64 *
 tun_net_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
@@ -1047,6 +1077,7 @@ static const struct net_device_ops tun_netdev_ops = {
 #endif
 	.ndo_set_rx_headroom	= tun_set_headroom,
 	.ndo_get_stats64	= tun_net_get_stats64,
+	.ndo_reset_stats	= tun_reset_stats,
 };
 
 static const struct net_device_ops tap_netdev_ops = {
@@ -1066,6 +1097,7 @@ static const struct net_device_ops tap_netdev_ops = {
 	.ndo_features_check	= passthru_features_check,
 	.ndo_set_rx_headroom	= tun_set_headroom,
 	.ndo_get_stats64	= tun_net_get_stats64,
+	.ndo_reset_stats	= tun_reset_stats,
 };
 
 static void tun_flow_init(struct tun_struct *tun)

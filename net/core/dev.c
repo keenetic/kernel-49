@@ -7795,6 +7795,19 @@ struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 }
 EXPORT_SYMBOL(dev_get_stats);
 
+void dev_reset_stats(struct net_device *dev)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (ops->ndo_reset_stats)
+		ops->ndo_reset_stats(dev);
+
+	atomic_long_set(&dev->rx_dropped, 0);
+	atomic_long_set(&dev->tx_dropped, 0);
+	atomic_long_set(&dev->rx_nohandler, 0);
+}
+EXPORT_SYMBOL(dev_reset_stats);
+
 struct netdev_queue *dev_ingress_queue_create(struct net_device *dev)
 {
 	struct netdev_queue *queue = dev_ingress_queue(dev);

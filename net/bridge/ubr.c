@@ -1042,6 +1042,7 @@ static const struct net_device_ops ubr_netdev_ops = {
 	.ndo_stop		 = ubr_stop,
 	.ndo_start_xmit		 = ubr_xmit,
 	.ndo_get_stats64	 = ubr_get_stats64,
+	.ndo_reset_stats	 = ubr_reset_stats,
 	.ndo_do_ioctl		 = ubr_dev_ioctl,
 	.ndo_change_rx_flags	 = ubr_change_rx_flags,
 	.ndo_set_rx_mode	 = ubr_set_rx_mode,

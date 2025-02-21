@@ -3946,6 +3946,71 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 	return size;
 }
 
+static int rtnl_stats_set(struct sk_buff *skb, struct nlmsghdr *nlh)
+{
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev = NULL;
+	int idxattr = 0;
+	struct if_stats_msg *ifsm;
+	struct sk_buff *nskb;
+	u32 filter_mask;
+	int err = 0;
+
+	if (nlmsg_len(nlh) < sizeof(*ifsm))
+		return -EINVAL;
+
+	ifsm = nlmsg_data(nlh);
+	if (ifsm->ifindex > 0)
+		dev = __dev_get_by_index(net, ifsm->ifindex);
+	else
+		return -EINVAL;
+
+	if (!dev)
+		return -ENODEV;
+
+	filter_mask = ifsm->filter_mask;
+	if (!filter_mask)
+		return -EINVAL;
+
+	nskb = nlmsg_new(NLMSG_ALIGN(sizeof(struct if_stats_msg)), GFP_KERNEL);
+	if (!nskb)
+		return -ENOBUFS;
+
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_64, idxattr)) {
+		struct nlmsghdr *nlh2;
+
+		ASSERT_RTNL();
+
+		nlh2 = nlmsg_put(nskb, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
+				 RTM_NEWSTATS, sizeof(*ifsm), 0);
+
+		if (!nlh2) {
+			err = -EMSGSIZE;
+		} else {
+			ifsm = nlmsg_data(nlh2);
+			ifsm->family = PF_UNSPEC;
+			ifsm->pad1 = 0;
+			ifsm->pad2 = 0;
+			ifsm->ifindex = dev->ifindex;
+			ifsm->filter_mask = filter_mask;
+
+			nlmsg_end(nskb, nlh2);
+
+			dev_reset_stats(dev);
+		}
+	}
+
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in if_nlmsg_stats_size */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(nskb);
+	} else {
+		err = rtnl_unicast(nskb, net, NETLINK_CB(skb).portid);
+	}
+
+	return err;
+}
+
 static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
@@ -4201,5 +4266,7 @@ void __init rtnetlink_init(void)
 	rtnl_register(PF_BRIDGE, RTM_SETLINK, rtnl_bridge_setlink, NULL, NULL);
 
 	rtnl_register(PF_UNSPEC, RTM_GETSTATS, rtnl_stats_get, rtnl_stats_dump,
+		      NULL);
+	rtnl_register(PF_UNSPEC, RTM_SETSTATS, rtnl_stats_set, NULL,
 		      NULL);
 }

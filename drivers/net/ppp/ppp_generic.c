@@ -1467,6 +1467,7 @@ static const struct net_device_ops ppp_netdev_ops = {
 	.ndo_start_xmit  = ppp_start_xmit,
 	.ndo_do_ioctl    = ppp_net_ioctl,
 	.ndo_get_stats64 = ppp_get_stats64,
+	.ndo_reset_stats = ppp_stats_reset,
 };
 
 static struct device_type ppp_type = {

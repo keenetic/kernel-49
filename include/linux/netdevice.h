@@ -1161,6 +1161,7 @@ struct net_device_ops {
 							 const struct net_device *dev,
 							 void *attr_data);
 	struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
+	void		(*ndo_reset_stats)(struct net_device *dev);
 
 	int			(*ndo_vlan_rx_add_vid)(struct net_device *dev,
 						       __be16 proto, u16 vid);
@@ -3900,6 +3901,7 @@ struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 					struct rtnl_link_stats64 *storage);
 void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
 			     const struct net_device_stats *netdev_stats);
+void dev_reset_stats(struct net_device *dev);
 
 extern int		netdev_max_backlog;
 extern int		netdev_tstamp_prequeue;

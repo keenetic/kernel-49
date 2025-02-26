@@ -260,7 +260,7 @@ PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 
 	ALLOC_LIST(head);
 	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					&pmu_name, 1, &@1, NULL));
+					pmu_name, 1, &@1, NULL));
 	list_add_tail(&term->list, head);
 
 	ALLOC_LIST(list);
@@ -406,8 +406,8 @@ PE_NAME '-' PE_NAME ':' PE_NAME
 	char sys_name[128];
 	struct tracepoint_name tracepoint;
 
-	snprintf(&sys_name, 128, "%s-%s", $1, $3);
-	tracepoint.sys = &sys_name;
+	snprintf(sys_name, sizeof(sys_name), "%s-%s", $1, $3);
+	tracepoint.sys = sys_name;
 	tracepoint.event = $5;
 
 	$$ = tracepoint;

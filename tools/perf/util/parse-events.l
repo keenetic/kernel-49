@@ -155,7 +155,7 @@ modifier_bp	[rwx]{1,3}
 	{
 		int start_token;
 
-		start_token = parse_events_get_extra(yyscanner);
+		start_token = (int) parse_events_get_extra(yyscanner);
 
 		if (start_token == PE_START_TERMS)
 			BEGIN(config);

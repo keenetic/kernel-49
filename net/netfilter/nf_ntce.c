@@ -534,19 +534,20 @@ void nf_ntce_ct_show_labels(struct seq_file *s, const struct nf_conn *ct)
 			ctr++;
 		}
 
-		if (lbl->attrs.attributes > 0) {
+		{
 			size_t i = 0;
+			size_t count = 0;
 
 			seq_puts(s, "attrs=");
 
-			for (i = 0; i < ARRAY_SIZE(lbl->attrs.attr); ++i) {
-				const uint32_t attr = lbl->attrs.attr[i];
+			for (i = 0; i < NTCE_ATTRIBS_COUNT; ++i) {
+				const uint32_t attr = lbl->attrs[i];
 
 				if (attr == 0)
 					break;
 
 				seq_printf(s, "%s%u",
-					   (i == 0) ? "" : ",", attr);
+					   (count++ == 0) ? "" : ",", attr);
 			}
 
 			seq_puts(s, " ");
@@ -583,16 +584,21 @@ int nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct)
 {
 	struct nlattr *nest_lbl;
 	struct nf_ct_ext_ntce_label *lbl = nf_ct_ext_find_ntce(ct);
+	u64 attrs = 0;
+	size_t i;
 
 	if (lbl == NULL)
 		return 0;
+
+	for (i = 0; i < NTCE_ATTRIBS_COUNT; ++i)
+		attrs |= (lbl->attrs[i] & 0xFF) << (i * 8);
 
 	nest_lbl = nla_nest_start(skb, CTA_NTCE | NLA_F_NESTED);
 
 	if (nest_lbl == NULL ||
 	    nla_put_u32(skb, CTA_NTCE_APP, lbl->app) ||
 	    nla_put_u32(skb, CTA_NTCE_GROUP, lbl->group) ||
-	    nla_put_u32(skb, CTA_NTCE_ATTRIBUTES, lbl->attrs.attributes) ||
+	    nla_put_u64_64bit(skb, CTA_NTCE_ATTRIBUTES, attrs, CTA_NTCE_PAD) ||
 	    nla_put_u8(skb, CTA_NTCE_OS, lbl->os) ||
 	    nla_put_u8(skb, CTA_NTCE_FLAGS, lbl->flags) ||
 	    nla_put_u8(skb, CTA_NTCE_SC, nf_nsc_ctmark_to_sc(ct->ndm_mark)))

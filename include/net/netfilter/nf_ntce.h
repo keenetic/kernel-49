@@ -5,17 +5,16 @@ struct sk_buff;
 struct nf_conn;
 struct net;
 
+#define NTCE_ATTRIBS_COUNT		6
+
 struct nf_ct_ext_ntce_label {
 	u32 app;
 	u32 group;
 
-	union {
-		u32 attributes;
-		u8 attr[4];
-	} attrs;
-
 	u8 os;
 	u8 flags;
+
+	u8 attrs[NTCE_ATTRIBS_COUNT];
 };
 
 #ifdef CONFIG_NTCE_MODULE

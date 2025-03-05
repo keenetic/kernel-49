@@ -78,6 +78,7 @@ enum ctattr_ntce {
 	CTA_NTCE_OS,
 	CTA_NTCE_FLAGS,
 	CTA_NTCE_SC,
+	CTA_NTCE_PAD,
 	__CTA_NTCE_MAX
 };
 #define CTA_NTCE_MAX (__CTA_NTCE_MAX - 1)

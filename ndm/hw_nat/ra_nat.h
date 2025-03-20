@@ -28,7 +28,8 @@ struct PdmaRxDescInfo4 {
 			uint32_t FOE_Entry:16;
 			uint32_t CRSN:5;
 			uint32_t SPORT:5;
-			uint32_t Rsv0:5;
+			uint32_t Rsv0:4;
+			uint32_t AC_SKIP:1;
 			uint32_t ALG:1;
 #elif defined(MTK_NETSYS_V2)
 			uint32_t FOE_Entry:15;
@@ -36,11 +37,12 @@ struct PdmaRxDescInfo4 {
 			uint32_t CRSN:5;
 			uint32_t Rsv1:3;
 			uint32_t SPORT:4;
-			uint32_t Rsv3:1;
+			uint32_t AC_SKIP:1;
 			uint32_t ALG:1;
 #else
 #ifdef __BIG_ENDIAN
-			uint32_t IF:8;
+			uint32_t Rsv0:7;
+			uint32_t AC_SKIP:1;
 			uint32_t ALG:1;
 			uint32_t SPORT:4;
 			uint32_t CRSN:5;
@@ -50,7 +52,8 @@ struct PdmaRxDescInfo4 {
 			uint32_t CRSN:5;
 			uint32_t SPORT:4;
 			uint32_t ALG:1;
-			uint32_t IF:8;
+			uint32_t AC_SKIP:1;
+			uint32_t Rsv0:7;
 #endif
 #endif
 		};
@@ -121,6 +124,7 @@ struct PdmaRxDescInfo4 {
 #define FOE_MAGIC_TAG(skb)	((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->MAGIC_TAG
 #define FOE_ENTRY_NUM(skb)	((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->FOE_Entry
 #define FOE_ALG(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->ALG
+#define FOE_AC_SKIP(skb)	((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->AC_SKIP
 #define FOE_ENTRY_VALID(skb)   (((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->FOE_Entry != FOE_INV_ENTRY)
 #define FOE_AI(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->CRSN
 #define FOE_SP(skb)		((struct PdmaRxDescInfo4 *)FOE_INFO_START_ADDR(skb))->SPORT
@@ -159,6 +163,10 @@ struct PdmaRxDescInfo4 {
 
 #define IS_DPORT_PPE_VALID(skb) \
 	(*((uint32_t *)(FOE_INFO_START_ADDR(skb))) == FOE_MAGIC_PPE_DWORD)
+
+/* bind without accounting */
+#define FOE_AC_SKIP_MARK(skb) \
+	if (IS_SPACE_AVAILABLED(skb) && !FOE_AC_SKIP(skb) && IS_MAGIC_TAG_VALID(skb)) FOE_AC_SKIP(skb) = 1
 
 /* mark flow need skipped from PPE */
 #define FOE_ALG_SKIP(skb) \

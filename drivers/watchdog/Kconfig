@@ -718,7 +718,7 @@ config ASPEED_WATCHDOG
 config AIROHA_WDT
 	tristate "Airoha AN758x softirq watchdog"
 	depends on ARCH_AIROHA
-	depends on ARM64
+	depends on ARM || ARM64
 	help
 	  Driver for the Airoha AN758x SoC softirq watchdog timer.
 

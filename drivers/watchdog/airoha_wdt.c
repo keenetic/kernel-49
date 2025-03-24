@@ -256,6 +256,7 @@ static inline bool airoha_wdt_is_stalled(const struct airoha_wdt *wdt,
 	return now - time >= wdt->stall_threshold;
 }
 
+#ifdef CONFIG_ARM64
 static inline int airoha_wdt_unwind_frame(struct stackframe *frame)
 {
 	const int cpu = raw_smp_processor_id();
@@ -311,22 +312,27 @@ static void airoha_wdt_dump_data(const unsigned long addr,
 		printk("\n");
 	}
 }
+#endif
 
 static void airoha_wdt_dump_cpu_state(void *info)
 {
-	size_t i = 0;
 	struct airoha_wdt_cpu *cpu = info;
+#ifdef CONFIG_ARM64
 	struct pt_regs *regs = get_irq_regs();
 	struct stackframe frame = {
 		.fp = frame_pointer(regs),
 		.sp = kernel_stack_pointer(regs),
 		.pc = instruction_pointer(regs)
 	};
+	size_t i = 0;
+#endif
 
 	printk("\nCPU%i stall period is %u ms.\n",
 	       raw_smp_processor_id(), cpu->stall_period);
 
 	show_regs_print_info(KERN_DEFAULT);
+
+#ifdef CONFIG_ARM64
 	printk("pstate: %08llx\n", regs->pstate);
 
 	while (i < ARRAY_SIZE(regs->regs)) {
@@ -362,6 +368,7 @@ static void airoha_wdt_dump_cpu_state(void *info)
 		if (ret < 0 || frame.fp == 0)
 			break;
 	}
+#endif
 
 	atomic_inc(&cpu->backtraced);
 }
@@ -912,6 +919,10 @@ static int airoha_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct airoha_wdt_data an7552_data = {
+	.stop_dramc = false,
+};
+
 static const struct airoha_wdt_data an7581_data = {
 	.stop_dramc = false,
 };
@@ -921,6 +932,7 @@ static const struct airoha_wdt_data an7583_data = {
 };
 
 static const struct of_device_id AIROHA_WDT_DT_IDS[] = {
+	{ .compatible = "airoha,an7552-wdt", .data = &an7552_data },
 	{ .compatible = "airoha,an7581-wdt", .data = &an7581_data },
 	{ .compatible = "airoha,an7583-wdt", .data = &an7583_data },
 	{ /* sentinel */ }

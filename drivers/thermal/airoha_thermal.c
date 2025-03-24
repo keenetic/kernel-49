@@ -22,6 +22,27 @@
 #include <linux/reset.h>
 #include <linux/types.h>
 
+/* AN7552 */
+#define AN7552_NUM_ZONES	2
+#define AN7552_NUM_SENSORS	2
+
+// SCU base: 0x1fa20000
+#define AN7552_PLLRG_PROTECT	0x268
+#define AN7552_PROTECT_KEY	0x80
+
+// TADC
+#define AN7552_MUX_TADC		0x2e4
+#define AN7552_DOUT_TADC	0x2f0
+
+// TADC_CPU
+#define AN7552_MUX_TADC_CPU	0x2f4
+#define AN7552_DOUT_TADC_CPU	0x2fc
+
+#define AN7552_TADC_RST_OFST	0x4
+#define AN7552_TADC_SET_MASK	0xf3ef
+#define AN7552_TADC_MUX_OFST	0x1
+#define AN7552_TADC_MUX_MASK	0x7
+
 /* AN7581 */
 #define AN7581_NUM_ZONES	1
 #define AN7581_NUM_SENSORS	1
@@ -47,8 +68,6 @@
 #define AN7583_NUM_ZONES	1
 #define AN7583_NUM_SENSORS	3
 
-#define MAX_NUM_ZONES		4
-
 // SCU base: 0x1fa20000
 #define AN7583_PLLRG_PROTECT	0x268
 #define AN7583_PROTECT_KEY	0x80
@@ -67,6 +86,8 @@
 
 #define THERMAL_DRIVER_VERSION	"1.0.240605"
 
+#define MAX_NUM_ZONES		4
+
 enum {
 	VTS1,
 	VTS2,
@@ -76,7 +97,14 @@ enum {
 	MAX_NUM_VTS,
 };
 
-// AN7581
+/* AN7552 */
+static const int an7552_SLOPE_X100_DEFAULT[AN7552_NUM_SENSORS] = { 5565, 6059, };
+static const int an7552_initTemperature_CPK_x10[AN7552_NUM_SENSORS] = { 300, 300, };
+static const int an7552_initTemperature_NONK_x10[AN7552_NUM_SENSORS] = { 550, 550, };
+static const int an7552_BIAS[AN7552_NUM_SENSORS] = { 0, 0, };
+static const int an7552_bank_data[AN7552_NUM_SENSORS] = { VTS1, VTS2 };
+
+/* AN7581 */
 static const int an7581_SLOPE_7581_X100_DIO_DEFAULT[AN7581_NUM_SENSORS] = { 5710, };
 static const int an7581_SLOPE_7581_X100_DIO_AVS[AN7581_NUM_SENSORS] = { 5645, };
 static const int an7581_initTemperature_CPK_x10[AN7581_NUM_SENSORS] = { 300, };
@@ -85,7 +113,7 @@ static const int an7581_initTemperature_NONK_x10[AN7581_NUM_SENSORS] = { 550, };
 static const int an7581_BIAS[AN7581_NUM_SENSORS] = { 0, };
 static const int an7581_bank_data[AN7581_NUM_SENSORS] = { VTS1 };
 
-// AN7583
+/* AN7583 */
 static const int an7583_SLOPE_X100_DEFAULT[AN7583_NUM_SENSORS] = { 7440, 7620, 8390, };
 static const int an7583_bank_data[AN7583_NUM_SENSORS] = { 0, 5, 6 };
 static const int an7583_dbg_coeff[AN7583_NUM_SENSORS] = { 973, 995, 1035, };
@@ -156,43 +184,195 @@ static inline u32 get_ptp_dummy2(struct airoha_thermal *at)
 	return readl(at->ptp_base + at->conf->DUMMY_REG_2_OSFT);
 }
 
+static void _TADC_reset(struct airoha_thermal *at, u32 tadc_reg, u32 tadc_ofs)
+{
+	u32 reg;
+
+	reg = readl(at->scu_base + tadc_reg);
+	reg &= ~(1u << tadc_ofs);
+	writel(reg, at->scu_base + tadc_reg);
+
+	reg = readl(at->scu_base + tadc_reg);
+	reg |= (1u << tadc_ofs);
+	writel(reg, at->scu_base + tadc_reg);
+}
+
+static void _TADC_init(struct airoha_thermal *at, u32 tadc_reg, u32 mask, u32 data)
+{
+	u32 reg;
+
+	reg = readl(at->scu_base + tadc_reg);
+	reg &= ~mask;
+	reg |=  data;
+	writel(reg, at->scu_base + tadc_reg);
+}
+
+/* AN7552 */
+static inline void an7552_TADC_init(struct airoha_thermal *at)
+{
+	u32 tmp_key;
+
+	/* enable write protect reg */
+	tmp_key = readl(at->scu_base + AN7552_PLLRG_PROTECT);
+	writel(AN7552_PROTECT_KEY, at->scu_base + AN7552_PLLRG_PROTECT);
+
+	/* reset TADC, [4] -> 0, [4] -> 1 */
+	_TADC_reset(at, AN7552_MUX_TADC, AN7552_TADC_RST_OFST);
+
+	/* set TADC initional mode */
+	_TADC_init(at, AN7552_MUX_TADC, AN7552_TADC_SET_MASK, 0x33be);
+
+	/* reset TADC_CPU, [4] -> 0, [4] -> 1 */
+	_TADC_reset(at, AN7552_MUX_TADC_CPU, AN7552_TADC_RST_OFST);
+
+	/* set TADC_CPU initional mode */
+	_TADC_init(at, AN7552_MUX_TADC_CPU, AN7552_TADC_SET_MASK, 0x33be);
+
+	writel(tmp_key, at->scu_base + AN7552_PLLRG_PROTECT);
+}
+
+static void an7552_TADC_mode(struct airoha_thermal *at, bool tadc0_tcpu,
+			     u8 res0_diode, u8 delay_cnt)
+{
+	u32 addr = AN7552_MUX_TADC;
+	u32 reg, tmp_key;
+
+	if (tadc0_tcpu)
+		addr = AN7552_MUX_TADC_CPU;
+
+	/* enable write protect reg */
+	tmp_key = readl(at->scu_base + AN7552_PLLRG_PROTECT);
+	writel(AN7552_PROTECT_KEY, at->scu_base + AN7552_PLLRG_PROTECT);
+
+	reg = readl(at->scu_base + addr);
+	reg &= ~(AN7552_TADC_MUX_MASK << AN7552_TADC_MUX_OFST);
+	if (res0_diode == 1)
+		reg |= (0x7 << AN7552_TADC_MUX_OFST);
+	else if (res0_diode == 2)
+		reg |= (0x6 << AN7552_TADC_MUX_OFST);
+	writel(reg, at->scu_base + addr);
+
+	writel(tmp_key, at->scu_base + AN7552_PLLRG_PROTECT);
+
+	msleep(delay_cnt);
+}
+
+static u32 an7552_TADC_out(struct airoha_thermal *at, bool tadc0_tcpu)
+{
+	u32 addr = AN7552_DOUT_TADC;
+
+	if (tadc0_tcpu)
+		addr = AN7552_DOUT_TADC_CPU;
+
+	return readl(at->scu_base + addr);
+}
+
+static void an7552_thermal_init(struct airoha_thermal *at)
+{
+	u32 offset_array[AN7552_NUM_SENSORS] = {0, 0};
+	const u32 *target_offset = offset_array;
+	u32 offset_efuse = get_ptp_dummy(at);
+	u32 i;
+
+	an7552_TADC_init(at);
+
+	at->thermal_efuse_valid = (offset_efuse == 0) ? 0 : 1;
+
+	an7552_TADC_mode(at, false, 1, 10);
+
+	at->SLOPE_X100 = an7552_SLOPE_X100_DEFAULT;
+
+	if (at->thermal_efuse_valid) {
+		offset_array[0] = (offset_efuse & 0x0000ffff);
+		offset_array[1] = (offset_efuse & 0xffff0000) >> 16;
+		at->initTemperature_x10 = an7552_initTemperature_CPK_x10;
+	} else {
+		offset_array[0] = an7552_TADC_out(at, false);
+		an7552_TADC_mode(at, false, 2, 10);
+		offset_array[1] = an7552_TADC_out(at, false);
+		an7552_TADC_mode(at, false, 1, 10);
+		at->initTemperature_x10 = an7552_initTemperature_NONK_x10;
+	}
+
+	at->bias = an7552_BIAS;
+
+	for (i = 0; i < AN7552_NUM_SENSORS; i++)
+		at->offset[i] = target_offset[i] + at->bias[i];
+
+	dev_info(at->dev, "AN7552 init, IC is %scalibrated, check code_30: %d, slope: %d",
+		 at->thermal_efuse_valid ? "" : "not ",
+		 at->offset[0], at->SLOPE_X100[0]);
+}
+
+static int an7552_thermal_get_temp(struct airoha_thermal_bank *bank)
+{
+	struct airoha_thermal *at = bank->at;
+	u32 sensor_index = at->conf->bank_data->sensors[bank->id];
+	u32 ADC_code_30 = at->offset[sensor_index];
+	s32 SLOPE_X100 = (s32)at->SLOPE_X100[sensor_index];
+	int initTemperature_x10 = at->initTemperature_x10[sensor_index];
+	int temp_x10;
+	int min, max, avgTemp, temp_ADC;
+	u32 getIndex;
+
+	an7552_TADC_mode(at, false, 1 + sensor_index, 10);
+
+	min = max = avgTemp = temp_ADC = an7552_TADC_out(at, false);
+
+	for (getIndex = 1; getIndex < 6; getIndex++) {
+		temp_ADC = an7552_TADC_out(at, false);
+		avgTemp += temp_ADC;
+
+		if (temp_ADC > max)
+			max = temp_ADC;
+		else if (temp_ADC < min)
+			min = temp_ADC;
+	}
+
+	avgTemp = avgTemp - max - min;
+	avgTemp = avgTemp >> 2;
+	temp_x10 = 1000 * ((signed int)(avgTemp - ADC_code_30)) / SLOPE_X100;
+	temp_x10 += initTemperature_x10;
+
+	return temp_x10 * 100;
+}
+
+struct airoha_thermal_data an7552_thermal_data ={
+	.init = an7552_thermal_init,
+	.get_temp = an7552_thermal_get_temp,
+	.num_banks = AN7552_NUM_ZONES,
+	.num_sensors = AN7552_NUM_SENSORS,
+	.DUMMY_REG_OSFT = 0xf20,
+	.DUMMY_REG_1_OSFT = 0xf24,
+	.DUMMY_REG_2_OSFT = 0xf28,
+	.bank_data = {
+		{
+			.num_sensors = 1,
+			.sensors = an7552_bank_data,
+		},
+	},
+};
+
+/* AN7581 */
 static inline void an7581_TADC_init(struct airoha_thermal *at)
 {
-	u32 reg, tmp_key;
+	u32 tmp_key;
 
 	/* enable write protect reg */
 	tmp_key = readl(at->scu_base + AN7581_PLLRG_PROTECT);
 	writel(AN7581_PROTECT_KEY, at->scu_base + AN7581_PLLRG_PROTECT);
 
 	/* reset TADC, [4] -> 0, [4] -> 1 */
-	reg = readl(at->scu_base + AN7581_MUX_TADC);
-	reg &= ~(1 << AN7581_TADC_RST_OFST);
-	writel(reg, at->scu_base + AN7581_MUX_TADC);
-
-	reg = readl(at->scu_base + AN7581_MUX_TADC);
-	reg |= (1 << AN7581_TADC_RST_OFST);
-	writel(reg, at->scu_base + AN7581_MUX_TADC);
+	_TADC_reset(at, AN7581_MUX_TADC, AN7581_TADC_RST_OFST);
 
 	/* set TADC mode */
-	reg = readl(at->scu_base + AN7581_MUX_TADC);
-	reg &= ~AN7581_TADC_SET_MASK;
-	reg |= 0x0390;
-	writel(reg, at->scu_base + AN7581_MUX_TADC);
+	_TADC_init(at, AN7581_MUX_TADC, AN7581_TADC_SET_MASK, 0x0390);
 
 	/* reset TADC_CPU, [4] -> 0, [4] -> 1 */
-	reg = readl(at->scu_base + AN7581_MUX_TADC_CPU);
-	reg &= ~(1 << AN7581_TADC_RST_OFST);
-	writel(reg, at->scu_base + AN7581_MUX_TADC_CPU);
-
-	reg = readl(at->scu_base + AN7581_MUX_TADC_CPU);
-	reg |= (1 << AN7581_TADC_RST_OFST);
-	writel(reg, at->scu_base + AN7581_MUX_TADC_CPU);
+	_TADC_reset(at, AN7581_MUX_TADC_CPU, AN7581_TADC_RST_OFST);
 
 	/* set TADC_CPU mode */
-	reg = readl(at->scu_base + AN7581_MUX_TADC_CPU);
-	reg &= ~AN7581_TADC_SET_MASK;
-	reg |= 0x0390;
-	writel(reg, at->scu_base + AN7581_MUX_TADC_CPU);
+	_TADC_init(at, AN7581_MUX_TADC_CPU, AN7581_TADC_SET_MASK, 0x0390);
 
 	writel(tmp_key, at->scu_base + AN7581_PLLRG_PROTECT);
 }
@@ -318,28 +498,20 @@ struct airoha_thermal_data an7581_thermal_data = {
 	},
 };
 
+/* AN7583 */
 static inline void an7583_TADC_init(struct airoha_thermal *at)
 {
-	u32 reg, tmp_key;
+	u32 tmp_key;
 
 	/* enable write protect reg */
 	tmp_key = readl(at->scu_base + AN7583_PLLRG_PROTECT);
 	writel(AN7583_PROTECT_KEY, at->scu_base + AN7583_PLLRG_PROTECT);
 
 	/* reset TADC, [4] -> 0, [4] -> 1 */
-	reg = readl(at->scu_base + AN7583_MUX_TADC);
-	reg &= ~(1 << AN7583_TADC_RST_OFST);
-	writel(reg, at->scu_base + AN7583_MUX_TADC);
-
-	reg = readl(at->scu_base + AN7583_MUX_TADC);
-	reg |= (1 << AN7583_TADC_RST_OFST);
-	writel(reg, at->scu_base + AN7583_MUX_TADC);
+	_TADC_reset(at, AN7583_MUX_TADC, AN7583_TADC_RST_OFST);
 
 	/* set TADC mode */
-	reg = readl(at->scu_base + AN7583_MUX_TADC);
-	reg &= ~AN7583_TADC_SET_MASK;
-	reg |= 0x33bc;
-	writel(reg, at->scu_base + AN7583_MUX_TADC);
+	_TADC_init(at, AN7583_MUX_TADC, AN7583_TADC_SET_MASK, 0x33bc);
 
 	writel(tmp_key, at->scu_base + AN7583_PLLRG_PROTECT);
 }
@@ -489,6 +661,8 @@ struct airoha_thermal_data an7583_thermal_data = {
 };
 
 static const struct of_device_id airoha_thermal_phy_match[] = {
+	{ .compatible = "airoha,an7552-thermal_phy",
+	  .data =  (void *)&an7552_thermal_data },
 	{ .compatible = "airoha,an7581-thermal_phy",
 	  .data =  (void *)&an7581_thermal_data },
 	{ .compatible = "airoha,an7583-thermal_phy",

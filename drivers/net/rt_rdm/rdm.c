@@ -68,7 +68,8 @@ static struct bus_desc mtk_bus_desc[] = {
 	{ NULL, MEDIATEK_EIP197_BASE,  MEDIATEK_EIP197_SIZE  },
 };
 
-#elif defined(CONFIG_MACH_AN7581) || \
+#elif defined(CONFIG_MACH_AN7552) || \
+      defined(CONFIG_MACH_AN7581) || \
       defined(CONFIG_MACH_AN7583)
 #include "rdm_an7581.h"
 
@@ -82,7 +83,7 @@ static struct bus_desc mtk_bus_desc[] = {
 	{ NULL, AIROHA_PON_MAC_BASE, AIROHA_PON_MAC_SIZE },
 	{ NULL, AIROHA_EIP93_BASE,   AIROHA_EIP93_SIZE   },
 	{ NULL, AIROHA_PERI1_BASE,   AIROHA_PERI1_SIZE   },
-	{ NULL, AIROHA_PCIE_BASE,    AIROHA_PCIE_SIZE    },
+	{ NULL, AIROHA_PCIEG3_BASE,  AIROHA_PCIEG3_SIZE  },
 };
 
 #else
@@ -247,6 +248,9 @@ int __init rdm_init(void)
 	/* iomap registers */
 	for (i = 0; i < ARRAY_SIZE(mtk_bus_desc); i++) {
 		struct bus_desc *bd = &mtk_bus_desc[i];
+
+		if (bd->size == 0)
+			continue;
 
 		bd->base_map = ioremap(bd->base, bd->size);
 		if (!bd->base_map) {

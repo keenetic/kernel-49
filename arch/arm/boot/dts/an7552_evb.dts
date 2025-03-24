@@ -1,0 +1,62 @@
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "an7552.dtsi"
+
+/ {
+	compatible = "airoha,an7552";
+	model = "Airoha AN7552 EVB";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 loglevel=8 earlycon=uart8250,mmio32,0x1fbf0000";
+		stdout-path = &uart1;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x2 0x00000000>;
+	};
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&i2c0 {
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&spi_nand_ctrl {
+	status = "okay";
+
+	flash_nand: flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <2>;
+		airoha,bmt;
+	};
+};
+
+&spi_nor_ctrl {
+	status = "disabled";
+
+	flash_nor: flash@1 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <2>;
+	};
+};
+
+&eth {
+	status = "okay";
+	airoha,gsw = <&switch0>;
+};
+
+&switch0 {
+	status = "okay";
+};

@@ -717,6 +717,8 @@ config ARCH_VIRT
 #
 source "arch/arm/mach-mvebu/Kconfig"
 
+source "arch/arm/mach-airoha/Kconfig"
+
 source "arch/arm/mach-alpine/Kconfig"
 
 source "arch/arm/mach-artpec/Kconfig"
@@ -2230,5 +2232,7 @@ source "arch/arm/crypto/Kconfig"
 endif
 
 source "lib/Kconfig"
+
+source "ndm/Kconfig"
 
 source "arch/arm/kvm/Kconfig"

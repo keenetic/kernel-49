@@ -1,5 +1,7 @@
 ifeq ($(CONFIG_OF),y)
 
+dtb-$(CONFIG_ARCH_AIROHA) += \
+	an7552_evb.dtb
 dtb-$(CONFIG_ARCH_ALPINE) += \
 	alpine-db.dtb
 dtb-$(CONFIG_MACH_ARTPEC6) += \

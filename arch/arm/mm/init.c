@@ -39,6 +39,10 @@
 
 #include "mm.h"
 
+#ifdef CONFIG_ARCH_AIROHA
+extern void reserve_memblocks_npu(void);
+#endif
+
 #ifdef CONFIG_CPU_CP15_MMU
 unsigned long __init __clear_cr(unsigned long mask)
 {
@@ -276,6 +280,10 @@ void __init arm_memblock_init(const struct machine_desc *mdesc)
 
 	early_init_fdt_reserve_self();
 	early_init_fdt_scan_reserved_mem();
+
+#ifdef CONFIG_ARCH_AIROHA
+	reserve_memblocks_npu();
+#endif
 
 	/* reserve memory for DMA contiguous allocations */
 	dma_contiguous_reserve(arm_dma_limit);

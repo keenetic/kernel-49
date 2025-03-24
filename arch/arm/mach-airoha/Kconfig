@@ -1,0 +1,17 @@
+config ARCH_AIROHA
+	bool "Airoha SoC Family"
+	select ARM_GIC
+	select ARM_GIC_V3
+	select ARM_AMBA
+	select HAVE_ALIGNED_STRUCT_PAGE
+	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  This enables support for Airoha AN75xx ARMv8 SoCs
+
+if ARCH_AIROHA
+
+config MACH_AN7552
+	bool "Airoha AN7552 series SoC support"
+
+endif

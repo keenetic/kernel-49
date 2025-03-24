@@ -58,7 +58,7 @@ choice
 
 	config FIRST_IF_MT7916
 	bool "MT7916AN"
-	depends on (MACH_EN7523 || MACH_MT7622 || MACH_MT7623 || MACH_MT7988 || MACH_AN7581 || MACH_AN7583)
+	depends on (MACH_EN7523 || MACH_MT7622 || MACH_MT7623 || MACH_MT7988 || MACH_AN7552 || MACH_AN7581 || MACH_AN7583)
 	select MT_MAC
 	select CHIP_MT7916
 
@@ -70,13 +70,13 @@ choice
 
 	config FIRST_IF_MT7992
 	bool "MT7992 series (Kite), SKU BE7200/6500/5040/3600SDB"
-	depends on (MACH_MT7988 || MACH_AN7581 || MACH_AN7583)
+	depends on (MACH_MT7988 || MACH_AN7552 || MACH_AN7581 || MACH_AN7583)
 	select MT_MAC
 	select CHIP_MT7992
 
 	config FIRST_IF_MT7993
 	bool "MT7993 series (Griffin), SKU BE3600"
-	depends on (MACH_MT7988)
+	depends on (MACH_MT7988 || MACH_AN7552 || MACH_AN7583)
 	select MT_MAC
 	select CHIP_MT7993
 

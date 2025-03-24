@@ -1,11 +1,12 @@
 config MTK_WARP
 	tristate "MediaTek WARP driver"
-	depends on (MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
+	depends on (MACH_AN7552 || MACH_MT7981 || MACH_MT7986 || MACH_MT7988)
 
 if MTK_WARP
 
 config MTK_WARP_HW_RRO
 	bool "HW RX offload support"
+	depends on !(MACH_AN7552)
 	default y
 
 config MTK_WARP_MEMORY_SHRINK

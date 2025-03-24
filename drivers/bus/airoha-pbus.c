@@ -6,14 +6,23 @@
 
 #include <soc/airoha/pkgid.h>
 
-#if defined(CONFIG_MACH_AN7581)
 #define ASIC_PBUS_CLK			(0x14000000)	/* 300MHz */
+#define ASIC_PBUS_PCIE0_BASE		(0x20000000)
+
+#if defined(CONFIG_MACH_AN7552)
+#define ASIC_PBUS_PCIE0_MASK		(0xffc00000)
+#define ASIC_PBUS_PCIE1_BASE		(0x24000000)
+#define ASIC_PBUS_PCIE1_MASK		(0xffc00000)
+#elif defined(CONFIG_MACH_AN7581)
+#define ASIC_PBUS_PCIE0_MASK		(0xfc000000)
 #define ASIC_PBUS_PCIE1_BASE		(0x24000000)
 #define ASIC_PBUS_PCIE1_MASK		(0xfc000000)
 #define ASIC_PBUS_PCIE2_BASE		(0x28000000)
 #define ASIC_PBUS_PCIE2_MASK		(0xfc000000)
 #elif defined(CONFIG_MACH_AN7583)
-#define ASIC_PBUS_CLK			(0x14000000)	/* 300MHz */
+#define ASIC_PBUS_PCIE0_MASK		(0xfc000000)
+#define ASIC_PBUS_PCIE1_BASE		(0x24000000)
+#define ASIC_PBUS_PCIE1_MASK		(0xffc00000)
 #else
 #error Airoha SoC not defined
 #endif
@@ -49,6 +58,7 @@
 #define CR_CHIP_SCU_RGS_CLK_EMI		(0x01b8)
 #define CR_CHIP_SCU_RGS_CLK_BUS		(0x01bc)
 #define CR_CHIP_SCU_RGS_CLK_FE		(0x01c0)
+#define CR_CHIP_SCU_RGS_CLK_BUS_ICG	(0x01e4)
 #define CR_CHIP_SCU_RGS_CLK_NPU		(0x01fc)
 
 struct airoha_pbus {
@@ -118,10 +128,10 @@ static inline void get_package_info(struct airoha_pbus *pbus)
 
 static inline void xsi_serdes_init(struct airoha_pbus *pbus)
 {
+#ifdef CONFIG_PCI
+#ifdef CONFIG_MACH_AN7581
 	u32 reg;
 
-#ifdef CONFIG_MACH_AN7581
-#ifdef CONFIG_PCI
 	if (!(isAN7581ST || isAN7581FD || isAN7581DT)) {
 		/*
 		 * pcie_xsi0_sel -> PCIe P0 mode
@@ -147,13 +157,12 @@ static inline void xsi_serdes_init(struct airoha_pbus *pbus)
 static inline void pci_monitor_init(struct airoha_pbus *pbus)
 {
 #ifdef CONFIG_PCI
-	set_pbus_reg(pbus, PBUS_PCIE0_MEM_BASE, 0x20000000);
-	set_pbus_reg(pbus, PBUS_PCIE0_MEM_MASK, 0xfc000000);
+	set_pbus_reg(pbus, PBUS_PCIE0_MEM_BASE, ASIC_PBUS_PCIE0_BASE);
+	set_pbus_reg(pbus, PBUS_PCIE0_MEM_MASK, ASIC_PBUS_PCIE0_MASK);
 
-#ifdef ASIC_PBUS_PCIE1_BASE
 	set_pbus_reg(pbus, PBUS_PCIE1_MEM_BASE, ASIC_PBUS_PCIE1_BASE);
 	set_pbus_reg(pbus, PBUS_PCIE1_MEM_MASK, ASIC_PBUS_PCIE1_MASK);
-#endif
+
 #ifdef ASIC_PBUS_PCIE2_BASE
 	set_pbus_reg(pbus, PBUS_PCIE2_MEM_BASE, ASIC_PBUS_PCIE2_BASE);
 	set_pbus_reg(pbus, PBUS_PCIE2_MEM_MASK, ASIC_PBUS_PCIE2_MASK);
@@ -169,12 +178,16 @@ static inline void bus_timeout_init(struct airoha_pbus *pbus)
 
 static inline void chip_scu_init(u8 __iomem *base)
 {
+#ifdef CONFIG_PCI
+#if !IS_ENABLED(CONFIG_MT7916_AP)
 	u32 val;
 
 	/* set PCIe PERST reset as open-drain */
 	val = readl(base + CR_CHIP_SCU_RGS_OPEN_DRAIN);
 	val |= 0x7;
 	writel(val, base + CR_CHIP_SCU_RGS_OPEN_DRAIN);
+#endif
+#endif
 }
 
 static irqreturn_t bus_to_interrupt(int irq, void *dev_id)

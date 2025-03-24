@@ -2,7 +2,8 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#if defined(CONFIG_MACH_AN7581) || \
+#if defined(CONFIG_MACH_AN7552) || \
+    defined(CONFIG_MACH_AN7581) || \
     defined(CONFIG_MACH_AN7583)
 #define EMI_CLK_ASIC			(0x21C00000)	/* 566 MHz */
 #else

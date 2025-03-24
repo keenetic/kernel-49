@@ -400,6 +400,7 @@ static uint32_t parts_size_default_get(enum part part,
 #elif defined(CONFIG_MACH_MT7981) || \
       defined(CONFIG_MACH_MT7986) || \
       defined(CONFIG_MACH_MT7988) || \
+      defined(CONFIG_MACH_AN7552) || \
       defined(CONFIG_MACH_AN7581) || \
       defined(CONFIG_MACH_AN7583)
 	switch (part) {

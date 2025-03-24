@@ -72,7 +72,8 @@
 #define PART_RSV_SIZE_NOR		PART_FIP_SIZE_NOR
 #define PART_RSV_SIZE_NAND		PART_FIP_SIZE_NAND
 
-#elif defined(CONFIG_MACH_AN7581) || \
+#elif defined(CONFIG_MACH_AN7552) || \
+      defined(CONFIG_MACH_AN7581) || \
       defined(CONFIG_MACH_AN7583)
 #define PART_FIP_SIZE_NOR		0x080000
 #define PART_FIP_SIZE_NAND		0x100000

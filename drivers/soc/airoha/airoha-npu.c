@@ -385,8 +385,13 @@ int npu_load_firmware(const u8 *buf, u32 buf_size, int buf_type)
 	for (i = 0; i < buf_size; i++)
 		WRITE_ONCE(dst[i], buf[i]);
 
-	if (buf_type == 0)
+	if (buf_type == 0) {
+#if defined(CONFIG_ARM64)
 		__flush_dcache_area(dst, buf_size);
+#else
+		dmac_flush_range(dst, dst + buf_size);
+#endif
+	}
 
 	return 0;
 }

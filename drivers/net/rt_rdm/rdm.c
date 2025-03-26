@@ -106,6 +106,7 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned long baseaddr, addr = 0;
 	u32 rtvalue, offset, count = 0;
+	u32 __user *argp = (u32 __user *)arg;
 #ifdef ARCH_USE_IOMEM_MAP
 	size_t i;
 #endif
@@ -113,12 +114,16 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	baseaddr = register_control;
 
 	if (cmd == RT_RDM_CMD_SHOW) {
-		offset = *(u32 *)arg;
+		if (get_user(offset, argp))
+			return -EFAULT;
+
 		offset &= ~0x3;
 		rtvalue = (u32)(*(volatile u32 *)(baseaddr + offset));
 		printk("0x%x\n", rtvalue);
 	} else if (cmd == RT_RDM_CMD_DUMP)  {
-		offset = *(u32 *)arg;
+		if (get_user(offset, argp))
+			return -EFAULT;
+
 		offset &= ~0x3;
 		for (count = 0; count < RT_RDM_DUMP_RANGE ; count++) {
 			u32 row_offs = offset + (count * 16);
@@ -132,7 +137,9 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				(u32)(*(volatile u32 *)(addr+12)));
 		}
 	} else if (cmd == RT_RDM_CMD_READ) {
-		offset = *(u32 *)arg;
+		if (get_user(offset, argp))
+			return -EFAULT;
+
 		offset &= ~0x3;
 		rtvalue = (u32)(*(volatile u32 *)(baseaddr + offset));
 		put_user(rtvalue, (int __user *)arg);
@@ -155,7 +162,9 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	} else if (cmd == RT_RDM_CMD_SHOW_BASE) {
 		printk("current register base addr is 0x%08x\n", register_bus);
 	} else if (cmd == RT_RDM_CMD_SET_BASE) {
-		register_bus = *(u32 *)arg;
+		if (get_user(register_bus, argp))
+			return -EFAULT;
+
 #ifdef ARCH_USE_IOMEM_MAP
 		offset = 0;
 
@@ -178,11 +187,14 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #endif
 		printk("switch register base addr to 0x%08x\n", register_bus);
 	} else if (((cmd & 0xffff) == RT_RDM_CMD_WRITE) || ((cmd & 0xffff) == RT_RDM_CMD_WRITE_SILENT)) {
+		if (get_user(rtvalue, argp))
+			return -EFAULT;
+
 		offset = cmd >> 16;
 		offset &= ~0x3;
-		*(volatile u32 *)(baseaddr + offset) = *(u32 *)arg;
+		*(volatile u32 *)(baseaddr + offset) = rtvalue;
 		if ((cmd & 0xffff) == RT_RDM_CMD_WRITE)
-			printk("write offset 0x%x, value 0x%x\n", offset, *(u32 *)arg);
+			printk("write offset 0x%x, value 0x%x\n", offset, rtvalue);
 	} else {
 		return -EOPNOTSUPP;
 	}

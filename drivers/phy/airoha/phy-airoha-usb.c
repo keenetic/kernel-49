@@ -239,7 +239,10 @@ static void u3_phy_instance_init(struct airoha_uphy *uphy,
 
 	tmp = readl(u3_banks->phya + U3P_U3_PHYA_REG6);
 	tmp &= ~P3A_RG_CDR_RESERVE;
-	tmp |=  P3A_RG_CDR_RESERVE_VAL(0xe);
+	if (isAN7552)
+		tmp |= P3A_RG_CDR_RESERVE_VAL(0x8);
+	else
+		tmp |= P3A_RG_CDR_RESERVE_VAL(0xe);
 	writel(tmp, u3_banks->phya + U3P_U3_PHYA_REG6);
 
 	tmp = readl(u3_banks->phya + U3P_U3_PHYA_REG0);
@@ -277,7 +280,7 @@ static void u2_phy_instance_init(struct airoha_uphy *uphy,
 	tmp |=  PA4_RG_U2_FS_SR_VAL(2);
 	writel(tmp, com + U3P_USBPHYACR4);
 
-	if (GET_PDIDR() >= 2) {
+	if ((isEN7581 && GET_PDIDR() >= 2) || isAN7552) {
 		tmp = readl(com + U3P_USBPHYACR6);
 		tmp &= ~PA6_RG_U2_SQTH;
 		tmp |=  PA6_RG_U2_SQTH_VAL(0x9);
@@ -286,7 +289,10 @@ static void u2_phy_instance_init(struct airoha_uphy *uphy,
 
 	tmp = readl(com + U3P_USBPHYACR6);
 	tmp &= ~PA6_RG_U2_DISCTH;
-	tmp |=  PA6_RG_U2_DISCTH_VAL(0xa);
+	if (isAN7552)
+		tmp |= PA6_RG_U2_DISCTH_VAL(0x9);
+	else
+		tmp |= PA6_RG_U2_DISCTH_VAL(0xa);
 	writel(tmp, com + U3P_USBPHYACR6);
 }
 
@@ -557,6 +563,7 @@ put_child:
 }
 
 static const struct of_device_id airoha_uphy_id_table[] = {
+	{ .compatible = "airoha,an7552-uphy" },
 	{ .compatible = "airoha,an7581-uphy" },
 	{ },
 };

@@ -590,6 +590,17 @@ static void xhci_mtk_init_regs(struct usb_hcd *hcd, struct xhci_hcd_mtk *mtk)
 	writel(value, hcd->regs + XHCI_MTK_HSCH_CFG1);
 #endif
 
+#if defined(CONFIG_MACH_AN7552)
+	writel(0x07130044, hcd->regs + XHCI_MTK_LS_EOF);
+	writel(0x070a0017, hcd->regs + XHCI_MTK_FS_EOF);
+	writel(0x0000003c, hcd->regs + XHCI_MTK_SS_GEN1_EOF);
+	writel(0x003095a8, hcd->regs + XHCI_MTK_HFCNTR_CFG);
+	writel(0x0000001e, hcd->regs + XHCI_MTK_SS_GEN2_EOF);
+#ifndef CONFIG_USB_XHCI_NO_USB3
+	writel(0x000203e8, hcd->regs + XHCI_MTK_LTSSM_TIMING_PARAMETER5);
+#endif
+#endif
+
 #ifdef XHCI_MTK_HOST_0096
 	/* set DMA burst size to 128B */
 	value = 0x10e0e0c;

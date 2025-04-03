@@ -1,8 +1,17 @@
 #
 # PHY drivers for Airoha devices
 #
+config PHY_AN7552_PCIE
+	tristate "Airoha AN7552 PCIe Gen2 PHY driver"
+	depends on MACH_AN7552 && OF
+	select GENERIC_PHY
+	help
+	  Say Y here to add support for Airoha PCIe PHY driver.
+	  This driver create the basic PHY instance and provides initialize
+	  callback for PCIe Gen2 port.
+
 config PHY_AIROHA_PCIE
-	tristate "Airoha PCIe PHY driver"
+	tristate "Airoha PCIe Gen3 PHY driver"
 	depends on ARCH_AIROHA && OF
 	select GENERIC_PHY
 	help

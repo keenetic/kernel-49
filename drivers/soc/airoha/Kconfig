@@ -1,0 +1,15 @@
+#
+# Airoha SoC options
+#
+
+if ARCH_AIROHA
+
+config MEMBLOCK_QDMA1
+	bool "Preallocate HWF buffer for QDMA1 (LAN)"
+	default y
+
+config MEMBLOCK_QDMA2
+	bool "Preallocate HWF buffer for QDMA2 (WAN)"
+	default y
+
+endif

@@ -156,16 +156,21 @@ void reserve_memblocks_npu(void)
 #endif
 #endif /* CONFIG_RA_HW_NAT_WHNAT */
 
+#ifdef CONFIG_MEMBLOCK_QDMA1
 	align = 64 << 10;
 	len = HWF_DSCP_SRAM_QDMA1 * 256;
 	pa = memblock_alloc_range(len, align, start, 0xffffffff, MEMBLOCK_NONE);
 	g_hwf_buf_addr[0] = (u32)pa;
 	pr_info("memblock: reserve %5uK for %s\n", len >> 10, "QDMA1 HWF");
+#endif
 
+#ifdef CONFIG_MEMBLOCK_QDMA2
+	align = 64 << 10;
 	len = HWF_DSCP_SRAM_QDMA2 * 256;
 	pa = memblock_alloc_range(len, align, start, 0xffffffff, MEMBLOCK_NONE);
 	g_hwf_buf_addr[1] = (u32)pa;
 	pr_info("memblock: reserve %5uK for %s\n", len >> 10, "QDMA2 HWF");
+#endif
 }
 
 u32 hwf_get_buf_addr(u8 id)

@@ -388,6 +388,12 @@ nf_ct_ext_ntce_fastpath(const struct nf_ct_ext_ntce_label *lbl)
 	return true;
 }
 
+static inline bool
+nf_ct_ext_ntce_blocked(const struct nf_ct_ext_ntce_label *lbl)
+{
+	return false;
+}
+
 static inline size_t nf_ntce_fastnat_limit(const size_t limit,
 					   const bool is_enabled)
 {

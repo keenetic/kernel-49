@@ -33,6 +33,17 @@ extern u32 airoha_get_l2c_sram(void);
 #error Airoha SoC not defined
 #endif
 
+#if defined(CONFIG_MEMBLOCK_QDMA_SIZE_16M)
+#define HWF_DSCP_SIZE		1024
+#elif defined(CONFIG_MEMBLOCK_QDMA_SIZE_8M)
+#define HWF_DSCP_SIZE		512
+#else
+#define HWF_DSCP_SIZE		256
+#endif
+
+#define HWF_BUF_SIZE_QDMA1	(HWF_DSCP_SRAM_QDMA1 * HWF_DSCP_SIZE)
+#define HWF_BUF_SIZE_QDMA2	(HWF_DSCP_SRAM_QDMA2 * HWF_DSCP_SIZE)
+
 #if IS_ENABLED(CONFIG_MT7916_AP)
 #define NPU_PKT_BUF_SIZE	0x1600000
 #else
@@ -158,7 +169,7 @@ void reserve_memblocks_npu(void)
 
 #ifdef CONFIG_MEMBLOCK_QDMA1
 	align = 64 << 10;
-	len = HWF_DSCP_SRAM_QDMA1 * 256;
+	len = HWF_BUF_SIZE_QDMA1;
 	pa = memblock_alloc_range(len, align, start, 0xffffffff, MEMBLOCK_NONE);
 	g_hwf_buf_addr[0] = (u32)pa;
 	pr_info("memblock: reserve %5uK for %s\n", len >> 10, "QDMA1 HWF");
@@ -166,7 +177,7 @@ void reserve_memblocks_npu(void)
 
 #ifdef CONFIG_MEMBLOCK_QDMA2
 	align = 64 << 10;
-	len = HWF_DSCP_SRAM_QDMA2 * 256;
+	len = HWF_BUF_SIZE_QDMA2;
 	pa = memblock_alloc_range(len, align, start, 0xffffffff, MEMBLOCK_NONE);
 	g_hwf_buf_addr[1] = (u32)pa;
 	pr_info("memblock: reserve %5uK for %s\n", len >> 10, "QDMA2 HWF");
@@ -184,7 +195,7 @@ EXPORT_SYMBOL(hwf_get_buf_addr);
 
 u32 hwf_get_buf_size(u8 id)
 {
-	return id ? (HWF_DSCP_SRAM_QDMA2 * 256) : (HWF_DSCP_SRAM_QDMA1 * 256);
+	return id ? HWF_BUF_SIZE_QDMA2 : HWF_BUF_SIZE_QDMA1;
 }
 EXPORT_SYMBOL(hwf_get_buf_size);
 

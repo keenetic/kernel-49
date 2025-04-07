@@ -12,4 +12,19 @@ config MEMBLOCK_QDMA2
 	bool "Preallocate HWF buffer for QDMA2 (WAN)"
 	default y
 
+choice
+	prompt "Choose HWF buffer size"
+	default MEMBLOCK_QDMA_SIZE_4M
+	depends on (MEMBLOCK_QDMA1 || MEMBLOCK_QDMA2)
+	help
+	  Number of entries in FoE Table
+
+	config MEMBLOCK_QDMA_SIZE_4M
+		bool "4MB"
+	config MEMBLOCK_QDMA_SIZE_8M
+		bool "8MB"
+	config MEMBLOCK_QDMA_SIZE_16M
+		bool "16MB"
+endchoice
+
 endif

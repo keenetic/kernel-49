@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2024 MediaTek Inc.
+ * Author: Sam.Shih <sam.shih@mediatek.com>
+ */
+
+#include "mt7987a.dtsi"
+
+/ {
+	compatible = "mediatek,mt7987b-rfb";
+
+	cpus {
+		/delete-node/ cpu@2;
+		/delete-node/ cpu@3;
+	};
+};

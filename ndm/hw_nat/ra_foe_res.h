@@ -4,6 +4,7 @@
 #if defined(CONFIG_MACH_MT7622) || \
     defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7987) || \
     defined(CONFIG_MACH_MT7988)
 #define FOE_HAS_MIB_TABLE
 #endif
@@ -13,6 +14,7 @@
     defined(CONFIG_MACH_MT7629) || \
     defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7987) || \
     defined(CONFIG_MACH_MT7988)
 #define FOE_HAS_PSP_TABLE
 #endif
@@ -21,7 +23,8 @@
     defined(CONFIG_MACH_MT7986)
 #define FOE_ENTRY_SIZE_IP4	96
 #define FOE_ENTRY_SIZE_IP6	96
-#elif defined(CONFIG_MACH_MT7988)
+#elif defined(CONFIG_MACH_MT7987) || \
+      defined(CONFIG_MACH_MT7988)
 #define FOE_ENTRY_SIZE_IP4	128
 #define FOE_ENTRY_SIZE_IP6	128
 #elif defined(CONFIG_MACH_AN7552) || \

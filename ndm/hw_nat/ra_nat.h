@@ -6,11 +6,13 @@
 
 #if defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7987) || \
     defined(CONFIG_MACH_MT7988)
 #define MTK_NETSYS_V2
 #endif
 
-#if defined(CONFIG_MACH_MT7988)
+#if defined(CONFIG_MACH_MT7987) || \
+    defined(CONFIG_MACH_MT7988)
 #define MTK_NETSYS_V3
 #endif
 

@@ -115,12 +115,13 @@ enum part {
 	PART_ROM_HDR,
 	PART_PRELOADER,
 	PART_ATF,		/* ARM Trusted Firmware */
-#endif /* CONFIG_MACH_MT7622 */
+#endif
 #if defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7987) || \
     defined(CONFIG_MACH_MT7988)
 	PART_PRELOADER,
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 || CONFIG_MACH_MT7988*/
+#endif
 	PART_U_BOOT,
 	PART_U_CONFIG,
 	PART_RF_EEPROM,
@@ -189,6 +190,7 @@ static bool ndmpart_di_is_enabled;
 #if defined(CONFIG_MACH_MT7622) || \
     defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7987) || \
     defined(CONFIG_MACH_MT7988)
 #define HAS_PART_PRELOADER
 #endif
@@ -399,6 +401,7 @@ static uint32_t parts_size_default_get(enum part part,
 	}
 #elif defined(CONFIG_MACH_MT7981) || \
       defined(CONFIG_MACH_MT7986) || \
+      defined(CONFIG_MACH_MT7987) || \
       defined(CONFIG_MACH_MT7988) || \
       defined(CONFIG_MACH_AN7552) || \
       defined(CONFIG_MACH_AN7581) || \
@@ -787,10 +790,11 @@ static int create_mtd_partitions(struct mtd_info *m,
 	parts[PART_ATF].size = parts_size_default_get(PART_ATF, m);
 
 	offs_uboot = parts_offset_end(PART_ATF);
-#endif /* CONFIG_MACH_MT7622 */
+#endif
 
 #if defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986) || \
+    defined(CONFIG_MACH_MT7987) || \
     defined(CONFIG_MACH_MT7988)
 	/* Fill known fields */
 	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
@@ -803,7 +807,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 #endif
 
 	offs_uboot = parts_offset_end(PART_PRELOADER);
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 || CONFIG_MACH_MT7988 */
+#endif
 
 	/* early fill partition info for NAND */
 	parts[PART_U_BOOT].offset = offs_uboot;

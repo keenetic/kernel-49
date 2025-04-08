@@ -46,6 +46,7 @@
 
 #elif defined(CONFIG_MACH_MT7981) || \
       defined(CONFIG_MACH_MT7986) || \
+      defined(CONFIG_MACH_MT7987) || \
       defined(CONFIG_MACH_MT7988)
 #define ROM_HDR_SIZE_NOR		0x000600
 
@@ -58,7 +59,8 @@
 #define PART_ENV_SIZE_NOR		0x020000
 #define PART_ENV_SIZE_NAND		0x080000
 
-#ifdef CONFIG_MACH_MT7988
+#if defined(CONFIG_MACH_MT7987) || \
+    defined(CONFIG_MACH_MT7988)
 #define PART_E2P_SIZE_NOR		0x200000
 #define PART_E2P_SIZE_NAND		0x400000
 #else

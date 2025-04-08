@@ -44,6 +44,7 @@
 
 #define REG_V1			1
 #define REG_V2			2
+#define REG_V3			3
 
 #define PWM_CLK_NAME_MAIN	"main"
 #define PWM_CLK_NAME_TOP	"top"
@@ -83,6 +84,10 @@ static const unsigned int mtk_pwm_reg_offset_v2[] = {
 	0x0080, 0x00c0, 0x0100, 0x0140, 0x0180, 0x01c0, 0x0200, 0x0240
 };
 
+static const unsigned int mtk_pwm_reg_offset_v3[] = {
+	0x0100, 0x0200, 0x0300, 0x0400, 0x0500, 0x0600, 0x0700, 0x0800
+};
+
 /*==========================================*/
 static const struct mtk_com_pwm_data mt7622_pwm_data = {
 	.pwm_nums = 6,
@@ -108,11 +113,18 @@ static const struct mtk_com_pwm_data mt7986_pwm_data = {
 	.reg_ver = REG_V1,
 };
 
+static const struct mtk_com_pwm_data mt7987_pwm_data = {
+	.pwm_nums = 3,
+	.pwm45_fixup = false,
+	.reg_ver = REG_V3,
+};
+
 static const struct mtk_com_pwm_data mt7988_pwm_data = {
 	.pwm_nums = 8,
 	.pwm45_fixup = false,
 	.reg_ver = REG_V2,
 };
+
 /*==========================================*/
 
 static const struct of_device_id mtk_pwm_of_match[] = {
@@ -120,6 +132,7 @@ static const struct of_device_id mtk_pwm_of_match[] = {
 	{.compatible = "mediatek,mt7623-pwm", .data = &mt7623_pwm_data},
 	{.compatible = "mediatek,mt7981-pwm", .data = &mt7981_pwm_data},
 	{.compatible = "mediatek,mt7986-pwm", .data = &mt7986_pwm_data},
+	{.compatible = "mediatek,mt7987-pwm", .data = &mt7987_pwm_data},
 	{.compatible = "mediatek,mt7988-pwm", .data = &mt7988_pwm_data},
 	{},
 };
@@ -169,6 +182,10 @@ static inline u32 mtk_pwm_readl(struct mtk_pwm_chip *chip,
 	u32 pwm_offset;
 
 	switch (chip->data->reg_ver) {
+	case REG_V3:
+		pwm_offset = mtk_pwm_reg_offset_v3[num];
+		break;
+
 	case REG_V2:
 		pwm_offset = mtk_pwm_reg_offset_v2[num];
 		break;
@@ -188,6 +205,10 @@ static inline void mtk_pwm_writel(struct mtk_pwm_chip *chip,
 	u32 pwm_offset;
 
 	switch (chip->data->reg_ver) {
+	case REG_V3:
+		pwm_offset = mtk_pwm_reg_offset_v3[num];
+		break;
+
 	case REG_V2:
 		pwm_offset = mtk_pwm_reg_offset_v2[num];
 		break;

@@ -55,7 +55,7 @@ static struct bus_desc mtk_bus_desc[] = {
 	{ NULL, MEDIATEK_WBSYS_BASE,   MEDIATEK_WBSYS_SIZE   },
 };
 
-#elif defined(CONFIG_MACH_MT7988)
+#elif defined(CONFIG_MACH_MT7987) || defined(CONFIG_MACH_MT7988)
 #include "rdm_mt7988.h"
 
 static struct bus_desc mtk_bus_desc[] = {

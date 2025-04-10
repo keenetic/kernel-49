@@ -20,11 +20,3 @@ config CRYPTO_DEV_EIP93
 	help
 	  EIP93 have various crypto HW accelerators. Select this if
 	  you want to use the EIP93 modules for any of the crypto algorithms.
-
-config CRYPTO_DEV_EIP93_DES
-	bool "Register legacy DES / 3DES algorithm with the Crypto API"
-	depends on CRYPTO_DEV_EIP93
-	default n
-	help
-	  Selecting this will offload DES and 3DES ECB and CBC
-	  crypto to the EIP-93 crypto engine.

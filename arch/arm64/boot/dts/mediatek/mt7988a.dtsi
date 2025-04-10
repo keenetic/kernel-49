@@ -45,6 +45,7 @@
 			operating-points-v2 = <&cluster0_opp>;
 			nvmem-cells = <&cpufreq_calibration>;
 			nvmem-cell-names = "calibration-data";
+			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -162,6 +163,12 @@
 					type = "hot";
 				};
 
+				cpu_trip_active_hot: active-hot {
+					temperature = <120000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+
 				cpu_trip_active_high: active-high {
 					temperature = <115000>;
 					hysteresis = <2000>;
@@ -176,6 +183,14 @@
 			};
 
 			cooling-maps {
+				cpu-active-hot {
+				/* active: dynamic cpu frequency scaling */
+					cooling-device = <&cpu0
+						THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+					trip = <&cpu_trip_active_hot>;
+				};
+
 				cpu-active-high {
 				/* active: set fan to cooling level 2 */
 					cooling-device = <&fan 2 2>;
@@ -425,6 +440,7 @@
 		dma-names = "tnl-sync";
 
 		fe_mem = <&eth>;
+		hnat = <&hnat>;
 	};
 
 	tops-mbox {
@@ -472,12 +488,6 @@
 		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 		mediatek,timer = <&gpt_timer>;
 		#reset-cells = <1>;
-	};
-
-	phyfw: phy-firmware@f000000 {
-		compatible = "mediatek,2p5gphy-fw";
-		reg = <0 0x0f100000 0 0x20000>,
-		      <0 0x0f0f0018 0 0x20>;
 	};
 
 	boottrap: boottrap@1001f6f0 {
@@ -628,13 +638,15 @@
 		compatible = "inside-secure,safexcel-eip197b",
 			     "security-ip-197-srv";
 		reg = <0 0x15600000 0 0x180000>;
-		interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
+		interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "ring0", "ring1", "ring2", "ring3";
+		interrupt-names = "global", "ring0", "ring1", "ring2", "ring3";
 		status = "okay";
 		eth = <&eth>;
+		hnat = <&hnat>;
 	};
 
 	afe: audio-controller@11210000 {

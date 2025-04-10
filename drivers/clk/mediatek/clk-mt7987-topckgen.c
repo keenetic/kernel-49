@@ -139,8 +139,9 @@ static const char *const emmc_200m_parents[] = { "cb_cksq_40m", "msdc_d2",
 
 static struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_0 */
-	MUX_GATE_CLR_SET_UPD(CK_TOP_NETSYS_SEL, "netsys_sel", netsys_parents,
-			     0x000, 0x004, 0x008, 0, 1, 7, 0x1C0, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CK_TOP_NETSYS_SEL, "netsys_sel", netsys_parents,
+				   0x000, 0x004, 0x008, 0, 1, 7, 0x1C0, 0,
+				   CLK_IS_CRITICAL),
 	MUX_GATE_CLR_SET_UPD(CK_TOP_NETSYS_500M_SEL, "netsys_500m_sel",
 			     netsys_500m_parents, 0x000, 0x004, 0x008, 8, 2, 15,
 			     0x1C0, 1),

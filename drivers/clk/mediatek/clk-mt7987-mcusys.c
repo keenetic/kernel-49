@@ -26,6 +26,7 @@ static struct mtk_mux mcu_muxes[] = {
 		.mux_width = 1,
 		.parent_names = mcu_bus_div_parents,
 		.num_parents = ARRAY_SIZE(mcu_bus_div_parents),
+		.ops = &mtk_mux_ops,
 		.flags = CLK_IS_CRITICAL,
 	}
 };

@@ -55,7 +55,7 @@ static const struct mtk_pll_data plls[] = {
 	PLL(CK_APMIXED_APLL2, "apll2", 0x0134, 0x0140, 0x00000001, 0, 0, 32,
 	    0x0134, 4, 0x0704, 0x0700, 1, 0x0138, 0, 0x0134, "clkxtal"),
 	PLL(CK_APMIXED_NET1PLL, "net1pll", 0x0144, 0x0150, 0xff000001,
-	    HAVE_RST_BAR, 23, 32, 0x0144, 4, 0, 0, 0, 0x0148, 0, 0x0144,
+	    (HAVE_RST_BAR | PLL_AO), 23, 32, 0x0144, 4, 0, 0, 0, 0x0148, 0, 0x0144,
 	    "clkxtal"),
 	PLL(CK_APMIXED_NET2PLL, "net2pll", 0x0154, 0x0160, 0xff000001,
 	    HAVE_RST_BAR | PLL_AO, 23, 32, 0x0154, 4, 0, 0, 0, 0x0158, 0,

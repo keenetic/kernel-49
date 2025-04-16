@@ -1010,8 +1010,8 @@
 		reset-names = "xfi", "sgmii";
 		clocks = <&topckgen CK_TOP_USXGMII_SBUS_1_SEL>,
 			 <&topckgen CK_TOP_SGM_1_SEL>,
-			 <&sgmiisys0 CK_SGM1_TX_EN>,
-			 <&sgmiisys0 CK_SGM1_RX_EN>;
+			 <&sgmiisys1 CK_SGM1_TX_EN>,
+			 <&sgmiisys1 CK_SGM1_RX_EN>;
 		clock-names = "usxgmii", "sgmii_sel", "sgmii_tx", "sgmii_rx";
 		assigned-clocks = <&topckgen CK_TOP_USXGMII_SBUS_1_SEL>,
 				  <&topckgen CK_TOP_SGM_1_SEL>;

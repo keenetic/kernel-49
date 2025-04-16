@@ -748,7 +748,6 @@
 				      <&comb_auto_load_valid>;
 			nvmem-cell-names = "intr", "rx_imp", "tx_imp", "auto_load_valid";
 
-			/* MT7987: 4'b0010 default USB30 Don't change the '0' */
 			mediatek,syscon-type = <&topmisc 0x218 0>;
 		};
 	};
@@ -809,27 +808,27 @@
 			bits = <0 1>;
 		};
 
-		comb_rx_imp_p0: usb3-rx-imp@8ec {
+		comb_rx_imp_p0: usb3-rx-imp@8ec,1 {
 			reg = <0x8ec 1>;
 			bits = <0 5>;
 		};
 
-		comb_tx_imp_p0: usb3-tx-imp@8ec {
+		comb_tx_imp_p0: usb3-tx-imp@8ec,2 {
 			reg = <0x8ec 2>;
 			bits = <5 5>;
 		};
 
-		comb_intr_p0: usb3-intr@8ec {
-			reg = <0x8ec 2>;
-			bits = <10 6>;
+		comb_intr_p0: usb3-intr@8ed {
+			reg = <0x8ed 1>;
+			bits = <2 6>;
 		};
 
-		u2_auto_load_valid_p0: usb2-alv-p0@8cc {
+		u2_auto_load_valid_p0: usb2-alv-p0@8cc,1 {
 			reg  = <0x8cc 1>;
 			bits = <0 1>;
 		};
 
-		u2_intr_p0: usb2-intr-p0@8cc {
+		u2_intr_p0: usb2-intr-p0@8cc,2 {
 			reg  = <0x8cc 1>;
 			bits = <1 5>;
 		};

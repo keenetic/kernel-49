@@ -5,8 +5,8 @@ config MTK_WARP
 if MTK_WARP
 
 config MTK_WARP_HW_RRO
-	bool "HW RX offload support"
-	depends on !(MACH_AN7552)
+	bool "WO RRO firmware load support"
+	depends on !(MACH_AN7552 || MACH_MT7987)
 	default y
 
 config MTK_WARP_MEMORY_SHRINK

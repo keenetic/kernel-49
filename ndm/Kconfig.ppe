@@ -171,7 +171,7 @@ config  RA_HW_NAT_PACKET_SAMPLING
 
 config  RA_HW_NAT_L2B
 	bool "L2 Bridge Acceleration"
-	depends on (ECONET_EN75XX_MP || ARCH_AIROHA)
+	depends on (ECONET_EN75XX_MP || ARCH_AIROHA || MACH_MT7987)
 	default n
 	help
 	  L2 bridge forwards accelerated by HNAT

@@ -517,12 +517,6 @@
 		interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
 		#interrupt-cells = <2>;
-
-		pcie1pereset {
-			gpio-hog;
-			gpios = <36 GPIO_ACTIVE_HIGH>;
-			output-high;
-		};
 	};
 
 	crypto: crypto@15600000 {
@@ -557,16 +551,10 @@
 		};
 	};
 
-	ethwarp: syscon@15031000 {
-		compatible = "mediatek,mt7988-ethwarp", "syscon";
-		reg = <0 0x15031000 0 0x1000>;
-		#clock-cells = <1>;
-	};
-
 	eth: ethernet@15100000 {
 		compatible = "mediatek,mt7987-eth";
 		reg = <0 0x15100000 0 0x80000>,
-		      <0 0x15400000 0 0x200000>;
+		      <0 0x15400000 0 0x20000>;
 		interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
@@ -579,12 +567,6 @@
 			 <&ethsys CK_ETHDMA_GP2_EN>,
 			 <&ethsys CK_ETHDMA_GP1_EN>,
 			 <&ethsys CK_ETHDMA_GP3_EN>,
-			 <&sgmiisys0 CK_SGM0_TX_EN>,
-			 <&sgmiisys0 CK_SGM0_RX_EN>,
-			 <&sgmiisys1 CK_SGM1_TX_EN>,
-			 <&sgmiisys1 CK_SGM1_RX_EN>,
-			 <&topckgen CK_TOP_SGM_0_SEL>,
-			 <&topckgen CK_TOP_SGM_1_SEL>,
 			 <&topckgen CK_TOP_ETH_GMII_SEL>,
 			 <&topckgen CK_TOP_ETH_REFCK_50M_SEL>,
 			 <&topckgen CK_TOP_ETH_SYS_200M_SEL>,
@@ -594,19 +576,13 @@
 			 <&topckgen CK_TOP_NETSYS_SEL>,
 			 <&topckgen CK_TOP_NETSYS_500M_SEL>,
 			 <&topckgen CK_TOP_NETSYS_2X_SEL>;
-		clock-names = "fe", "gp2", "gp1", "gp3", "sgmii_tx250m",
-			      "sgmii_rx250m", "sgmii2_tx250m", "sgmii2_rx250m",
-			      "top_sgm0_sel", "top_sgm1_sel", "top_eth_gmii_sel",
+		clock-names = "fe", "gp2", "gp1", "gp3", "top_eth_gmii_sel",
 			      "top_eth_refck_50m_sel", "top_eth_sys_200m_sel",
 			      "top_eth_sys_sel", "top_eth_xgmii_sel",
 			      "top_eth_mii_sel", "top_netsys_sel",
 			      "top_netsys_500m_sel", "top_netsys_pao_2x_sel";
-		assigned-clocks = <&topckgen CK_TOP_NETSYS_2X_SEL>,
-				  <&topckgen CK_TOP_SGM_0_SEL>,
-				  <&topckgen CK_TOP_SGM_1_SEL>;
-		assigned-clock-parents = <&apmixedsys CK_APMIXED_NET2PLL>,
-					 <&apmixedsys CK_APMIXED_SGMPLL>,
-					 <&apmixedsys CK_APMIXED_SGMPLL>;
+		assigned-clocks = <&topckgen CK_TOP_NETSYS_2X_SEL>;
+		assigned-clock-parents = <&apmixedsys CK_APMIXED_NET2PLL>;
 		mediatek,ethsys = <&ethsys>;
 		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
 		mediatek,infracfg = <&topmisc>;
@@ -629,7 +605,13 @@
 		compatible = "mediatek,mt7987-sgmiisys",
 			     "mediatek,mt7987-sgmiisys_0",
 			     "syscon";
-		reg = <0 0x10060000 0 0x1000>;
+		reg = <0 0x10060000 0 0x200>;
+		clocks = <&topckgen CK_TOP_SGM_0_SEL>,
+			 <&sgmiisys0 CK_SGM0_TX_EN>,
+			 <&sgmiisys0 CK_SGM0_RX_EN>;
+		clock-names = "sgmii_sel", "sgmii_tx", "sgmii_rx";
+		assigned-clocks = <&topckgen CK_TOP_SGM_0_SEL>;
+		assigned-clock-parents = <&apmixedsys CK_APMIXED_SGMPLL>;
 		#clock-cells = <1>;
 	};
 
@@ -637,7 +619,13 @@
 		compatible = "mediatek,mt7987-sgmiisys",
 			     "mediatek,mt7987-sgmiisys_1",
 			     "syscon";
-		reg = <0 0x10070000 0 0x1000>;
+		reg = <0 0x10070000 0 0x200>;
+		clocks = <&topckgen CK_TOP_SGM_1_SEL>,
+			 <&sgmiisys1 CK_SGM1_TX_EN>,
+			 <&sgmiisys1 CK_SGM1_RX_EN>;
+		clock-names = "sgmii_sel", "sgmii_tx", "sgmii_rx";
+		assigned-clocks = <&topckgen CK_TOP_SGM_1_SEL>;
+		assigned-clock-parents = <&apmixedsys CK_APMIXED_SGMPLL>;
 		#clock-cells = <1>;
 	};
 

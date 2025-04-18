@@ -470,6 +470,9 @@ static struct nf_ct_ext_type ntce_extend = {
 
 int nf_ntce_init_proc(struct net *net)
 {
+	if (net != &init_net)
+		return 0;
+
 	/* "ENTC" in hex */
 	if (nf_ct_extend_custom_register(&ntce_extend, 0x454e5443) < 0) {
 		pr_err("unable to register NTCE extend\n");
@@ -509,6 +512,9 @@ exit_init:
 
 void nf_ntce_fini_proc(struct net *net)
 {
+	if (net != &init_net)
+		return;
+
 	unregister_netdevice_notifier(&nf_ntce_nb);
 
 	remove_proc_entry("nf_ntce_if", net->proc_net);

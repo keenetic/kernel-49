@@ -44,7 +44,10 @@
 
 #include "ubridge_private.h"
 
-#define MAC_FORCED	0
+enum {
+	MAC_FORCED,
+	HAS_UPPER
+};
 
 #define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
 			 NETIF_F_GSO_MASK | NETIF_F_HW_CSUM)
@@ -135,7 +138,10 @@ static rx_handler_result_t ubr_handle_frame(struct sk_buff **pskb)
 
 		eth = (struct ethhdr *)skb->data;
 
-		ether_addr_copy(eth->h_dest, ubr->dev->dev_addr);
+		if (test_bit(HAS_UPPER, &ubr->flags))
+			ether_addr_copy(eth->h_dest, ubr->upper_mac);
+		else
+			ether_addr_copy(eth->h_dest, ubr->dev->dev_addr);
 
 		if (iph->version == 6) {
 #if IS_ENABLED(CONFIG_IPV6)
@@ -330,6 +336,9 @@ static netdev_tx_t ubr_xmit(struct sk_buff *skb,
 
 			return NET_XMIT_SUCCESS;
 		}
+
+		if (test_bit(HAS_UPPER, &ubr->flags))
+			ether_addr_copy(ubr->upper_mac, eth->h_source);
 
 		skb_pull_inline(skb, maclen);
 		skb_reset_mac_header(skb);
@@ -892,6 +901,8 @@ ubr_attach_if(struct net_device *master_dev, struct net_device *slave_dev)
 					       slave_dev->dev_addr);
 	} else {
 		master_dev->flags |= slave_dev->flags & IFF_POINTOPOINT;
+
+		ether_addr_copy(ubr->upper_mac, ubr->dev->dev_addr);
 	}
 
 	call_netdevice_notifiers(NETDEV_JOIN, slave_dev);
@@ -1246,6 +1257,19 @@ static int ubr_dev_event(struct notifier_block *unused,
 {
 	struct net_device *pdev = netdev_notifier_info_to_dev(ptr);
 	struct ubr_private *ubr;
+
+	if (event == NETDEV_CHANGEUPPER) {
+		ubr = rtnl_dereference(pdev->rx_handler_data);
+		if (!ubr)
+			return NOTIFY_DONE;
+
+		if (netdev_has_any_upper_dev(pdev))
+			set_bit(HAS_UPPER, &ubr->flags);
+		else
+			clear_bit(HAS_UPPER, &ubr->flags);
+
+		return NOTIFY_DONE;
+	}
 
 	if (event != NETDEV_UNREGISTER)
 		return NOTIFY_DONE;

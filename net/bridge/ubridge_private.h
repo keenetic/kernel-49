@@ -12,6 +12,7 @@ struct ubr_private {
 	struct pcpu_sw_netstats		__percpu *stats;
 	struct list_head			list;
 	struct net_device			*dev;
+	unsigned char				upper_mac[ETH_ALEN];
 	unsigned long				flags;
 	struct ethtool_ops			ethtool_ops;
 };

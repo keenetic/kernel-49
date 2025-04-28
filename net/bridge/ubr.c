@@ -61,6 +61,12 @@ static inline struct ubr_private *ubr_priv_get_rcu(const struct net_device *dev)
 
 static inline struct ubr_private *ubr_priv_get_rtnl(const struct net_device *dev)
 {
+	return is_ubridge(dev) ?
+		rtnl_dereference(dev->rx_handler_data) : NULL;
+}
+
+static inline struct ubr_private *ubr_port_priv_get_rtnl(const struct net_device *dev)
+{
 	return is_ubridge_port(dev) ?
 		rtnl_dereference(dev->rx_handler_data) : NULL;
 }
@@ -1258,8 +1264,9 @@ static int ubr_dev_event(struct notifier_block *unused,
 	struct net_device *pdev = netdev_notifier_info_to_dev(ptr);
 	struct ubr_private *ubr;
 
-	if (event == NETDEV_CHANGEUPPER) {
-		ubr = rtnl_dereference(pdev->rx_handler_data);
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		ubr = ubr_priv_get_rtnl(pdev);
 		if (!ubr)
 			return NOTIFY_DONE;
 
@@ -1267,16 +1274,14 @@ static int ubr_dev_event(struct notifier_block *unused,
 			set_bit(HAS_UPPER, &ubr->flags);
 		else
 			clear_bit(HAS_UPPER, &ubr->flags);
-
-		return NOTIFY_DONE;
-	}
-
-	if (event != NETDEV_UNREGISTER)
-		return NOTIFY_DONE;
-
-	ubr = ubr_priv_get_rtnl(pdev);
-	if (ubr)
+		break;
+	case NETDEV_UNREGISTER:
+		ubr = ubr_port_priv_get_rtnl(pdev);
+		if (!ubr)
+			return NOTIFY_DONE;
 		ubr_unreg_if(ubr);
+		break;
+	}
 
 	return NOTIFY_DONE;
 }

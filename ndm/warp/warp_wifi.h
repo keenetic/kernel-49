@@ -24,6 +24,8 @@ enum {
 enum {
 	WIFI_HW_CAP_PAO,
 	WIFI_HW_CAP_RRO,
+	WIFI_HW_CAP_RRO_3_0 = WIFI_HW_CAP_RRO,
+	WIFI_HW_CAP_RRO_3_1,
 };
 
 struct warp_slot_info {
@@ -118,20 +120,26 @@ struct wifi_hw {
 	u16 rx_page_size;
 	u32 max_rxd_size;
 	u32 sign_base_cr;
+	u8 rx_wed_ring_num;
 	u8 rx_rro_data_ring_num;
 	u8 rx_rro_page_ring_num;
 	u8 rx_rro_ind_cmd_ring_num;
+	u8 rx_rro_3_1_ring_num;
 	u8 tx_free_done_ver;
 	struct ring_ctrl rx[2];
+	struct ring_ctrl rx_wed[2];
 	struct ring_ctrl rx_rro[2];
 	struct ring_ctrl rx_rro_pg[3];
 	struct ring_ctrl rx_rro_ind_cmd;
+	struct ring_ctrl rx_rro_3_1;
 	struct rro_ctrl rro_ctl;
 
 	unsigned long wpdma_base;
 	unsigned long base_phy_addr;
 	unsigned long base_addr;
 
+	u8 rx_wed_done_trig0_bit;
+	u8 rx_wed_done_trig1_bit;
 	u8 wfdma_tx_done_trig0_bit;
 	u8 wfdma_tx_done_trig1_bit;
 	u8 wfdma_tx_done_free_notify_trig_bit;
@@ -144,6 +152,7 @@ struct wifi_hw {
 	u8 wfdma_rro_rx_pg_trig0_bit;
 	u8 wfdma_rro_rx_pg_trig1_bit;
 	u8 wfdma_rro_rx_pg_trig2_bit;
+	u8 wfdma_rro_rx_3_1_trig_bit;
 
 	u32 hif_type;
 	u32 irq;

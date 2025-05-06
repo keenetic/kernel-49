@@ -378,7 +378,6 @@ struct msdc_host {
 	u32 latch_ck;
 	u32 hs400_ds_delay;
 	u32 hs200_cmd_int_delay; /* cmd internal delay for HS200/SDR104 */
-	u32 hs200_write_int_delay; /* write internal delay for HS200/SR104 */
 	u32 r_smpl; /* response sample slection for init card */
 	bool hs400_mode;	/* current eMMC will run at hs400 mode */
 	struct msdc_save_para save_para; /* used when gate HCLK */
@@ -1686,11 +1685,6 @@ skip_fall:
 		final_delay = final_fall_delay.final_phase;
 	}
 
-	if (mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
-	    mmc->ios.timing == MMC_TIMING_UHS_SDR104)
-		sdr_set_field(host->base + tune_reg,
-			      MSDC_PAD_TUNE_DATWRDLY,
-			      host->hs200_write_int_delay);
 	dev_dbg(host->dev, "Final data pad delay: %x\n", final_delay);
 	return final_delay == 0xff ? -EIO : 0;
 }
@@ -1767,9 +1761,6 @@ static void msdc_of_property_parse(struct platform_device *pdev,
 
 	of_property_read_u32(pdev->dev.of_node, "mediatek,hs200-cmd-int-delay",
 			     &host->hs200_cmd_int_delay);
-
-	of_property_read_u32(pdev->dev.of_node, "write_int_delay",
-			     &host->hs200_write_int_delay);
 
 	of_property_read_u32(pdev->dev.of_node, "r_smpl",
 			     &host->r_smpl);

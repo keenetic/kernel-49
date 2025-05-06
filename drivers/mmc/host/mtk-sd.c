@@ -264,7 +264,7 @@
 
 #define MTK_MMC_AUTOSUSPEND_DELAY	50
 #define CMD_TIMEOUT         (HZ/10 * 5)	/* 100ms x5 */
-#define DAT_TIMEOUT         (HZ    * 10)	/* 1000ms x10 */
+#define DAT_TIMEOUT         (HZ    * 5)	/* 1000ms x5 */
 
 #define PAD_DELAY_MAX	32 /* PAD delay cells */
 /*--------------------------------------------------------------------------*/
@@ -1329,6 +1329,7 @@ static void msdc_init_hw(struct msdc_host *host)
 	writel(0, host->base + MSDC_IOCON);
 	sdr_set_field(host->base + MSDC_IOCON, MSDC_IOCON_RSPL, host->r_smpl);
 	writel(0x403c0046, host->base + MSDC_PATCH_BIT);
+	sdr_set_field(host->base + MSDC_PATCH_BIT, MSDC_CKGEN_MSDC_DLY_SEL, 1);
 	writel(0xffff4089, host->base + MSDC_PATCH_BIT1);
 	sdr_set_bits(host->base + EMMC50_CFG0, EMMC50_CFG_CFCSTS_SEL);
 	if (host->dev_comp->stop_clk_fix) {

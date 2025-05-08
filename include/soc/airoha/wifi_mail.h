@@ -461,6 +461,22 @@ mail_free:
 }
 
 static inline int
+WIFI_MAIL_API_GET_WAIT_DUMP_MAPPING(void)
+{
+	struct wifi_mail_data *md;
+	dma_addr_t pa;
+
+	md = wifi_mail_alloc(0, &pa, GFP_KERNEL);
+	if (!md)
+		return NPU_MAILBOX_ERROR;
+
+	md->func_type = GET_WAIT;
+	md->func_id = WIFI_MAIL_FUNCTION_GET_WAIT_DUMP_MAPPING;
+
+	return wifi_mail_send(md, pa, true);
+}
+
+static inline int
 WIFI_MAIL_API_GET_WAIT_NPU_INFO(u32 intf_id, struct npu_info *ni)
 {
 	struct wifi_mail_data *md;

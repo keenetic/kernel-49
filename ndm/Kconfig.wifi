@@ -107,27 +107,31 @@ choice
 
 	config FIRST_IF_SKU_BE3600SDB
 	depends on FIRST_IF_MT7992
-	bool "BE3600SDB (Selectable Dual Band), 2die"
+	bool "BE3600SDB (Selectable Dual Band), 2-adie"
 
 	config FIRST_IF_SKU_BE5040
 	depends on FIRST_IF_MT7992
-	bool "BE5040 (MT7991AV), 1die"
+	bool "BE5040 (MT7991AV), 1-adie"
 
 	config FIRST_IF_SKU_BE6500
 	depends on FIRST_IF_MT7992
-	bool "BE6500 (MT7992BV), 2die"
+	bool "BE6500 (MT7992BV), 2-adie"
 
 	config FIRST_IF_SKU_BE7200
 	depends on FIRST_IF_MT7992
-	bool "BE7200 (MT7992AV), 2die"
+	bool "BE7200 (MT7992AV), 2-adie"
 
 	config FIRST_IF_SKU_BE13000
 	depends on FIRST_IF_MT7990
-	bool "BE13000 (2.4/5/5)"
+	bool "BE13000 (2.4/5/5), 3-adie"
+
+	config FIRST_IF_SKU_BE13500
+	depends on FIRST_IF_MT7990
+	bool "BE13500 (2.4/5/6), 2-adie"
 
 	config FIRST_IF_SKU_BE19000
 	depends on FIRST_IF_MT7990
-	bool "BE19000 (2.4/5/6)"
+	bool "BE19000 (2.4/5/6), 3-adie"
 endchoice
 
 choice
@@ -414,7 +418,7 @@ source "ndm/mt7916_ap/Kconfig"
 source "ndm/mt7916/Kconfig"
 endmenu
 
-menu "MediaTek MT7992 PCIe Wireless driver"
+menu "MediaTek MT7992 Eagle/Kite PCIe Wireless driver"
 source "ndm/mt7992_ap/Kconfig"
 source "ndm/mt7992/Kconfig"
 endmenu

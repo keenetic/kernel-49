@@ -597,7 +597,7 @@ int nf_ntce_ctnetlink_dump(struct sk_buff *skb, const struct nf_conn *ct)
 		return 0;
 
 	for (i = 0; i < NTCE_ATTRIBS_COUNT; ++i)
-		attrs |= (lbl->attrs[i] & 0xFF) << (i * 8);
+		attrs |= ((u64)(lbl->attrs[i] & 0xFF)) << (i * 8);
 
 	nest_lbl = nla_nest_start(skb, CTA_NTCE | NLA_F_NESTED);
 

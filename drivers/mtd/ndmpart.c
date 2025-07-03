@@ -27,12 +27,6 @@
 
 #define pr_fmt(fmt)				  KBUILD_MODNAME ": " fmt
 
-#if defined(CONFIG_MTD_NDM_PRELOADER_UPDATE) || \
-    defined(CONFIG_MTD_NDM_ATF_UPDATE) || \
-    defined(CONFIG_MTD_NDM_BOOT_UPDATE)
-#define MTD_NDM_PARTITION_UPDATE
-#endif
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -51,6 +45,12 @@
 #ifdef CONFIG_AIROHA_BMT
 #include <linux/mtd/airoha-bmt.h>
 #endif /* CONFIG_AIROHA_BMT */
+
+#if defined(CONFIG_MTD_NDM_PRELOADER_UPDATE) || \
+    defined(CONFIG_MTD_NDM_ATF_UPDATE) || \
+    defined(CONFIG_MTD_NDM_BOOT_UPDATE)
+#define MTD_NDM_PARTITION_UPDATE
+#endif
 
 #ifdef MTD_NDM_PARTITION_UPDATE
 #include <linux/crc32.h>
@@ -100,29 +100,38 @@
 
 #define KERNEL_MAGIC			be32_to_cpu(0x27051956)
 #define ROOTFS_MAGIC			SQUASHFS_MAGIC
-#define PART_OPTIONAL_NUM		2		/* storage and dump */
 
-#define MIN_FLASH_SIZE_FOR_STORAGE	0x800000	/* 8 MB */
 #define MTD_MAX_RETRIES			3
 
 #define PART_SIZE_UNKNOWN		(~0)
 
 #define PART_STORAGE_LEGACY		"Storage_Legacy"
 
-enum part {
-	/* Image 1 */
 #if defined(CONFIG_MACH_MT7622)
-	PART_ROM_HDR,
-	PART_PRELOADER,
-	PART_ATF,		/* ARM Trusted Firmware */
+#define HAS_PART_ROM_HDR
+#define HAS_PART_ATF
 #endif
-#if defined(CONFIG_MACH_MT7981) || \
+
+#if defined(CONFIG_MACH_MT7622) || \
+    defined(CONFIG_MACH_MT7981) || \
     defined(CONFIG_MACH_MT7986) || \
     defined(CONFIG_MACH_MT7987) || \
     defined(CONFIG_MACH_MT7988)
-	PART_PRELOADER,
+#define HAS_PART_PRELOADER
 #endif
-	PART_U_BOOT,
+
+enum part {
+	/* Image 1 */
+#ifdef HAS_PART_ROM_HDR
+	PART_ROM_HDR,
+#endif
+#ifdef HAS_PART_PRELOADER
+	PART_PRELOADER,		/* BL2 */
+#endif
+#ifdef HAS_PART_ATF
+	PART_ATF,		/* ARM Trusted Firmware (BL31) */
+#endif
+	PART_U_BOOT,		/* U-Boot or FIP */
 	PART_U_CONFIG,
 	PART_RF_EEPROM,
 	PART_KERNEL_1,
@@ -180,19 +189,6 @@ static int u_state_commit(void);
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 static int ndmpart_image_cur = 1;
 static bool ndmpart_di_is_enabled;
-#endif
-
-#if defined(CONFIG_MACH_MT7622)
-#define HAS_PART_ROM_HDR
-#define HAS_PART_ATF
-#endif
-
-#if defined(CONFIG_MACH_MT7622) || \
-    defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986) || \
-    defined(CONFIG_MACH_MT7987) || \
-    defined(CONFIG_MACH_MT7988)
-#define HAS_PART_PRELOADER
 #endif
 
 static struct part_dsc parts[PART_MAX] = {
@@ -749,7 +745,6 @@ static int create_mtd_partitions(struct mtd_info *m,
 				 const struct mtd_partition **pparts,
 				 struct mtd_part_parser_data *data)
 {
-	bool use_dump, use_storage;
 	int i, j;
 	uint32_t offs_uboot = 0;
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
@@ -759,6 +754,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 	uint32_t off, flash_size_lim;
 	struct mtd_partition *ndm_parts;
 	unsigned int ndm_parts_num;
+	bool use_storage = CONFIG_MTD_NDM_STORAGE_SIZE ? true : false;
+	bool use_dump = CONFIG_MTD_NDM_DUMP_SIZE ? true : false;
 
 #ifdef CONFIG_NMBM_MTD
 	if (!is_nmbm_mtd(m))
@@ -768,12 +765,6 @@ static int create_mtd_partitions(struct mtd_info *m,
 #ifdef CONFIG_AIROHA_BMT
 	airoha_bmt_attach(m);
 #endif /* CONFIG_AIROHA_BMT */
-
-	use_dump = use_storage = false;
-	if (CONFIG_MTD_NDM_DUMP_SIZE)
-		use_dump = true;
-	if (CONFIG_MTD_NDM_STORAGE_SIZE)
-		use_storage = true;
 
 	flash_size_lim = CONFIG_MTD_NDM_FLASH_SIZE_LIMIT;
 	if (!flash_size_lim || flash_size_lim > m->size) {
@@ -785,15 +776,20 @@ static int create_mtd_partitions(struct mtd_info *m,
 			flash_size_lim = m->size;
 	}
 
-#if defined(CONFIG_MACH_MT7622)
 	/* Fill known fields */
+#ifdef HAS_PART_ROM_HDR
 	parts[PART_ROM_HDR].size = parts_size_default_get(PART_ROM_HDR, m);
-
-	parts[PART_PRELOADER].offset = parts_offset_end(PART_ROM_HDR);
+#endif
+#ifdef HAS_PART_PRELOADER
 	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
-
-	parts[PART_ATF].offset = parts_offset_end(PART_PRELOADER);
+#endif
+#ifdef HAS_PART_ATF
 	parts[PART_ATF].size = parts_size_default_get(PART_ATF, m);
+#endif
+
+#if defined(CONFIG_MACH_MT7622)
+	parts[PART_PRELOADER].offset = parts_offset_end(PART_ROM_HDR);
+	parts[PART_ATF].offset = parts_offset_end(PART_PRELOADER);
 
 	offs_uboot = parts_offset_end(PART_ATF);
 #endif
@@ -802,8 +798,6 @@ static int create_mtd_partitions(struct mtd_info *m,
     defined(CONFIG_MACH_MT7986) || \
     defined(CONFIG_MACH_MT7987) || \
     defined(CONFIG_MACH_MT7988)
-	/* Fill known fields */
-	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
 #ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
 	/* ROM header for NAND: 2048[4096], for NOR: 1536 */
 	if (m->type == MTD_NORFLASH)
@@ -818,6 +812,14 @@ static int create_mtd_partitions(struct mtd_info *m,
 	/* early fill partition info for NAND */
 	parts[PART_U_BOOT].offset = offs_uboot;
 	parts[PART_U_BOOT].size = parts_size_default_get(PART_U_BOOT, m);
+
+	/* early fill dump partition (end of image) */
+	if (use_dump) {
+		parts[PART_DUMP].skip = false;
+		parts[PART_DUMP].offset = flash_size_lim -
+					  CONFIG_MTD_NDM_DUMP_SIZE;
+		parts[PART_DUMP].size = CONFIG_MTD_NDM_DUMP_SIZE;
+	}
 
 #ifdef MTD_NDM_PARTITION_UPDATE
 	ndm_update_partitions(m);
@@ -877,13 +879,6 @@ static int create_mtd_partitions(struct mtd_info *m,
 	if (use_storage) {
 		parts[PART_STORAGE].skip = false;
 		parts[PART_STORAGE].size = CONFIG_MTD_NDM_STORAGE_SIZE;
-	}
-
-	if (use_dump) {
-		parts[PART_DUMP].skip = false;
-		parts[PART_DUMP].offset = flash_size_lim -
-					  CONFIG_MTD_NDM_DUMP_SIZE;
-		parts[PART_DUMP].size = CONFIG_MTD_NDM_DUMP_SIZE;
 	}
 
 	/* Calculate & fill unknown fields */

@@ -776,8 +776,14 @@ static int create_mtd_partitions(struct mtd_info *m,
 		use_storage = true;
 
 	flash_size_lim = CONFIG_MTD_NDM_FLASH_SIZE_LIMIT;
-	if (!flash_size_lim || flash_size_lim > m->size)
-		flash_size_lim = m->size;
+	if (!flash_size_lim || flash_size_lim > m->size) {
+#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
+		if (ndmpart_di_is_enabled)
+			flash_size_lim = part_u_state_offset(m);
+		else
+#endif
+			flash_size_lim = m->size;
+	}
 
 #if defined(CONFIG_MACH_MT7622)
 	/* Fill known fields */

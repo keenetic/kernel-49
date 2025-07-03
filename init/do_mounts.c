@@ -33,6 +33,8 @@
 #include <linux/nfs_fs_sb.h>
 #include <linux/nfs_mount.h>
 
+#include <linux/of.h>
+
 #include "do_mounts.h"
 
 int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
@@ -195,6 +197,46 @@ static int match_dev_by_label(struct device *dev, const void *data)
 
 	return 0;
 }
+
+#ifdef CONFIG_OF
+static dev_t devt_from_rootdisk(void)
+{
+	struct device *dev;
+	struct device_node *np, *rd;
+	const char *partname;
+	dev_t res = 0;
+
+	np = of_find_node_by_path("/chosen");
+	if (!np)
+		return 0;
+
+	/* parse 'rootdisk' property phandle */
+	rd = of_parse_phandle(np, "rootdisk", 0);
+	if (!rd)
+		goto done_np;
+
+	partname = of_get_property(rd, "partname", NULL);
+	if (!partname)
+		goto done_rd;
+
+	dev = class_find_device(&block_class, NULL, partname,
+				match_dev_by_label);
+	if (!dev)
+		goto done_rd;
+
+	res = dev->devt;
+	put_device(dev);
+
+	pr_info("rootdisk: use partition %s\n", partname);
+
+done_rd:
+	of_node_put(rd);
+done_np:
+	of_node_put(np);
+
+	return res;
+}
+#endif
 #endif
 
 /*
@@ -252,6 +294,13 @@ dev_t name_to_dev_t(const char *name)
 		res = dev->devt;
 		put_device(dev);
 		goto done;
+#ifdef CONFIG_OF
+	} else if (strncmp(name, "ROOTDISK", 8) == 0) {
+		res = devt_from_rootdisk();
+		if (!res)
+			goto fail;
+		goto done;
+#endif
 	}
 #endif
 

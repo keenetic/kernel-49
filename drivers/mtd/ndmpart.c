@@ -107,6 +107,10 @@
 
 #define PART_STORAGE_LEGACY		"Storage_Legacy"
 
+#if !defined(CONFIG_MTD_NDM_OS_ON_MMC)
+#define PLACE_OS_ON_MTD
+#endif
+
 #if defined(CONFIG_MACH_MT7622)
 #define HAS_PART_ROM_HDR
 #define HAS_PART_ATF
@@ -134,6 +138,7 @@ enum part {
 	PART_U_BOOT,		/* U-Boot or FIP */
 	PART_U_CONFIG,
 	PART_RF_EEPROM,
+#ifdef PLACE_OS_ON_MTD
 	PART_KERNEL_1,
 	PART_ROOTFS_1,
 	PART_FIRMWARE_1,
@@ -141,16 +146,26 @@ enum part {
 	PART_STORAGE,		/* optional */
 	PART_DUMP,		/* optional */
 	PART_STORAGE_A,		/* optional */
+#else
+	/* PART_CONFIG_1 will be removed */
+	PART_CONFIG_1,
+	PART_DUMP,		/* optional */
+#endif
 	/* Image 2 */
 	PART_U_STATE,
 	PART_RESERVE,
 	PART_U_CONFIG_RES,
 	PART_RF_EEPROM_RES,
+#ifdef PLACE_OS_ON_MTD
 	PART_KERNEL_2,		/* optional */
 	PART_ROOTFS_2,		/* optional */
 	PART_FIRMWARE_2,	/* optional */
 	PART_CONFIG_2,		/* optional */
 	PART_STORAGE_B,		/* optional */
+#else
+	/* PART_CONFIG_2 will be removed */
+	PART_CONFIG_2,		/* optional */
+#endif
 	/* Pseudo */
 	PART_FULL,
 	PART_MAX
@@ -233,6 +248,7 @@ static struct part_dsc parts[PART_MAX] = {
 	[PART_RF_EEPROM] = {
 		.name		= "RF-EEPROM"
 	},
+#ifdef PLACE_OS_ON_MTD
 	[PART_KERNEL_1] = {
 		.name		= "Kernel",
 		.skip		= true,
@@ -261,6 +277,16 @@ static struct part_dsc parts[PART_MAX] = {
 		.name		= "Storage_A",
 		.skip		= true
 	},
+#else
+	/* PART_CONFIG_1 will be removed */
+	[PART_CONFIG_1] = {
+		.name		= "Config"
+	},
+	[PART_DUMP] = {
+		.name		= "Dump",
+		.skip		= true
+	},
+#endif
 	/* Image 2 */
 	[PART_U_STATE] = {
 		.name		= "U-State",
@@ -278,6 +304,7 @@ static struct part_dsc parts[PART_MAX] = {
 		.name		= "RF-EEPROM_res",
 		.skip		= true
 	},
+#ifdef PLACE_OS_ON_MTD
 	[PART_KERNEL_2] = {
 		.name		= "Kernel_2",
 		.skip		= true,
@@ -300,6 +327,13 @@ static struct part_dsc parts[PART_MAX] = {
 		.name		= "Storage_B",
 		.skip		= true
 	},
+#else
+	/* PART_CONFIG_2 will be removed */
+	[PART_CONFIG_2] = {
+		.name		= "Config_2",
+		.skip		= true
+	},
+#endif
 	/* Pseudo */
 	[PART_FULL] = {
 		.name		= "Full",
@@ -713,6 +747,7 @@ static uint32_t part_u_state_offset(struct mtd_info *master)
 #endif /* CONFIG_MTD_NDM_U_STATE_SEARCH */
 #endif /* CONFIG_MTD_NDM_DUAL_IMAGE */
 
+#ifdef PLACE_OS_ON_MTD
 static uint32_t part_rootfs_offset(struct mtd_info *master,
 				   uint32_t begin, uint32_t size)
 {
@@ -735,6 +770,7 @@ static uint32_t part_rootfs_offset(struct mtd_info *master,
 
 	return 0;
 }
+#endif
 
 static inline int di_image_num_pair_get(int n)
 {
@@ -751,10 +787,13 @@ static int create_mtd_partitions(struct mtd_info *m,
 	int boot_active = 0, boot_backup = 0;
 	uint32_t off_si = 0;
 #endif
-	uint32_t off, flash_size_lim;
+	uint32_t flash_size_lim = 0;
 	struct mtd_partition *ndm_parts;
 	unsigned int ndm_parts_num;
+#ifdef PLACE_OS_ON_MTD
+	uint32_t off;
 	bool use_storage = CONFIG_MTD_NDM_STORAGE_SIZE ? true : false;
+#endif
 	bool use_dump = CONFIG_MTD_NDM_DUMP_SIZE ? true : false;
 
 #ifdef CONFIG_NMBM_MTD
@@ -766,7 +805,9 @@ static int create_mtd_partitions(struct mtd_info *m,
 	airoha_bmt_attach(m);
 #endif /* CONFIG_AIROHA_BMT */
 
+#ifdef PLACE_OS_ON_MTD
 	flash_size_lim = CONFIG_MTD_NDM_FLASH_SIZE_LIMIT;
+#endif
 	if (!flash_size_lim || flash_size_lim > m->size) {
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 		if (ndmpart_di_is_enabled)
@@ -868,6 +909,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 	parts[PART_RF_EEPROM].offset = parts_offset_end(PART_U_CONFIG);
 	parts[PART_RF_EEPROM].size = parts_size_default_get(PART_RF_EEPROM, m);
 
+#ifdef PLACE_OS_ON_MTD
 	parts[PART_KERNEL_1].offset = parts_offset_end(PART_RF_EEPROM);
 	parts[PART_FIRMWARE_1].offset = parts[PART_KERNEL_1].offset;
 
@@ -939,14 +981,20 @@ static int create_mtd_partitions(struct mtd_info *m,
 			parts[PART_ROOTFS_1].skip = true;
 		}
 	}
+#else
+	/* PART_CONFIG_1 will be removed */
+	parts[PART_CONFIG_1].size = parts_size_default_get(PART_CONFIG_1, m);
+
+	if (use_dump)
+		parts[PART_CONFIG_1].offset = parts[PART_DUMP].offset -
+					      parts[PART_CONFIG_1].size;
+	else
+		parts[PART_CONFIG_1].offset = flash_size_lim -
+					      parts[PART_CONFIG_1].size;
+#endif
 
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 	if (ndmpart_di_is_enabled) {
-		parts[PART_FIRMWARE_1].name = "Firmware_1";
-		parts[PART_KERNEL_1].name = "Kernel_1";
-		parts[PART_ROOTFS_1].name = "RootFS_1";
-		parts[PART_CONFIG_1].name = "Config_1";
-
 		/* U_STATE parts already calculated at this place */
 		parts[PART_RESERVE].offset = parts_offset_end(PART_U_STATE);
 		parts[PART_RESERVE].size = parts_size_default_get(PART_RESERVE, m);
@@ -959,13 +1007,19 @@ static int create_mtd_partitions(struct mtd_info *m,
 		parts[PART_RF_EEPROM_RES].offset = parts_offset_end(PART_U_CONFIG_RES);
 		parts[PART_RF_EEPROM_RES].size = parts[PART_RF_EEPROM].size;
 
-		parts[PART_FIRMWARE_2].skip = false;
-		parts[PART_FIRMWARE_2].offset = parts_offset_end(PART_RF_EEPROM_RES);
-		parts[PART_FIRMWARE_2].size = parts[PART_FIRMWARE_1].size;
-
+		parts[PART_CONFIG_1].name = "Config_1";
 		parts[PART_CONFIG_2].skip = false;
 		parts[PART_CONFIG_2].offset = off_si + parts[PART_CONFIG_1].offset;
 		parts[PART_CONFIG_2].size = parts[PART_CONFIG_1].size;
+
+#ifdef PLACE_OS_ON_MTD
+		parts[PART_FIRMWARE_1].name = "Firmware_1";
+		parts[PART_KERNEL_1].name = "Kernel_1";
+		parts[PART_ROOTFS_1].name = "RootFS_1";
+
+		parts[PART_FIRMWARE_2].skip = false;
+		parts[PART_FIRMWARE_2].offset = parts_offset_end(PART_RF_EEPROM_RES);
+		parts[PART_FIRMWARE_2].size = parts[PART_FIRMWARE_1].size;
 
 		/* check PART_STORAGE_A fit to half size */
 		if (!parts[PART_STORAGE_A].skip &&
@@ -1012,11 +1066,14 @@ static int create_mtd_partitions(struct mtd_info *m,
 				parts[PART_ROOTFS_2].skip = true;
 			}
 		}
+#endif
 	}
 #endif
 
+#ifdef PLACE_OS_ON_MTD
 	if (!parts[PART_STORAGE_A].skip)
 		parts[PART_STORAGE].name = PART_STORAGE_LEGACY;
+#endif
 
 	/* Post actions */
 	ndm_parts_num = parts_num();
@@ -1104,6 +1161,7 @@ int get_partition_range(int blk, uint32_t bshift,
 
 bool is_nobbm_partition(uint64_t offs)
 {
+#ifdef PLACE_OS_ON_MTD
 	int i;
 	const int nobbm_parts[] = {
 		PART_STORAGE,
@@ -1120,17 +1178,22 @@ bool is_nobbm_partition(uint64_t offs)
 		    offs < (parts[part_idx].offset + parts[part_idx].size))
 			return true;
 	}
+#endif
 
 	return false;
 }
 
 bool is_mtd_partition_rootfs(struct mtd_info *mtd)
 {
+#ifdef PLACE_OS_ON_MTD
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 	if (ndmpart_image_cur == DI_IMAGE_SECOND)
 		return strcmp(mtd->name, parts[PART_ROOTFS_2].name) == 0;
 #endif
 	return strcmp(mtd->name, parts[PART_ROOTFS_1].name) == 0;
+#else
+	return false;
+#endif
 }
 
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE

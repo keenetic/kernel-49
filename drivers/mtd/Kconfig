@@ -193,6 +193,11 @@ config MTD_NDM_BOOT_UPDATE
 	bool "Update bootloader"
 	default n
 
+config MTD_NDM_OS_ON_MMC
+	bool "Place OS on eMMC"
+	depends on MMC_BLOCK
+	default n
+
 config MTD_NDM_DUMP_SIZE
 	hex "\"Dump\" partition size"
 	default 0x0
@@ -200,6 +205,8 @@ config MTD_NDM_DUMP_SIZE
 config MTD_NDM_CONFIG_SIZE
 	hex "\"Config\" partition size"
 	default 0x0
+
+if !MTD_NDM_OS_ON_MMC
 
 config MTD_NDM_STORAGE_SIZE
 	hex "\"Storage\" partition size"
@@ -212,6 +219,8 @@ config MTD_NDM_EXTENDED_STORAGE
 config MTD_NDM_FLASH_SIZE_LIMIT
 	hex "Limit of flash size"
 	default 0x0
+
+endif # !MTD_NDM_OS_ON_MMC
 
 endif # MTD_NDM_PARTS
 

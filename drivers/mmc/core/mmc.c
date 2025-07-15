@@ -804,6 +804,18 @@ static ssize_t mmc_dsr_show(struct device *dev,
 
 static DEVICE_ATTR(dsr, S_IRUGO, mmc_dsr_show, NULL);
 
+static ssize_t mmc_raw_sec_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct mmc_card *card = mmc_dev_to_card(dev);
+	u8 *rs = card->ext_csd.raw_sectors;
+
+	return sprintf(buf, "0x%02x%02x%02x%02x\n", rs[3], rs[2], rs[1], rs[0]);
+}
+
+static DEVICE_ATTR(raw_sectors, S_IRUGO, mmc_raw_sec_show, NULL);
+
 static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_cid.attr,
 	&dev_attr_csd.attr,
@@ -825,6 +837,7 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_enhanced_area_size.attr,
 	&dev_attr_raw_rpmb_size_mult.attr,
 	&dev_attr_rel_sectors.attr,
+	&dev_attr_raw_sectors.attr,
 	&dev_attr_ocr.attr,
 	&dev_attr_dsr.attr,
 	NULL,

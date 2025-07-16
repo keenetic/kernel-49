@@ -423,7 +423,7 @@ source "ndm/mt7992_ap/Kconfig"
 source "ndm/mt7992/Kconfig"
 endmenu
 
-menu "MediaTek MT7993 Griffin PCIe Wireless driver"
+menu "MediaTek MT7993 Eagle/Kite/Griffin PCIe Wireless driver"
 source "ndm/mt7993_ap/Kconfig"
 source "ndm/mt7993/Kconfig"
 endmenu

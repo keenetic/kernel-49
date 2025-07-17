@@ -116,30 +116,4 @@ config RTMP_FLASH_SUPPORT
 	bool "Flash Support"
 	default y
 
-config RTMP_INTERNAL_TX_ALC
-	bool "TSSI Compensation (Internal TX ALC)"
-	depends on RALINK_RT6352
-	default n
-
-config RTMP_TEMPERATURE_COMPENSATION
-	bool "Temperature Compensation (External TX ALC)"
-	depends on (RALINK_RT6352 || RALINK_MT7610E)
-	default n
-
-config RTMP_THERMAL_PROTECT
-	bool "Thermal Protect Support"
-	depends on RALINK_RT6352
-	default n
-
-config FIRST_CARD_EXTERNAL_PA
-	bool "External Power Amplifier (ePA)"
-	depends on RALINK_RT6352
-	default n
-
-config FIRST_CARD_EXTERNAL_LNA
-	bool "External Low-Noise Amplifier (eLNA)"
-	depends on RALINK_RT6352
-	default n
-
 endif # (MT76X2_AP || MT76X2_STA)
-

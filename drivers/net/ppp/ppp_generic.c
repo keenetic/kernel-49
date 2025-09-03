@@ -1588,7 +1588,6 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 			netdev_err(ppp->dev, "HH=%d, M=%d\n", ppp->dev->hard_header_len, ppp->dev->mtu);
 			netdev_err(ppp->dev, "ppp: compressor dropped pkt\n");
 		}
-		kfree_skb(skb);
 		consume_skb(new_skb);
 		new_skb = NULL;
 	}
@@ -1704,9 +1703,10 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 					   "down - pkt dropped.\n");
 			goto drop;
 		}
-		skb = pad_compress_skb(ppp, skb);
-		if (!skb)
+		new_skb = pad_compress_skb(ppp, skb);
+		if (!new_skb)
 			goto drop;
+		skb = new_skb;
 	}
 
 	/*

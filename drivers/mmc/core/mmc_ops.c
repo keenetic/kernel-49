@@ -583,18 +583,28 @@ int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error)
 	struct mmc_data data = {0};
 	struct scatterlist sg;
 	struct mmc_ios *ios = &host->ios;
-	const u8 *tuning_block_pattern;
+	const u8 *tuning_block_pattern = NULL;
+	u8 ext_csd_rev, structure_ver;
 	int size, err = 0;
 	u8 *data_buf;
 
-	if (ios->bus_width == MMC_BUS_WIDTH_8) {
-		tuning_block_pattern = tuning_blk_pattern_8bit;
-		size = sizeof(tuning_blk_pattern_8bit);
-	} else if (ios->bus_width == MMC_BUS_WIDTH_4) {
-		tuning_block_pattern = tuning_blk_pattern_4bit;
-		size = sizeof(tuning_blk_pattern_4bit);
-	} else
+	if (opcode == MMC_SEND_EXT_CSD) {
+		/* For DDR52 tuning */
+		size = 512;
+		tuning_block_pattern = NULL; /* No pattern check for EXT_CSD */
+	} else if (opcode == MMC_SEND_TUNING_BLOCK_HS200 || opcode == MMC_SEND_TUNING_BLOCK) {
+		/* For standard tuning blocks */
+		if (ios->bus_width == MMC_BUS_WIDTH_8) {
+			tuning_block_pattern = tuning_blk_pattern_8bit;
+			size = sizeof(tuning_blk_pattern_8bit);
+		} else if (ios->bus_width == MMC_BUS_WIDTH_4) {
+			tuning_block_pattern = tuning_blk_pattern_4bit;
+			size = sizeof(tuning_blk_pattern_4bit);
+		} else
+			return -EINVAL;
+	} else {
 		return -EINVAL;
+	}
 
 	data_buf = kzalloc(size, GFP_KERNEL);
 	if (!data_buf)
@@ -636,8 +646,27 @@ int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error)
 		goto out;
 	}
 
-	if (memcmp(data_buf, tuning_block_pattern, size))
-		err = -EIO;
+	if (opcode == MMC_SEND_EXT_CSD && size >= 512) {
+		ext_csd_rev = data_buf[192];
+		if (ext_csd_rev == 0 || ext_csd_rev > 9) {
+			pr_err("%s: Invalid EXT_CSD revision: %d\n",
+			       mmc_hostname(host), ext_csd_rev);
+			err = -EIO;
+			goto out;
+		}
+
+		structure_ver = data_buf[194];
+		if (structure_ver < 1 || structure_ver > 3) {
+			pr_err("%s: Invalid EXT_CSD structure version: %d\n",
+			       mmc_hostname(host), structure_ver);
+			err = -EIO;
+			goto out;
+		}
+	} else if (tuning_block_pattern) {
+		/* For standard tuning blocks, compare with expected pattern */
+		if (memcmp(data_buf, tuning_block_pattern, size))
+			err = -EIO;
+	}
 
 out:
 	kfree(data_buf);

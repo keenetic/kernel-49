@@ -1146,6 +1146,14 @@ static int mmc_select_hs_ddr(struct mmc_card *card)
 	if (!err)
 		mmc_set_timing(host, MMC_TIMING_MMC_DDR52);
 
+	/* Execute tuning for DDR52 mode if supported by host */
+	if (!err && host->ops->execute_tuning) {
+		err = mmc_execute_tuning(card);
+		if (err)
+			pr_warn("%s: DDR52 tuning failed: %d\n",
+				mmc_hostname(host), err);
+	}
+
 	return err;
 }
 

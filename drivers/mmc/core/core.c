@@ -1188,10 +1188,14 @@ int mmc_execute_tuning(struct mmc_card *card)
 	if (!host->ops->execute_tuning)
 		return 0;
 
-	if (mmc_card_mmc(card))
-		opcode = MMC_SEND_TUNING_BLOCK_HS200;
-	else
+	if (mmc_card_mmc(card)) {
+		if (card->host->ios.timing == MMC_TIMING_MMC_DDR52)
+			opcode = MMC_SEND_EXT_CSD;
+		else
+			opcode = MMC_SEND_TUNING_BLOCK_HS200;
+	} else {
 		opcode = MMC_SEND_TUNING_BLOCK;
+	}
 
 	err = host->ops->execute_tuning(host, opcode);
 

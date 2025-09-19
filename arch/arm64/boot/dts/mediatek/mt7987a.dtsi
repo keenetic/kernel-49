@@ -687,12 +687,15 @@
 		reg = <0 0x11230000 0 0x1000>,
 		      <0 0x11f50000 0 0x1000>;
 		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&infracfg_ao CK_INFRA_MSDC400>,
-			 <&infracfg_ao CK_INFRA_MSDC2_HCK>,
+		clocks = <&topckgen CK_TOP_EMMC_200M_SEL>,
+			 <&infracfg_ao CK_INFRA_MSDC400>,
 			 <&infracfg_ao CK_INFRA_133M_MSDC_0_HCK>,
+			 <&infracfg_ao CK_INFRA_MSDC2_HCK>,
+			 <&infracfg_ao CK_INFRA_MSDC200_SRC>,
 			 <&infracfg_ao CK_INFRA_66M_MSDC_0_HCK>;
 		assigned-clocks = <&apmixedsys CK_APMIXED_MSDCPLL>;
-		clock-names = "source", "hclk", "ahb_cg", "axi_cg";
+		clock-names = "source", "bus_clk", "axi_cg", "hclk",
+			      "source_cg", "ahb_cg";
 		status = "disabled";
 	};
 

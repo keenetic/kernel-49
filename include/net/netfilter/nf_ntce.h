@@ -222,6 +222,11 @@ static inline void nf_ct_ext_ntce_set_blocked(struct nf_ct_ext_ntce_label *lbl)
 	lbl->flags |= NTCE_NF_F_BLOCKED;
 }
 
+static inline void nf_ct_ext_ntce_rst_blocked(struct nf_ct_ext_ntce_label *lbl)
+{
+	lbl->flags &= ~NTCE_NF_F_BLOCKED;
+}
+
 static inline bool
 nf_ct_ext_ntce_blocked(const struct nf_ct_ext_ntce_label *lbl)
 {

@@ -172,8 +172,7 @@ static inline void *nf_ct_ext_add_ntce_(struct nf_conn *ct)
 	if (unlikely(nf_ct_ext_id_ntce == 0))
 		return NULL;
 
-	return __nf_ct_ext_add_length(ct, nf_ct_ext_id_ntce,
-		sizeof(struct nf_ct_ext_ntce_label), GFP_ATOMIC);
+	return nf_ct_ext_add(ct, nf_ct_ext_id_ntce, GFP_ATOMIC);
 }
 
 static inline struct nf_ct_ext_ntce_label *nf_ct_ext_find_ntce(

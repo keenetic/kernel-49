@@ -1722,9 +1722,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 #ifdef CONFIG_NF_CONNTRACK_CUSTOM
-	if (__nf_ct_ext_add_length(ct, nf_ct_ext_id_ntc,
-				   sizeof(struct nf_ct_ext_ntc_label),
-				   GFP_ATOMIC) == NULL) {
+	if (nf_ct_ext_add(ct, nf_ct_ext_id_ntc, GFP_ATOMIC) == NULL) {
 		nf_conntrack_free(ct);
 		return ERR_PTR(-ENOMEM);
 	}

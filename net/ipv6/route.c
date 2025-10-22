@@ -137,7 +137,7 @@ static void rt6_uncached_list_del(struct rt6_info *rt)
 		struct uncached_list *ul = rt->rt6i_uncached_list;
 
 		spin_lock_bh(&ul->lock);
-		list_del(&rt->rt6i_uncached);
+		list_del_init(&rt->rt6i_uncached);
 		spin_unlock_bh(&ul->lock);
 	}
 }
@@ -152,23 +152,32 @@ static void rt6_uncached_list_flush_dev(struct net *net, struct net_device *dev)
 
 	for_each_possible_cpu(cpu) {
 		struct uncached_list *ul = per_cpu_ptr(&rt6_uncached_list, cpu);
-		struct rt6_info *rt;
+		struct rt6_info *rt, *safe;
+
+		if (list_empty(&ul->head))
+			continue;
 
 		spin_lock_bh(&ul->lock);
-		list_for_each_entry(rt, &ul->head, rt6i_uncached) {
+		list_for_each_entry_safe(rt, safe, &ul->head, rt6i_uncached) {
 			struct inet6_dev *rt_idev = rt->rt6i_idev;
 			struct net_device *rt_dev = rt->dst.dev;
+			bool handled = false;
 
 			if (rt_idev && rt_idev->dev == dev) {
 				rt->rt6i_idev = in6_dev_get(loopback_dev);
 				in6_dev_put(rt_idev);
+				handled = true;
 			}
 
 			if (rt_dev == dev) {
 				rt->dst.dev = loopback_dev;
 				dev_hold(rt->dst.dev);
 				dev_put(rt_dev);
+				handled = true;
 			}
+
+			if (handled)
+				list_del_init(&rt->rt6i_uncached);
 		}
 		spin_unlock_bh(&ul->lock);
 	}

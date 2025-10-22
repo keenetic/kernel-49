@@ -1439,7 +1439,7 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 		struct uncached_list *ul = rt->rt_uncached_list;
 
 		spin_lock_bh(&ul->lock);
-		list_del(&rt->rt_uncached);
+		list_del_init(&rt->rt_uncached);
 		spin_unlock_bh(&ul->lock);
 	}
 }
@@ -1447,19 +1447,23 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 void rt_flush_dev(struct net_device *dev)
 {
 	struct net *net = dev_net(dev);
-	struct rtable *rt;
+	struct rtable *rt, *safe;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
 		struct uncached_list *ul = &per_cpu(rt_uncached_list, cpu);
 
+		if (list_empty(&ul->head))
+			continue;
+
 		spin_lock_bh(&ul->lock);
-		list_for_each_entry(rt, &ul->head, rt_uncached) {
+		list_for_each_entry_safe(rt, safe, &ul->head, rt_uncached) {
 			if (rt->dst.dev != dev)
 				continue;
 			rt->dst.dev = net->loopback_dev;
 			dev_hold(rt->dst.dev);
 			dev_put(dev);
+			list_del_init(&rt->rt_uncached);
 		}
 		spin_unlock_bh(&ul->lock);
 	}

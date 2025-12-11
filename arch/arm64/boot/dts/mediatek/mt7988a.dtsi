@@ -164,7 +164,7 @@
 				};
 
 				cpu_trip_active_hot: active-hot {
-					temperature = <120000>;
+					temperature = <115000>;
 					hysteresis = <2000>;
 					type = "active";
 				};
@@ -172,10 +172,8 @@
 
 			cooling-maps {
 				cpu-active-hot {
-				/* active: dynamic cpu frequency scaling */
-					cooling-device = <&cpu0
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
+					/* active: dynamic cpu frequency scaling */
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					trip = <&cpu_trip_active_hot>;
 				};
 			};

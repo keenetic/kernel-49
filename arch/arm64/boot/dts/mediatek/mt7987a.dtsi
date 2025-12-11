@@ -61,6 +61,7 @@
 				 <&apmixedsys CK_APMIXED_ARM_LL>;
 			clock-names = "cpu", "intermediate", "armpll";
 			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@2 {
@@ -74,6 +75,7 @@
 				 <&apmixedsys CK_APMIXED_ARM_LL>;
 			clock-names = "cpu", "intermediate", "armpll";
 			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@3 {
@@ -87,6 +89,7 @@
 				 <&apmixedsys CK_APMIXED_ARM_LL>;
 			clock-names = "cpu", "intermediate", "armpll";
 			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
 		};
 
 		l2_cache: l2-cache {
@@ -171,7 +174,7 @@
 				};
 
 				cpu_trip_active_hot: active-hot {
-					temperature = <120000>;
+					temperature = <115000>;
 					hysteresis = <2000>;
 					type = "active";
 				};
@@ -179,9 +182,11 @@
 
 			cooling-maps {
 				cpu-active-hot {
-					cooling-device = <&cpu0
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
+					/* active: dynamic cpu frequency scaling */
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					trip = <&cpu_trip_active_hot>;
 				};
 			};

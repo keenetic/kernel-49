@@ -102,11 +102,6 @@
 	proc-supply = <&rt5190_buck3>;
 };
 
-&fan {
-	pwms = <&pwm 0 50000>;
-	status = "okay";
-};
-
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;

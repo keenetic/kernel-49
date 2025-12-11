@@ -168,18 +168,6 @@
 					hysteresis = <2000>;
 					type = "active";
 				};
-
-				cpu_trip_active_high: active-high {
-					temperature = <115000>;
-					hysteresis = <2000>;
-					type = "active";
-				};
-
-				cpu_trip_active_low: active-low {
-					temperature = <85000>;
-					hysteresis = <2000>;
-					type = "active";
-				};
 			};
 
 			cooling-maps {
@@ -189,18 +177,6 @@
 						THERMAL_NO_LIMIT
 						THERMAL_NO_LIMIT>;
 					trip = <&cpu_trip_active_hot>;
-				};
-
-				cpu-active-high {
-				/* active: set fan to cooling level 2 */
-					cooling-device = <&fan 2 2>;
-					trip = <&cpu_trip_active_high>;
-				};
-
-				cpu-active-low {
-				/* active: set fan to cooling level 1 */
-					cooling-device = <&fan 1 1>;
-					trip = <&cpu_trip_active_low>;
 				};
 			};
 		};
@@ -612,15 +588,6 @@
 			 <&infracfg_ao CK_INFRA_66M_PWM_CK8>;
 		clock-names = "top", "main", "pwm1", "pwm2", "pwm3",
 			      "pwm4","pwm5","pwm6","pwm7","pwm8";
-		status = "disabled";
-	};
-
-	fan: pwm-fan {
-		compatible = "pwm-fan";
-		/* cooling level (0, 1, 2) : (0% duty, 50% duty, 100% duty) */
-		cooling-levels = <0 128 255>;
-		#cooling-cells = <2>;
-		#thermal-sensor-cells = <1>;
 		status = "disabled";
 	};
 

@@ -15,6 +15,20 @@
 /* JECDEC ID for new devices */
 #define SPINAND_MFR_ESMT_8C			0x8c
 
+#define ESMT_STATUS_ECC_MASK			GENMASK(6, 4)
+#define ESMT_STATUS_ECC_NO_BITFLIPS		(0 << 4)
+#define ESMT_STATUS_ECC_1TO3_BITFLIPS		(1 << 4)
+#define ESMT_STATUS_ECC_4TO6_BITFLIPS		(3 << 4)
+#define ESMT_STATUS_ECC_7TO8_BITFLIPS		(5 << 4)
+
+static SPINAND_OP_VARIANTS(esmt_8_read_cache_variants,
+			   SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
+			   SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
+			   SPINAND_PAGE_READ_FROM_CACHE_DUALIO_OP(0, 1, NULL, 0),
+			   SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
+			   SPINAND_PAGE_READ_FROM_CACHE_OP(true, 0, 1, NULL, 0),
+			   SPINAND_PAGE_READ_FROM_CACHE_OP(false, 0, 1, NULL, 0));
+
 static SPINAND_OP_VARIANTS(read_cache_variants,
 			   SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
 			   SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
@@ -105,6 +119,56 @@ static const struct mtd_ooblayout_ops f50l1g41lb_ooblayout = {
 	.free = f50l1g41lb_ooblayout_free,
 };
 
+static int esmt_8_ooblayout_ecc(struct mtd_info *mtd, int section,
+				struct mtd_oob_region *region)
+{
+	if (section)
+		return -ERANGE;
+
+	region->offset = 64;
+	region->length = 64;
+
+	return 0;
+}
+
+static int esmt_8_ooblayout_free(struct mtd_info *mtd, int section,
+				 struct mtd_oob_region *region)
+{
+	if (section)
+		return -ERANGE;
+
+	/* Reserve 2 bytes for the BBM. */
+	region->offset = 2;
+	region->length = 62;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops esmt_8_ooblayout = {
+	.ecc = esmt_8_ooblayout_ecc,
+	.free = esmt_8_ooblayout_free,
+};
+
+static int esmt_8_ecc_get_status(struct spinand_device *spinand, u8 status)
+{
+	switch (status & ESMT_STATUS_ECC_MASK) {
+	case STATUS_ECC_NO_BITFLIPS:
+		return 0;
+	case STATUS_ECC_UNCOR_ERROR:
+		return -EBADMSG;
+	case ESMT_STATUS_ECC_1TO3_BITFLIPS:
+		return 3;
+	case ESMT_STATUS_ECC_4TO6_BITFLIPS:
+		return 6;
+	case ESMT_STATUS_ECC_7TO8_BITFLIPS:
+		return 8;
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
 static const struct spinand_info esmt_c8_spinand_table[] = {
 	SPINAND_INFO("F50L1G41LB",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x01, 0x7f,
@@ -126,16 +190,26 @@ static const struct spinand_info esmt_c8_spinand_table[] = {
 					      &update_cache_variants),
 		     0,
 		     SPINAND_ECCINFO(&f50l1g41lb_ooblayout, NULL)),
+	SPINAND_INFO("F50L2G41KA",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x41, 0x7f,
+				0x7f, 0x7f),
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&esmt_8_read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     0,
+		     SPINAND_ECCINFO(&esmt_8_ooblayout, esmt_8_ecc_get_status)),
 	SPINAND_INFO("F50D2G41KA",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x51, 0x7f,
 				0x7f, 0x7f),
 		     NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 1, 1),
 		     NAND_ECCREQ(8, 512),
-		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+		     SPINAND_INFO_OP_VARIANTS(&esmt_8_read_cache_variants,
 					      &write_cache_variants,
 					      &update_cache_variants),
 		     0,
-		     SPINAND_ECCINFO(&f50l1g41lb_ooblayout, NULL)),
+		     SPINAND_ECCINFO(&esmt_8_ooblayout, esmt_8_ecc_get_status)),
 };
 
 static const struct spinand_info esmt_8c_spinand_table[] = {

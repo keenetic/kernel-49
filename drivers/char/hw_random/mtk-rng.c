@@ -71,6 +71,8 @@ static int mtk_rng_init(struct hwrng *rng)
 	val |= RNG_EN;
 	writel(val, priv->base + RNG_CTRL);
 
+	usleep_range(1000, 1200);
+
 	return 0;
 }
 

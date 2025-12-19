@@ -479,7 +479,7 @@
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	trng: trng@1020f000 {
+	trng: rng-arm-smccc {
 		compatible = "mediatek,mt7988-rng";
 	};
 

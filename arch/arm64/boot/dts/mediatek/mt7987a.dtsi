@@ -324,7 +324,7 @@
 		reg = <0 0x1001f6f0 0 0x20>;
 	};
 
-	trng: trng@1020f000 {
+	trng: rng-arm-smccc {
 		compatible = "mediatek,mt7988-rng";
 	};
 

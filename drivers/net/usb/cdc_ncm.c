@@ -1964,6 +1964,11 @@ static const struct usb_device_id cdc_devs[] = {
 		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
 	  .driver_info = 0,
 	},
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0bda, 0x815a,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = 0,
+	},
 
 	/* Ericsson MBM devices like F5521gw */
 	{ .match_flags = USB_DEVICE_ID_MATCH_INT_INFO

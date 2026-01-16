@@ -786,6 +786,12 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
+config GPIO_PERICOM_962
+	bool "Pericom 962xx I2C GPIO expander driver"
+	depends on OF_GPIO
+	help
+	 Support for Pericom I2C 24/48-bit GPIO expanders PI4IOE5V96224/48.
+
 config GPIO_SX150X
 	bool "Semtech SX150x I2C GPIO expander"
 	depends on I2C=y

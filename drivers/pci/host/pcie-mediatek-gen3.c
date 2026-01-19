@@ -413,7 +413,13 @@ static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 	msleep(100);
 
 	/* De-assert reset signals */
-	val &= ~(PCIE_MAC_RSTB | PCIE_PHY_RSTB | PCIE_BRG_RSTB | PCIE_PE_RSTB);
+	val &= ~(PCIE_MAC_RSTB | PCIE_PHY_RSTB | PCIE_BRG_RSTB);
+	writel_relaxed(val, port->base + PCIE_RST_CTRL_REG);
+
+	msleep(100);
+
+	/* De-assert PERST# signal */
+	val &= ~(PCIE_PE_RSTB);
 	writel_relaxed(val, port->base + PCIE_RST_CTRL_REG);
 
 	/* Check if the link is up or not */

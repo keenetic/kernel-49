@@ -158,6 +158,8 @@ struct mtk_pcie_irq {
  * @clks: PCIe clocks
  * @num_clks: PCIe clocks count for this port
  * @max_link_width: PCIe slot max supported link width
+ * @wifi_reset_delay_ms: delay time for WIFI chip reset
+ * @wifi_deassert_delay_ms: delaty time after WIFI chip reset
  * @irq: PCIe controller interrupt number
  * @num_irqs: PCIe irqs count
  * @irqs: PCIe controller interrupts information
@@ -184,6 +186,7 @@ struct mtk_pcie_port {
 
 	struct gpio_desc *wifi_reset;
 	u32 wifi_reset_delay_ms;
+	u32 wifi_deassert_delay_ms;
 
 	int irq;
 	int num_irqs;
@@ -389,10 +392,11 @@ static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 	val &= ~PCIE_INTX_ENABLE;
 	writel_relaxed(val, port->base + PCIE_INT_ENABLE_REG);
 
-	if (port->wifi_reset) {
+	if (!IS_ERR_OR_NULL(port->wifi_reset)) {
 		gpiod_set_value_cansleep(port->wifi_reset, 0);
 		msleep(port->wifi_reset_delay_ms);
 		gpiod_set_value_cansleep(port->wifi_reset, 1);
+		msleep(port->wifi_deassert_delay_ms);
 	}
 
 	/* Assert all reset signals */
@@ -1056,14 +1060,24 @@ static int mtk_pcie_parse_port(struct mtk_pcie_port *port)
 							   wifi_reset_init_flags);
 		if (IS_ERR(port->wifi_reset)) {
 			ret = PTR_ERR(port->wifi_reset);
-			if (ret != -EPROBE_DEFER)
+
+			/* Allow other modules to control the WiFi reset GPIO */
+			if (ret == -EBUSY) {
+				dev_warn(dev,
+					"WiFi reset GPIO source is external\n");
+			} else if (ret != -EPROBE_DEFER) {
 				dev_err(dev,
 					"failed to request WIFI reset gpio\n");
-			port->wifi_reset = NULL;
-			return ret;
+				return ret;
+			} else
+				return ret;
 		}
 		of_property_read_u32(dev->of_node, "wifi-reset-msleep",
 				     &port->wifi_reset_delay_ms);
+		ret = of_property_read_u32(dev->of_node, "wifi-deassert-msleep",
+					   &port->wifi_deassert_delay_ms);
+		if (ret)
+			port->wifi_deassert_delay_ms = 0;
 	} else if (ret == -EPROBE_DEFER) {
 		return ret;
 	}

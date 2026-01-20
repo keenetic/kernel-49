@@ -404,8 +404,10 @@
 		clocks = <&infracfg_ao CK_INFRA_PCIE_PIPE_P0>,
 			 <&infracfg_ao CK_INFRA_PCIE_GFMUX_TL_P0>,
 			 <&infracfg_ao CK_INFRA_PCIE_PERI_26M_CK_P0>,
-			 <&infracfg_ao CK_INFRA_133M_PCIE_CK_P0>;
-		clock-names = "pl_250m", "tl_26m", "peri_26m", "top_133m";
+			 <&infracfg_ao CK_INFRA_133M_PCIE_CK_P0>,
+			 <&topckgen CK_TOP_PEXTP_TL_SEL>;
+		clock-names = "pl_250m", "tl_26m", "peri_26m", "top_133m",
+			      "pextp_clk";
 		status = "disabled";
 
 		#interrupt-cells = <1>;
@@ -442,8 +444,10 @@
 		clocks = <&infracfg_ao CK_INFRA_PCIE_PIPE_P1>,
 			 <&infracfg_ao CK_INFRA_PCIE_GFMUX_TL_P1>,
 			 <&infracfg_ao CK_INFRA_PCIE_PERI_26M_CK_P1>,
-			 <&infracfg_ao CK_INFRA_133M_PCIE_CK_P1>;
-		clock-names = "pl_250m", "tl_26m", "peri_26m", "top_133m";
+			 <&infracfg_ao CK_INFRA_133M_PCIE_CK_P1>,
+			 <&topckgen CK_TOP_PEXTP_TL_P1_SEL>;
+		clock-names = "pl_250m", "tl_26m", "peri_26m", "top_133m",
+			      "pextp_clk";
 		status = "disabled";
 
 		#interrupt-cells = <1>;

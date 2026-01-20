@@ -487,16 +487,25 @@ static int spinand_read_page(struct spinand_device *spinand,
 static int spinand_write_page(struct spinand_device *spinand,
 			      const struct nand_page_io_req *req)
 {
+	bool write_en_first = !(spinand->flags & SPINAND_PP_WRITE_LOAD_FIRST);
 	u8 status;
 	int ret;
 
-	ret = spinand_write_enable_op(spinand);
-	if (ret)
-		return ret;
+	if (write_en_first) {
+		ret = spinand_write_enable_op(spinand);
+		if (ret)
+			return ret;
+	}
 
 	ret = spinand_write_to_cache_op(spinand, req);
 	if (ret)
 		return ret;
+
+	if (!write_en_first) {
+		ret = spinand_write_enable_op(spinand);
+		if (ret)
+			return ret;
+	}
 
 	ret = spinand_program_op(spinand, req);
 	if (ret)

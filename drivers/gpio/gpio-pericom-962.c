@@ -18,6 +18,8 @@
 #define PERICOM_GPIO_PINS_MAX		 PERICOM_GPIO_PINS_48
 #define PERICOM_GPIO_PORTS_MAX		(PERICOM_GPIO_PINS_MAX / 8)
 
+#define PERICOM_MAX_INSTANCES		(2)
+
 struct pericom_gpio_config {
 	u8 ngpio;
 };
@@ -30,7 +32,63 @@ struct pericom_chip {
 	bool sync_input;
 };
 
-static struct gpio_chip *g_pericom_gc;
+static struct pericom_chip *g_pericom_chip[PERICOM_MAX_INSTANCES];
+
+static int _pericom_get(struct pericom_chip *chip, unsigned int offset)
+{
+	struct i2c_client *client = chip->client;
+	u32 port_offset = offset / 8;
+	u32 data_offset = offset % 8;
+	u8 port_val;
+
+	if (chip->sync_input) {
+		int ret = i2c_master_recv(client, chip->port, port_offset + 1);
+
+		if (ret < 0) {
+			struct device *dev = &client->dev;
+
+			dev_dbg(dev, "i2c read failed (%d) from addr %x\n",
+				ret, client->addr);
+		}
+	}
+
+	port_val = chip->port[port_offset];
+
+	return (port_val >> data_offset) & 0x1;
+}
+
+static int _pericom_set(struct pericom_chip *chip, unsigned int offset, int value)
+{
+	struct i2c_client *client = chip->client;
+	u32 port_offset = offset / 8;
+	u32 data_offset = offset % 8;
+	u8 port_old, port_new;
+	int ret;
+
+	port_old = chip->port[port_offset];
+	port_new = port_old;
+
+	if (value)
+		port_new |=  BIT(data_offset);
+	else
+		port_new &= ~BIT(data_offset);
+
+	if (port_new == port_old)
+		return 0;
+
+	chip->port[port_offset] = port_new;
+
+	ret = i2c_master_send(client, chip->port, port_offset + 1);
+	if (ret < 0) {
+		chip->port[port_offset] = port_old;
+
+		dev_dbg(&client->dev, "i2c write failed (%d) to addr %x\n",
+			ret, client->addr);
+		return ret;
+	}
+
+	return 0;
+}
 
 static int pericom_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
@@ -46,44 +104,11 @@ static int pericom_direction_output(struct gpio_chip *gc, unsigned int offset,
 				    int value)
 {
 	struct pericom_chip *chip = gpiochip_get_data(gc);
-	struct i2c_client *client = chip->client;
-	u32 port_offset = offset / 8;
-	u32 data_offset = offset % 8;
-	u8 port_old, port_new;
-	int ret = 0;
-
-	if (offset >= PERICOM_GPIO_PINS_MAX)
-		return -EINVAL;
+	int ret;
 
 	mutex_lock(&chip->lock);
-
-	port_old = chip->port[port_offset];
-	port_new = port_old;
-
-	if (value)
-		port_new |=  BIT(data_offset);
-	else
-		port_new &= ~BIT(data_offset);
-
-	if (port_new == port_old)
-		goto exit_unlock;
-
-	chip->port[port_offset] = port_new;
-
-	ret = i2c_master_send(client, chip->port, port_offset + 1);
-	if (ret < 0) {
-		chip->port[port_offset] = port_old;
-		goto exit_unlock;
-	}
-
-	ret = 0;
-
-exit_unlock:
+	ret = _pericom_set(chip, offset, value);
 	mutex_unlock(&chip->lock);
-
-	if (ret < 0)
-		dev_err(&client->dev, "i2c write failed (%d) to addr %x\n",
-			ret, client->addr);
 
 	return ret;
 }
@@ -91,29 +116,13 @@ exit_unlock:
 static int pericom_get(struct gpio_chip *gc, unsigned int offset)
 {
 	struct pericom_chip *chip = gpiochip_get_data(gc);
-	struct i2c_client *client = chip->client;
-	u32 port_offset = offset / 8;
-	u32 data_offset = offset % 8;
-	int ret = 0;
-	u8 port_val;
-
-	if (offset >= PERICOM_GPIO_PINS_MAX)
-		return -EINVAL;
+	int ret;
 
 	mutex_lock(&chip->lock);
-
-	if (chip->sync_input)
-		ret = i2c_master_recv(client, chip->port, port_offset + 1);
-
-	port_val = chip->port[port_offset];
-
+	ret = _pericom_get(chip, offset);
 	mutex_unlock(&chip->lock);
 
-	if (ret < 0)
-		dev_warn(&client->dev, "i2c read failed (%d) from addr %x\n",
-			 ret, client->addr);
-
-	return (port_val >> data_offset) & 0x1;
+	return ret;
 }
 
 static void pericom_set(struct gpio_chip *gc, unsigned int offset, int value)
@@ -121,27 +130,93 @@ static void pericom_set(struct gpio_chip *gc, unsigned int offset, int value)
 	pericom_direction_output(gc, offset, value);
 }
 
-int pericom_phr_get(unsigned int offset)
+/* export functions for phr */
+struct mutex *phr_pericom_get_mutex(u8 index)
 {
-	struct gpio_chip *gc = g_pericom_gc;
+	struct pericom_chip *chip;
 
-	if (!gc)
+	if (index >= PERICOM_MAX_INSTANCES)
+		return NULL;
+
+	chip = g_pericom_chip[index];
+	if (!chip)
+		return NULL;
+
+	return &chip->lock;
+}
+EXPORT_SYMBOL(phr_pericom_get_mutex);
+
+int phr_pericom_get(u8 index, u8 offset, bool *on)
+{
+	struct pericom_chip *chip;
+	int value;
+
+	if (index >= PERICOM_MAX_INSTANCES)
 		return -ENODEV;
 
-	return pericom_get(gc, offset);
-}
-EXPORT_SYMBOL(pericom_phr_get);
-
-int pericom_phr_set(unsigned int offset, int value)
-{
-	struct gpio_chip *gc = g_pericom_gc;
-
-	if (!gc)
+	chip = g_pericom_chip[index];
+	if (!chip)
 		return -ENODEV;
 
-	return pericom_direction_output(gc, offset, value);
+	if (offset >= chip->gpio.ngpio)
+		return -EINVAL;
+
+	if (!on)
+		return -EINVAL;
+
+	value = _pericom_get(chip, offset);
+	if (value < 0)
+		return value;
+
+	*on = !!value;
+
+	return 0;
 }
-EXPORT_SYMBOL(pericom_phr_set);
+EXPORT_SYMBOL(phr_pericom_get);
+
+int phr_pericom_set(u8 index, u8 offset, bool on)
+{
+	struct pericom_chip *chip;
+
+	if (index >= PERICOM_MAX_INSTANCES)
+		return -ENODEV;
+
+	chip = g_pericom_chip[index];
+	if (!chip)
+		return -ENODEV;
+
+	if (offset >= chip->gpio.ngpio)
+		return -EINVAL;
+
+	return _pericom_set(chip, offset, on);
+}
+EXPORT_SYMBOL(phr_pericom_set);
+
+int phr_pericom_set_dir(u8 index, u8 offset, bool out)
+{
+	struct pericom_chip *chip;
+	int value;
+
+	if (index >= PERICOM_MAX_INSTANCES)
+		return -ENODEV;
+
+	chip = g_pericom_chip[index];
+	if (!chip)
+		return -ENODEV;
+
+	if (offset >= chip->gpio.ngpio)
+		return -EINVAL;
+
+	if (!out)
+		return 0;
+
+	value = _pericom_get(chip, offset);
+	if (value < 0)
+		value = 1;
+
+	return _pericom_set(chip, offset, value);
+}
+EXPORT_SYMBOL(phr_pericom_set_dir);
 
 static const struct pericom_gpio_config pins24_config = {
 	.ngpio = PERICOM_GPIO_PINS_24,
@@ -166,7 +241,7 @@ static int pericom_gpio_probe(struct i2c_client *client,
 	struct device_node *np = dev->of_node;
 	struct pericom_chip *chip;
 	const struct of_device_id *match;
-	int ret;
+	int i, ret;
 	u16 ngpio;
 
 	match = of_match_device(pericom_gpio_of_ids, dev);
@@ -219,9 +294,14 @@ static int pericom_gpio_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	g_pericom_gc = &chip->gpio;
-
 	i2c_set_clientdata(client, chip);
+
+	for (i = 0; i < PERICOM_MAX_INSTANCES; i++) {
+		if (!g_pericom_chip[i]) {
+			g_pericom_chip[i] = chip;
+			break;
+		}
+	}
 
 	dev_info(dev, "registered %s GPIO controller with %d pins\n",
 		 client->name, chip->gpio.ngpio);

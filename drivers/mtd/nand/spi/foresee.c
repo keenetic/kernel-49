@@ -32,7 +32,13 @@ static SPINAND_OP_VARIANTS(update_cache_variants,
 static int f35sqa002g_ooblayout_ecc(struct mtd_info *mtd, int section,
 				    struct mtd_oob_region *region)
 {
-	return -ERANGE;
+	if (section)
+		return -ERANGE;
+
+	region->offset = 64;
+	region->length = 64;
+
+	return 0;
 }
 
 static int f35sqa002g_ooblayout_free(struct mtd_info *mtd, int section,
@@ -95,7 +101,7 @@ static int foresee_8_ecc_get_status(struct spinand_device *spinand, u8 status)
 static const struct spinand_info foresee_spinand_table[] = {
 	SPINAND_INFO("F35SQA002G",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x72, 0x72),
-		     NAND_MEMORG(1, 2048, 64, 64, 2048, 40, 1, 1, 1),
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 1, 1),
 		     NAND_ECCREQ(1, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
@@ -105,7 +111,7 @@ static const struct spinand_info foresee_spinand_table[] = {
 				     f35sqa002g_ecc_get_status)),
 	SPINAND_INFO("F35SQB001G",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x71, 0x71),
-		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
+		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
 		     NAND_ECCREQ(1, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
@@ -115,7 +121,7 @@ static const struct spinand_info foresee_spinand_table[] = {
 				     f35sqa002g_ecc_get_status)),
 	SPINAND_INFO("F35SQB002G",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x52, 0x52),
-		     NAND_MEMORG(1, 2048, 64, 64, 2048, 40, 1, 1, 1),
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 1, 1),
 		     NAND_ECCREQ(8, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,

@@ -2369,7 +2369,11 @@ int nmbm_attach(struct nmbm_lower_device *nld, struct nmbm_instance *ni)
 	    ni->signature.block_size != nld->erasesize ||
 	    ni->signature.page_size != nld->writesize ||
 	    ni->signature.spare_size != nld->oobsize) {
-		nlog_err(ni, "NMBM configuration mismatch\n");
+		nlog_err(ni, "NMBM configuration mismatch (%u/%u, bsize: %uK, size: %uM)\n",
+			ni->signature.page_size,
+			ni->signature.spare_size,
+			ni->signature.block_size >> 10,
+			ni->signature.nand_size >> 20);
 		return -EINVAL;
 	}
 

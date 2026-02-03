@@ -5,3 +5,10 @@ menuconfig MTD_SPI_NAND
 	select SPI_MEM
 	help
 	  This is the framework for the SPI NAND device drivers.
+
+config SPI_NAND_CASN
+	bool "SPI NAND CASN page support"
+	depends on MTD_SPI_NAND
+	default n
+	help
+	  This is the Common Attributes for SPI NAND (CASN page).

@@ -353,7 +353,7 @@ struct spinand_ecc_info {
 #define SPINAND_SUP_LEGACY_ECC_STATUS	BIT(4)
 #define SPINAND_SUP_ADV_ECC_STATUS	BIT(5)
 #define SPINAND_ECC_PARITY_READABLE	BIT(6)
-#define SPINAND_PP_WRITE_LOAD_FIRST	BIT(7)
+#define SPINAND_PP_WRITE_LOAD_FIRST	BIT(15)
 
 /**
  * struct spinand_info - Structure used to describe SPI NAND chips

@@ -132,7 +132,7 @@ static const struct spinand_info fudan_spinand_table[] = {
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
 					      &update_cache_variants),
-		     SPINAND_HAS_QE_BIT,
+		     SPINAND_HAS_QE_BIT | SPINAND_PP_WRITE_LOAD_FIRST,
 		     SPINAND_ECCINFO(&fm25s01b_ooblayout,
 				     fm25s01b_ecc_get_status)),
 	SPINAND_INFO("FM25G02B",

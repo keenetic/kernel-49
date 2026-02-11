@@ -34,3 +34,5 @@ ETH_SWITCH_DEFINE_OPS_BH(cl45)
 #define ETH_SWITCH_DEFINE_OPS(name)					\
 const struct eth_switch_##name##_ops *__eth_switch_##name##_ops;	\
 EXPORT_SYMBOL(__eth_switch_##name##_ops);
+
+ETH_SWITCH_DEFINE_OPS(rtl83xx);

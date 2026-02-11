@@ -167,5 +167,12 @@ eth_switch_##name##_ops_set(const struct eth_switch_##name##_ops *ops)	\
 	mutex_unlock(&eth_switch_mutex);				\
 }
 
+struct eth_switch_rtl83xx_ops {
+	int (*r32)(u8 mii_addr, u16 addr, u32 *data);
+	int (*w32)(u8 mii_addr, u16 addr, u32 data);
+};
+
+ETH_SWITCH_DECLARE_OPS(rtl83xx);
+
 #endif /* __INCLUDE_LINUX_ETH_SWITCH_HOOKS_H */
 

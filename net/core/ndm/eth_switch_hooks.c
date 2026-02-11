@@ -4,6 +4,9 @@
 DEFINE_RWLOCK(eth_switch_lock);
 EXPORT_SYMBOL(eth_switch_lock);
 
+DEFINE_MUTEX(eth_switch_mutex);
+EXPORT_SYMBOL(eth_switch_mutex);
+
 #define ETH_SWITCH_DEFINE_HOOK_RCU(name)				\
 eth_switch_##name##_fn __rcu *eth_switch_##name##_hook;			\
 EXPORT_SYMBOL(eth_switch_##name##_hook);
@@ -27,3 +30,7 @@ EXPORT_SYMBOL(__eth_switch_##name##_ops);
 ETH_SWITCH_DEFINE_OPS_BH(mt7531)
 ETH_SWITCH_DEFINE_OPS_BH(rtl8211)
 ETH_SWITCH_DEFINE_OPS_BH(cl45)
+
+#define ETH_SWITCH_DEFINE_OPS(name)					\
+const struct eth_switch_##name##_ops *__eth_switch_##name##_ops;	\
+EXPORT_SYMBOL(__eth_switch_##name##_ops);

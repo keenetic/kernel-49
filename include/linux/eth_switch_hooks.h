@@ -2,6 +2,7 @@
 #define __INCLUDE_LINUX_ETH_SWITCH_HOOKS_H
 
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 
 #define ETH_SWITCH_HOOKS_MARK_MR_MAC
@@ -131,6 +132,40 @@ struct eth_switch_cl45_ops {
 };
 
 ETH_SWITCH_DECLARE_OPS_BH(cl45);
+
+extern struct mutex eth_switch_mutex;
+
+#define ETH_SWITCH_DECLARE_OPS(name)					\
+extern const struct eth_switch_##name##_ops *__eth_switch_##name##_ops;	\
+									\
+static inline bool							\
+eth_switch_##name##_ops_get(const struct eth_switch_##name##_ops **ops)	\
+{									\
+	mutex_lock(&eth_switch_mutex);					\
+	*ops = __eth_switch_##name##_ops;				\
+									\
+	if (!*ops) {							\
+		mutex_unlock(&eth_switch_mutex);			\
+		return false;						\
+	}								\
+									\
+	return true;							\
+}									\
+									\
+static inline void							\
+eth_switch_##name##_ops_put(const struct eth_switch_##name##_ops **ops)	\
+{									\
+	*ops = NULL;							\
+	mutex_unlock(&eth_switch_mutex);				\
+}									\
+									\
+static inline void							\
+eth_switch_##name##_ops_set(const struct eth_switch_##name##_ops *ops)	\
+{									\
+	mutex_lock(&eth_switch_mutex);					\
+	__eth_switch_##name##_ops = ops;				\
+	mutex_unlock(&eth_switch_mutex);				\
+}
 
 #endif /* __INCLUDE_LINUX_ETH_SWITCH_HOOKS_H */
 

@@ -77,7 +77,7 @@ ETH_SWITCH_DECLARE_HOOK_RCU(set_wan_port)
 ETH_SWITCH_DECLARE_HOOK(mt7530_reg_write_bh);
 ETH_SWITCH_DECLARE_HOOK(rtl83xx_reg_write_bh);
 
-#define ETH_SWITCH_DECLARE_OPS(name)					\
+#define ETH_SWITCH_DECLARE_OPS_BH(name)					\
 extern struct eth_switch_##name##_ops *__eth_switch_##name##_ops;	\
 									\
 static inline bool							\
@@ -114,14 +114,14 @@ struct eth_switch_mt7531_ops {
 	int (*w32_bh)(const u32 addr, const u32 data);
 };
 
-ETH_SWITCH_DECLARE_OPS(mt7531);
+ETH_SWITCH_DECLARE_OPS_BH(mt7531);
 
 struct eth_switch_rtl8211_ops {
 	int (*r16_bh)(const u16 page, const u16 addr, u16 *data);
 	int (*w16_bh)(const u16 page, const u16 addr, const u16 data);
 };
 
-ETH_SWITCH_DECLARE_OPS(rtl8211);
+ETH_SWITCH_DECLARE_OPS_BH(rtl8211);
 
 struct eth_switch_cl45_ops {
 	int (*r16_bh)(const u8 bus, const u8 phy, const u8 dev,
@@ -130,7 +130,7 @@ struct eth_switch_cl45_ops {
 		      const u16 addr, const u16 data);
 };
 
-ETH_SWITCH_DECLARE_OPS(cl45);
+ETH_SWITCH_DECLARE_OPS_BH(cl45);
 
 #endif /* __INCLUDE_LINUX_ETH_SWITCH_HOOKS_H */
 

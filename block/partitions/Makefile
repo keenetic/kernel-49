@@ -10,6 +10,7 @@ obj-$(CONFIG_ATARI_PARTITION) += atari.o
 obj-$(CONFIG_AIX_PARTITION) += aix.o
 obj-$(CONFIG_CMDLINE_PARTITION) += cmdline.o
 obj-$(CONFIG_MAC_PARTITION) += mac.o
+obj-$(CONFIG_NDM_PARTITION) += ndm.o
 obj-$(CONFIG_LDM_PARTITION) += ldm.o
 obj-$(CONFIG_MSDOS_PARTITION) += msdos.o
 obj-$(CONFIG_OSF_PARTITION) += osf.o

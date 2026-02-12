@@ -121,6 +121,12 @@ config MSDOS_PARTITION
 	help
 	  Say Y here.
 
+config NDM_PARTITION
+	bool "NDM virtual partition support"
+	depends on OF_FLATTREE
+	help
+	  Say Y here if you would like to use NDM virtual partitions.
+
 config BSD_DISKLABEL
 	bool "BSD disklabel (FreeBSD partition tables) support"
 	depends on PARTITION_ADVANCED && MSDOS_PARTITION

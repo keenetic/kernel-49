@@ -26,6 +26,7 @@
 #include "ldm.h"
 #include "mac.h"
 #include "msdos.h"
+#include "ndm.h"
 #include "osf.h"
 #include "sgi.h"
 #include "sun.h"
@@ -173,7 +174,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		}
 
 	}
-	if (res > 0) {
+	if (res > 0 && (res = ndm_partition(state)) > 0) {
 		printk(KERN_INFO "%s", state->pp_buf);
 
 		free_page((unsigned long)state->pp_buf);

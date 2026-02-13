@@ -45,8 +45,7 @@
 #include "ubridge_private.h"
 
 enum {
-	MAC_FORCED,
-	HAS_UPPER
+	MAC_FORCED = 0
 };
 
 #define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
@@ -144,7 +143,7 @@ static rx_handler_result_t ubr_handle_frame(struct sk_buff **pskb)
 
 		eth = (struct ethhdr *)skb->data;
 
-		if (test_bit(HAS_UPPER, &ubr->flags))
+		if (netif_is_bridge_port(ubr->dev))
 			ether_addr_copy(eth->h_dest, ubr->upper_mac);
 		else
 			ether_addr_copy(eth->h_dest, ubr->dev->dev_addr);
@@ -343,9 +342,8 @@ static netdev_tx_t ubr_xmit(struct sk_buff *skb,
 			return NET_XMIT_SUCCESS;
 		}
 
-		if (test_bit(HAS_UPPER, &ubr->flags))
+		if (netif_is_bridge_port(ubr->dev))
 			ether_addr_copy(ubr->upper_mac, eth->h_source);
-
 		skb_pull_inline(skb, maclen);
 		skb_reset_mac_header(skb);
 		skb_reset_network_header(skb);
@@ -1265,16 +1263,6 @@ static int ubr_dev_event(struct notifier_block *unused,
 	struct ubr_private *ubr;
 
 	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		ubr = ubr_priv_get_rtnl(pdev);
-		if (!ubr)
-			return NOTIFY_DONE;
-
-		if (netdev_has_any_upper_dev(pdev))
-			set_bit(HAS_UPPER, &ubr->flags);
-		else
-			clear_bit(HAS_UPPER, &ubr->flags);
-		break;
 	case NETDEV_UNREGISTER:
 		ubr = ubr_port_priv_get_rtnl(pdev);
 		if (!ubr)

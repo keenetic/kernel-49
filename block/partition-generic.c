@@ -376,6 +376,9 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 		goto out_del;
 	}
 
+	if (flags & ADDPART_FLAG_READONLY)
+		p->policy = 1;
+
 	/* everything is up and running, commence */
 	rcu_assign_pointer(ptbl->part[partno], p);
 

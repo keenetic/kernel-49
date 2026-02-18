@@ -199,10 +199,47 @@ static int match_dev_by_label(struct device *dev, const void *data)
 }
 
 #ifdef CONFIG_OF
+struct boot_partition {
+	const struct device_node	 *rootdisk_np;
+	const char			 *partname;
+};
+
+static int match_dev_by_boot_partition(struct device *dev, const void *data)
+{
+	const struct boot_partition *bp;
+	const struct device_node *disk_np;
+	struct hd_struct *part = dev_to_part(dev);
+
+	if (!part->info)
+		return 0;
+
+	bp = data;
+
+	if (strcmp(bp->partname, part->info->volname))
+		return 0;
+
+	disk_np = bp->rootdisk_np;
+
+	while (disk_np) {
+		const struct device *part_dev = dev;
+
+		while (part_dev) {
+			if (dev_of_node(part_dev) == disk_np)
+				return 1;
+			part_dev = part_dev->parent;
+		}
+
+		disk_np = disk_np->parent;
+	}
+
+	return 0;
+}
+
 static dev_t devt_from_rootdisk(void)
 {
 	struct device *dev;
 	struct device_node *np, *rd;
+	struct boot_partition bp;
 	const char *partname;
 	dev_t res = 0;
 
@@ -219,8 +256,11 @@ static dev_t devt_from_rootdisk(void)
 	if (!partname)
 		goto done_rd;
 
-	dev = class_find_device(&block_class, NULL, partname,
-				match_dev_by_label);
+	bp.rootdisk_np = rd;
+	bp.partname = partname;
+
+	dev = class_find_device(&block_class, NULL, &bp,
+				match_dev_by_boot_partition);
 	if (!dev)
 		goto done_rd;
 

@@ -297,7 +297,7 @@ static struct part_dsc parts[PART_MAX] = {
 		.skip		= true
 	},
 	[PART_U_CONFIG_RES] = {
-		.name		= "U-Config_res",
+		.name		= "D-State",
 		.skip		= true
 	},
 	[PART_RF_EEPROM_RES] = {

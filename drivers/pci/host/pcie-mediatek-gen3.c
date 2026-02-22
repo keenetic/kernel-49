@@ -19,7 +19,6 @@
 #include <linux/msi.h>
 #include <linux/of_gpio.h>
 #include <linux/of_pci.h>
-#include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -110,12 +109,6 @@
 #define PCIE_ATR_TLP_TYPE_MEM		PCIE_ATR_TLP_TYPE(0)
 #define PCIE_ATR_TLP_TYPE_IO		PCIE_ATR_TLP_TYPE(2)
 
-#define MT7987_TOPMISC_BASE		0x10021000
-#define PCIE_PHY_I2C_ENABLE		0x110
-#define   PCIE_TWO_PORT_EN		BIT(5)
-
-struct mtk_pcie_port;
-
 /**
  * enum mtk_msi_group_type - PCIe controller MSI group type
  * @group0_merge_msi: all MSI are merged to group0
@@ -152,14 +145,6 @@ struct mtk_pcie_irq {
 	int irq;
 	int group;
 	u32 mapped_table;
-};
-
-/**
- * struct mtk_gen3_pcie_pdata - differentiate between host generations
- * @phy_config: pcie PHY config on power_up callback
- */
-struct mtk_pcie_pdata {
-	int (*phy_config)(struct mtk_pcie_port *port);
 };
 
 /**
@@ -203,7 +188,6 @@ struct mtk_pcie_port {
 	u32 wifi_reset_delay_ms;
 	u32 wifi_deassert_delay_ms;
 
-	int id;
 	int irq;
 	int num_irqs;
 	struct mtk_pcie_irq *irqs;
@@ -216,8 +200,6 @@ struct mtk_pcie_port {
 	enum mtk_msi_group_type msi_group_type;
 	struct mutex lock;
 	DECLARE_BITMAP(msi_irq_in_use, PCIE_MSI_IRQS_NUM);
-
-	const struct mtk_pcie_pdata *soc;
 };
 
 /**
@@ -1048,8 +1030,6 @@ static int mtk_pcie_parse_port(struct mtk_pcie_port *port)
 		return ret;
 	}
 
-	port->id = of_get_pci_domain_nr(dev->of_node);
-
 	port->phy = devm_phy_optional_get(dev, "pcie-phy");
 	if (IS_ERR(port->phy)) {
 		ret = PTR_ERR(port->phy);
@@ -1111,34 +1091,6 @@ static int mtk_pcie_parse_port(struct mtk_pcie_port *port)
 	return 0;
 }
 
-static int mt7987_phy_config(struct mtk_pcie_port *port)
-{
-	/* set topmisc PCIE_TWO_PORT_EN = 2 ports 1L */
-	if (port->id == 1 || port->max_link_width == 1) {
-		void __iomem *misc_base = ioremap(MT7987_TOPMISC_BASE, 0x200);
-		u32 val;
-
-		if (!misc_base)
-			return -ENOMEM;
-
-		val = readl(misc_base + PCIE_PHY_I2C_ENABLE);
-		if (!(val & PCIE_TWO_PORT_EN)) {
-			val |= PCIE_TWO_PORT_EN;
-			writel(val, misc_base + PCIE_PHY_I2C_ENABLE);
-		}
-
-		iounmap(misc_base);
-	}
-
-	return 0;
-}
-
-static int mt7988_phy_config(struct mtk_pcie_port *port)
-{
-	/* todo */
-	return 0;
-}
-
 static int mtk_pcie_power_up(struct mtk_pcie_port *port)
 {
 	struct device *dev = port->dev;
@@ -1157,12 +1109,6 @@ static int mtk_pcie_power_up(struct mtk_pcie_port *port)
 	if (err) {
 		dev_err(dev, "failed to power on PHY\n");
 		goto err_phy_on;
-	}
-
-	if (port->soc->phy_config) {
-		err = port->soc->phy_config(port);
-		if (err)
-			return err;
 	}
 
 	/* MAC power on and enable transaction layer clocks */
@@ -1249,7 +1195,6 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 	port = pci_host_bridge_priv(host);
 
 	port->dev = dev;
-	port->soc = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, port);
 
 	err = mtk_pcie_setup(port);
@@ -1392,22 +1337,11 @@ static const struct dev_pm_ops mtk_pcie_pm_ops = {
 				      mtk_pcie_resume_noirq)
 };
 
-static const struct mtk_pcie_pdata mt8192_pcie_soc = {
-};
-
-static const struct mtk_pcie_pdata mt7987_pcie_soc = {
-	.phy_config = mt7987_phy_config,
-};
-
-static const struct mtk_pcie_pdata mt7988_pcie_soc = {
-	.phy_config = mt7988_phy_config,
-};
-
 static const struct of_device_id mtk_pcie_of_match[] = {
-	{ .compatible = "mediatek,mt8192-pcie", .data = &mt8192_pcie_soc },
-	{ .compatible = "mediatek,mt7986-pcie", .data = &mt8192_pcie_soc },
-	{ .compatible = "mediatek,mt7987-pcie", .data = &mt7987_pcie_soc },
-	{ .compatible = "mediatek,mt7988-pcie", .data = &mt7988_pcie_soc },
+	{ .compatible = "mediatek,mt8192-pcie" },
+	{ .compatible = "mediatek,mt7986-pcie" },
+	{ .compatible = "mediatek,mt7987-pcie" },
+	{ .compatible = "mediatek,mt7988-pcie" },
 	{},
 };
 

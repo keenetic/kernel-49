@@ -410,6 +410,9 @@
 			      "pextp_clk";
 		status = "disabled";
 
+		phys = <&pciephy PHY_TYPE_PCIE>;
+		phy-names = "pcie-phy";
+
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 0x7>;
 		interrupt-map = <0 0 0 1 &pcie_intc0 0>,
@@ -722,6 +725,17 @@
 
 			mediatek,syscon-type = <&topmisc 0x218 0>;
 		};
+	};
+
+	pciephy: phy@11e4a000 {
+		compatible = "mediatek,mt7987-pcie-phy";
+		reg = <0 0x11e4a000 0 0x100>;
+		reg-names = "sif";
+		#phy-cells = <1>;
+		mediatek,syscon-type = <&topmisc 0x110>;
+		/* Optional: specify lane mode configuration */
+		/* mediatek,1port-2lane; */
+		/* mediatek,2port-1lane; */
 	};
 
 	afe: audio-controller@11210000 {

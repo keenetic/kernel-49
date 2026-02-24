@@ -1809,8 +1809,10 @@ static int spinand_detect(struct spinand_device *spinand)
 	spinand->use_casn = false;
 
 	casn = kzalloc((sizeof(struct nand_casn) * CASN_PAGE_V1_COPIES), GFP_KERNEL);
-	if (!casn)
-		return -ENOMEM;
+	if (!casn) {
+		ret = -ENOMEM;
+		goto fallback_id;
+	}
 
 	ret = spinand_casn_detect(spinand, casn, &sel);
 	if (ret == 0) {
@@ -1829,7 +1831,10 @@ static int spinand_detect(struct spinand_device *spinand)
 
 	kfree(casn);
 
-	if (ret < 0) {
+fallback_id:
+	if (ret) {
+		spinand->use_casn = false;
+
 		dev_info(dev, "Fallback to read ID\n");
 
 		ret = spinand_reset_op(spinand);

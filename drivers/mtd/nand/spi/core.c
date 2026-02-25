@@ -1229,10 +1229,9 @@ finish:
 	if (final_ret)
 		return final_ret;
 
-	if (check_ret) {
-		dev_warn(dev, "CASN page check failed\n");
+	/* CASN page check failed, try other ways. */
+	if (check_ret)
 		return check_ret;
-	}
 
 	if (ret)
 		dev_err(dev, "CASN page read failed\n");
@@ -1272,11 +1271,7 @@ static int spinand_id_detect(struct spinand_device *spinand)
 
 static int spinand_manufacturer_init(struct spinand_device *spinand)
 {
-#ifdef CONFIG_SPI_NAND_CASN
-	if (spinand->use_casn)
-		return 0;
-#endif
-	if (spinand->manufacturer->ops->init)
+	if (spinand->manufacturer && spinand->manufacturer->ops->init)
 		return spinand->manufacturer->ops->init(spinand);
 
 	return 0;
@@ -1284,12 +1279,8 @@ static int spinand_manufacturer_init(struct spinand_device *spinand)
 
 static void spinand_manufacturer_cleanup(struct spinand_device *spinand)
 {
-#ifdef CONFIG_SPI_NAND_CASN
-	if (spinand->use_casn)
-		return;
-#endif
 	/* Release manufacturer private data */
-	if (spinand->manufacturer->ops->cleanup)
+	if (spinand->manufacturer && spinand->manufacturer->ops->cleanup)
 		return spinand->manufacturer->ops->cleanup(spinand);
 }
 
@@ -1360,6 +1351,11 @@ int spinand_match_and_init(struct spinand_device *spinand,
 
 		if (memcmp(id + 1, info->devid.id, info->devid.len))
 			continue;
+
+#ifdef CONFIG_SPI_NAND_CASN
+		if (spinand->use_casn)
+			return 0;
+#endif
 
 		nand->memorg = table[i].memorg;
 		nand->eccreq = table[i].eccreq;
@@ -1798,6 +1794,7 @@ static int spinand_detect(struct spinand_device *spinand)
 	unsigned int sel = 0;
 	char manufacturer[14];
 	char model[17];
+	u8 version;
 #endif
 	int ret;
 
@@ -1809,14 +1806,24 @@ static int spinand_detect(struct spinand_device *spinand)
 	spinand->use_casn = false;
 
 	casn = kzalloc((sizeof(struct nand_casn) * CASN_PAGE_V1_COPIES), GFP_KERNEL);
-	if (!casn) {
-		ret = -ENOMEM;
-		goto fallback_id;
-	}
+	if (!casn)
+		return -ENOMEM;
 
+	/*
+	 * Three initialization paths:
+	 * 1. CASN page + ID probe
+	 *    - CASN provides: memorg, eccreq, eccinfo, flags, select_target
+	 *    - ID probe adds: configure_chip, set_cont_read, fact_otp, user_otp,
+	 *      read_retries, set_read_retry
+	 * 2. Pure CASN page
+	 *    - Only CASN info, manufacturer-specific fields remain NULL/0
+	 * 3. Pure ID probe
+	 *    - Traditional detection, all fields from manufacturer table
+	 */
 	ret = spinand_casn_detect(spinand, casn, &sel);
 	if (ret == 0) {
 		spinand->use_casn = true;
+		version = casn[sel].version;
 		strncpy(manufacturer, casn[sel].manufacturer, sizeof(manufacturer) - 1);
 		sanitize_string(manufacturer, sizeof(manufacturer));
 		strncpy(model, casn[sel].model, sizeof(model) - 1);
@@ -1825,29 +1832,27 @@ static int spinand_detect(struct spinand_device *spinand)
 		spinand_dump_casn(spinand, casn + sel);
 
 		ret = spinand_init_via_casn(spinand, casn + sel);
-		if (ret)
+		if (ret) {
+			spinand->use_casn = false;
 			dev_err(dev, "Initilize spinand via CASN failed: %d\n", ret);
+		}
 	}
 
 	kfree(casn);
 
-fallback_id:
-	if (ret) {
-		spinand->use_casn = false;
+	ret = spinand_reset_op(spinand);
+	if (ret)
+		return ret;
 
-		dev_info(dev, "Fallback to read ID\n");
-
-		ret = spinand_reset_op(spinand);
-		if (ret)
-			return ret;
-
-		ret = spinand_id_detect(spinand);
-		if (ret) {
-			dev_err(dev, "unknown raw ID %*phN\n", SPINAND_MAX_ID_LEN,
-				spinand->id.data);
-			return ret;
-		}
+	ret = spinand_id_detect(spinand);
+	if (ret && !spinand->use_casn) {
+		dev_err(dev, "CASN page doesn't exist and unknown raw ID %*phN\n",
+			SPINAND_MAX_ID_LEN, spinand->id.data);
+		return ret;
 	}
+
+	/* Since spinand_id_detect returns unsupported if ID probe fails, we should reset this flag. */
+	ret = 0;
 #else
 	ret = spinand_id_detect(spinand);
 	if (ret) {
@@ -1864,11 +1869,19 @@ fallback_id:
 	}
 
 #ifdef CONFIG_SPI_NAND_CASN
-	if (spinand->use_casn)
-		dev_info(dev, "%s %s SPI NAND was found.\n", manufacturer, model);
-	else
+	if (spinand->use_casn) {
+		if (spinand->manufacturer) {
+			/* Path 1: CASN page + ID probe */
+			dev_info(dev, "%s %s SPI NAND was found by CASN page v%u.%02u and ID probe\n",
+				 manufacturer, model, version >> 4, version & 0xf);
+		} else {
+			/* Path 2: Pure CASN page */
+			dev_info(dev, "%s %s SPI NAND was found by pure CASN page v%u.%02u\n",
+				 manufacturer, model, version >> 4, version & 0xf);
+		}
+	} else
 #endif
-	dev_info(dev, "%s %s SPI NAND was found.\n",
+	dev_info(dev, "%s %s SPI NAND was found by ID probe\n",
 		 spinand->manufacturer->name, spinand->model);
 
 	dev_info(dev,

@@ -1003,6 +1003,7 @@ static int spinand_check_casn_validity(struct spinand_device *spinand,
 				       struct nand_casn *casn)
 {
 	struct device *dev = &spinand->spimem->spi->dev;
+	u32 spare_bytes_per_page;
 
 	if (be32_to_cpu(casn->bits_per_cell) != 1) {
 		dev_err(dev, "[CASN] bits-per-cell must be 1\n");
@@ -1018,14 +1019,12 @@ static int spinand_check_casn_validity(struct spinand_device *spinand,
 		return -EINVAL;
 	}
 
-	switch (be32_to_cpu(casn->spare_bytes_per_page)) {
-	case 64:
-	case 96:
-	case 128:
-	case 256:
-		break;
-	default:
-		dev_err(dev, "[CASN] spare size must be 64/128/256\n");
+	spare_bytes_per_page = be32_to_cpu(casn->spare_bytes_per_page);
+	if (spare_bytes_per_page < 64 ||
+	    spare_bytes_per_page > 256 ||
+	    spare_bytes_per_page % 8) {
+		dev_err(dev, "[CASN] spare size (%u) must be 64..256\n",
+			spare_bytes_per_page);
 		return -EINVAL;
 	}
 

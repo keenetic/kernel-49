@@ -32,10 +32,7 @@
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/bootmem.h>
 #include <linux/magic.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/sizes.h>
 
 #ifdef CONFIG_NMBM_MTD
@@ -68,27 +65,8 @@
 #endif
 #endif /* MTD_NDM_PARTITION_UPDATE */
 
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-#include <asm/uaccess.h>
-#ifdef CONFIG_MIPS
-#include <prom.h>
-#else
-#include <linux/libfdt.h>
-#include <linux/of_fdt.h>
-#endif
-#endif /* CONFIG_MTD_NDM_DUAL_IMAGE */
-
 #include "ndmpart.h"
-
-#define DI_U_STATE_MAGIC		0x55535441	/* "USTA" */
-#define DI_U_STATE_VERSION		1
-
-#define DI_BOOT_ACTIVE			"boot_active"
-#define DI_BOOT_BACKUP			"boot_backup"
-#define DI_BOOT_FAILS			"boot_fails"
-
-#define DI_IMAGE_FIRST			1
-#define DI_IMAGE_SECOND			2
+#include "ndmpart_di.h"
 
 #ifndef SQUASHFS_MAGIC
 #define SQUASHFS_MAGIC			0x73717368
@@ -123,6 +101,8 @@
     defined(CONFIG_MACH_MT7988)
 #define HAS_PART_PRELOADER
 #endif
+
+static const char **__ndmpart_rootfs_name;
 
 enum part {
 	/* Image 1 */
@@ -171,14 +151,6 @@ enum part {
 	PART_MAX
 };
 
-struct di_u_state {
-	uint32_t magic;
-	uint8_t version;
-	uint8_t boot_active;
-	uint8_t boot_backup;
-	uint8_t boot_fails;
-};
-
 struct part_dsc {
 	const char *name;
 #ifdef MTD_NDM_PARTITION_UPDATE
@@ -191,20 +163,6 @@ struct part_dsc {
 	bool skip;
 	bool read_only;
 };
-
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-static bool di_is_enabled(void);
-
-static int u_state_init(struct mtd_info *master, uint32_t off, uint32_t size);
-static int u_state_get(const char *name, int *val);
-static int u_state_set(const char *name, int val);
-static int u_state_commit(void);
-#endif
-
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-static int ndmpart_image_cur = 1;
-static bool ndmpart_di_is_enabled;
-#endif
 
 static struct part_dsc parts[PART_MAX] = {
 	/* Image 1 */
@@ -347,18 +305,17 @@ static inline uint32_t parts_offset_end(enum part part)
 	return parts[part].offset + parts[part].size;
 }
 
-static unsigned int parts_num(void)
+static inline int parts_num(void)
 {
-	int i;
-	unsigned int num = 0;
+	int i, n = 0;
 
 	for (i = 0; i < PART_MAX; i++) {
 		if (parts[i].skip)
 			continue;
-		num++;
+		n++;
 	}
 
-	return num;
+	return n;
 }
 
 static uint32_t parts_size_default_get(enum part part,
@@ -510,8 +467,7 @@ static uint32_t parts_size_default_get(enum part part,
 	return size;
 }
 
-#if defined(MTD_NDM_PARTITION_UPDATE) || \
-    defined(CONFIG_MTD_NDM_DUAL_IMAGE)
+#if defined(MTD_NDM_PARTITION_UPDATE)
 static int mtd_write_retry(struct mtd_info *mtd, loff_t to, size_t len,
 			   size_t *retlen, const u_char *buf)
 {
@@ -549,9 +505,7 @@ static int mtd_write_retry(struct mtd_info *mtd, loff_t to, size_t len,
 
 	return ret;
 }
-#endif
 
-#ifdef MTD_NDM_PARTITION_UPDATE
 static int ndm_flash_partition(struct mtd_info *master,
 			       const struct part_dsc *p)
 {
@@ -693,60 +647,6 @@ static void ndm_update_partitions(struct mtd_info *m)
 }
 #endif /* MTD_NDM_PARTITION_UPDATE */
 
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-static inline uint32_t part_u_state_offset_(struct mtd_info *master)
-{
-	uint32_t off = master->size >> 1;
-
-	/* offset must be aligned */
-	if (is_power_of_2(master->erasesize))
-		off &= ~(master->erasesize - 1);
-
-	return off;
-}
-
-#ifdef CONFIG_MTD_NDM_U_STATE_SEARCH
-static bool is_u_state(struct mtd_info *master, uint32_t off)
-{
-	size_t len;
-	uint32_t magic = 0;
-
-	if (mtd_read(master, off, sizeof(magic), &len, (uint8_t *)&magic))
-		return false;
-
-	return ntohl(magic) == DI_U_STATE_MAGIC;
-}
-
-static uint32_t part_u_state_offset(struct mtd_info *master)
-{
-	uint32_t es, off, start, end;
-
-	es = master->erasesize;
-	start = CONFIG_MTD_NDM_U_STATE_SEARCH_START_BLOCK * es;
-	end = CONFIG_MTD_NDM_U_STATE_SEARCH_END_BLOCK * es;
-
-	if (start < end) {
-		for (off = start; off <= end; off += es) {
-			if (is_u_state(master, off))
-				return off;
-		}
-	} else {
-		for (off = start; off >= end; off -= es) {
-			if (is_u_state(master, off))
-				return off;
-		}
-	}
-
-	return part_u_state_offset_(master);
-}
-#else /* CONFIG_MTD_NDM_U_STATE_SEARCH */
-static uint32_t part_u_state_offset(struct mtd_info *master)
-{
-	return part_u_state_offset_(master);
-}
-#endif /* CONFIG_MTD_NDM_U_STATE_SEARCH */
-#endif /* CONFIG_MTD_NDM_DUAL_IMAGE */
-
 #ifdef PLACE_OS_ON_MTD
 static uint32_t part_rootfs_offset(struct mtd_info *master,
 				   uint32_t begin, uint32_t size)
@@ -772,24 +672,16 @@ static uint32_t part_rootfs_offset(struct mtd_info *master,
 }
 #endif
 
-static inline int di_image_num_pair_get(int n)
-{
-	return (n == 1) ? 2 : 1;
-}
-
 static int create_mtd_partitions(struct mtd_info *m,
 				 const struct mtd_partition **pparts,
 				 struct mtd_part_parser_data *data)
 {
 	int i, j;
+	u8 di_current = NDMPART_DI_IMAGE_FIRST;
+	uint32_t u_state_offset = NDMPART_DI_NO_OFFSET;
 	uint32_t offs_uboot = 0;
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-	int boot_active = 0, boot_backup = 0;
-	uint32_t off_si = 0;
-#endif
 	uint32_t flash_size_lim = 0;
-	struct mtd_partition *ndm_parts;
-	unsigned int ndm_parts_num;
+	struct mtd_partition *mp = NULL;
 #ifdef PLACE_OS_ON_MTD
 	uint32_t off;
 	bool use_storage = CONFIG_MTD_NDM_STORAGE_SIZE ? true : false;
@@ -805,15 +697,15 @@ static int create_mtd_partitions(struct mtd_info *m,
 	airoha_bmt_attach(m);
 #endif /* CONFIG_AIROHA_BMT */
 
+	u_state_offset = ndmpart_di_u_state_offset(m);
+
 #ifdef PLACE_OS_ON_MTD
 	flash_size_lim = CONFIG_MTD_NDM_FLASH_SIZE_LIMIT;
 #endif
 	if (!flash_size_lim || flash_size_lim > m->size) {
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-		if (ndmpart_di_is_enabled)
-			flash_size_lim = part_u_state_offset(m);
+		if (u_state_offset != NDMPART_DI_NO_OFFSET)
+			flash_size_lim = u_state_offset;
 		else
-#endif
 			flash_size_lim = m->size;
 	}
 
@@ -866,38 +758,19 @@ static int create_mtd_partitions(struct mtd_info *m,
 	ndm_update_partitions(m);
 #endif
 
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-	if (ndmpart_di_is_enabled) {
-		int ret;
+	if (u_state_offset != NDMPART_DI_NO_OFFSET) {
+		const int ret = ndmpart_di_init(m, flash_size_lim);
 
-		off_si = part_u_state_offset(m);
-		if (off_si < flash_size_lim) {
-			pr_err("di: invalid flash size limit (0x%08x)\n",
-			       off_si);
-			return -EINVAL;
-		}
-
-		/* early fill partition info for NAND */
-		parts[PART_U_STATE].offset = off_si;
-		parts[PART_U_STATE].size = parts_size_default_get(PART_U_STATE, m);
-		parts[PART_U_STATE].skip = false;
-
-		ret = u_state_init(m, off_si, (uint32_t)parts[PART_U_STATE].size);
 		if (ret < 0)
 			return ret;
 
-		u_state_get(DI_BOOT_ACTIVE, &boot_active);
-		u_state_get(DI_BOOT_BACKUP, &boot_backup);
+		/* early fill partition info for NAND */
+		parts[PART_U_STATE].offset = u_state_offset;
+		parts[PART_U_STATE].size = parts_size_default_get(PART_U_STATE, m);
+		parts[PART_U_STATE].skip = false;
 
-		if (boot_active)
-			ndmpart_image_cur = boot_active;
-		else
-			ndmpart_image_cur = di_image_num_pair_get(boot_backup);
-
-		pr_info("di: active = %d, backup = %d, current = %d\n",
-			boot_active, boot_backup, ndmpart_image_cur);
+		di_current = (u8)ret;
 	}
-#endif
 
 	/* Fill known fields */
 	parts[PART_U_BOOT].offset = offs_uboot;
@@ -953,10 +826,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 	parts[PART_FIRMWARE_1].size = parts[PART_CONFIG_1].offset -
 				      parts[PART_FIRMWARE_1].offset;
 
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-	if (ndmpart_image_cur == DI_IMAGE_FIRST)
-#endif
-	{
+	if (di_current == NDMPART_DI_IMAGE_FIRST) {
 		uint32_t s_beg, s_size;
 
 		s_beg = parts[PART_FIRMWARE_1].offset;
@@ -976,6 +846,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 			parts[PART_KERNEL_1].skip = false;
 			parts[PART_KERNEL_1].size = off - parts[PART_KERNEL_1].offset;
+
+			__ndmpart_rootfs_name = &parts[PART_ROOTFS_1].name;
 		} else {
 			/* hide ROOTFS partition (error path) */
 			parts[PART_ROOTFS_1].skip = true;
@@ -993,8 +865,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 					      parts[PART_CONFIG_1].size;
 #endif
 
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-	if (ndmpart_di_is_enabled) {
+	if (u_state_offset != NDMPART_DI_NO_OFFSET) {
 		/* U_STATE parts already calculated at this place */
 		parts[PART_RESERVE].offset = parts_offset_end(PART_U_STATE);
 		parts[PART_RESERVE].size = parts_size_default_get(PART_RESERVE, m);
@@ -1009,7 +880,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 		parts[PART_CONFIG_1].name = "Config_1";
 		parts[PART_CONFIG_2].skip = false;
-		parts[PART_CONFIG_2].offset = off_si + parts[PART_CONFIG_1].offset;
+		parts[PART_CONFIG_2].offset = u_state_offset + parts[PART_CONFIG_1].offset;
 		parts[PART_CONFIG_2].size = parts[PART_CONFIG_1].size;
 
 #ifdef PLACE_OS_ON_MTD
@@ -1023,12 +894,12 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 		/* check PART_STORAGE_A fit to half size */
 		if (!parts[PART_STORAGE_A].skip &&
-		    off_si < (parts[PART_STORAGE_A].offset + m->erasesize))
+		    u_state_offset < (parts[PART_STORAGE_A].offset + m->erasesize))
 			parts[PART_STORAGE_A].skip = true;
 
 		if (!parts[PART_STORAGE_A].skip) {
 			parts[PART_STORAGE_A].size =
-				off_si - parts[PART_STORAGE_A].offset;
+				u_state_offset - parts[PART_STORAGE_A].offset;
 			parts[PART_STORAGE_B].offset =
 				parts[PART_CONFIG_2].offset +
 				parts[PART_CONFIG_2].size;
@@ -1040,7 +911,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 			}
 		}
 
-		if (ndmpart_image_cur == DI_IMAGE_SECOND) {
+		if (di_current == NDMPART_DI_IMAGE_SECOND) {
 			uint32_t s_beg, s_size;
 
 			s_beg = parts[PART_FIRMWARE_2].offset;
@@ -1061,6 +932,8 @@ static int create_mtd_partitions(struct mtd_info *m,
 				parts[PART_KERNEL_2].skip = false;
 				parts[PART_KERNEL_2].offset = parts[PART_FIRMWARE_2].offset;
 				parts[PART_KERNEL_2].size = off - parts[PART_KERNEL_2].offset;
+
+				__ndmpart_rootfs_name = &parts[PART_ROOTFS_2].name;
 			} else {
 				/* hide ROOTFS partition (error path) */
 				parts[PART_ROOTFS_2].skip = true;
@@ -1068,37 +941,38 @@ static int create_mtd_partitions(struct mtd_info *m,
 		}
 #endif
 	}
-#endif
 
 #ifdef PLACE_OS_ON_MTD
 	if (!parts[PART_STORAGE_A].skip)
 		parts[PART_STORAGE].name = PART_STORAGE_LEGACY;
 #endif
 
-	/* Post actions */
-	ndm_parts_num = parts_num();
-
-	ndm_parts = kcalloc(ndm_parts_num, sizeof(*ndm_parts), GFP_KERNEL);
-	if (ndm_parts == NULL)
+	mp = kzalloc(parts_num() * sizeof(*mp), GFP_KERNEL);
+	if (!mp) {
+		ndmpart_di_fini();
 		return -ENOMEM;
+	}
 
 	for (i = j = 0; i < PART_MAX; i++) {
-		if (parts[i].skip)
+		const struct part_dsc *d = &parts[i];
+		struct mtd_partition *p;
+
+		if (d->skip)
 			continue;
 
-		ndm_parts[j].name = (char *)parts[i].name;
-		ndm_parts[j].offset = parts[i].offset;
-		ndm_parts[j].size = parts[i].size;
+		p = &mp[j];
+		p->name = (char *)d->name;
+		p->offset = d->offset;
+		p->size = d->size;
 
-		if (parts[i].read_only)
-			ndm_parts[j].mask_flags = MTD_WRITEABLE;
+		if (d->read_only)
+			p->mask_flags = MTD_WRITEABLE;
 
 		j++;
 	}
 
-	*pparts = ndm_parts;
-
-	return ndm_parts_num;
+	*pparts = mp;
+	return parts_num();
 }
 
 #ifdef NAND_BB_MODE_SKIP
@@ -1157,233 +1031,46 @@ int get_partition_range(int blk, uint32_t bshift,
 
 	return -ENOENT;
 }
-#endif
 
 bool is_nobbm_partition(uint64_t offs)
 {
 #ifdef PLACE_OS_ON_MTD
-	int i;
-	const int nobbm_parts[] = {
+	size_t i;
+	static const enum part NOBBM_PARTS[] = {
 		PART_STORAGE,
 		PART_STORAGE_A,
 		PART_STORAGE_B
 	};
 
 	/* disable bad block management for given partitions */
-	for (i = 0; i < ARRAY_SIZE(nobbm_parts); i++) {
-		const int part_idx = nobbm_parts[i];
+	for (i = 0; i < ARRAY_SIZE(NOBBM_PARTS); i++) {
+		const struct part_dsc *d = &parts[NOBBM_PARTS[i]];
 
-		if (!parts[part_idx].skip &&
-		    offs >= parts[part_idx].offset &&
-		    offs < (parts[part_idx].offset + parts[part_idx].size))
+		if (!d->skip &&
+		    offs >= d->offset && offs < (d->offset + d->size))
 			return true;
 	}
 #endif
 
 	return false;
 }
+#endif
 
 bool is_mtd_partition_rootfs(struct mtd_info *mtd)
 {
-#ifdef PLACE_OS_ON_MTD
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-	if (ndmpart_image_cur == DI_IMAGE_SECOND)
-		return strcmp(mtd->name, parts[PART_ROOTFS_2].name) == 0;
-#endif
-	return strcmp(mtd->name, parts[PART_ROOTFS_1].name) == 0;
-#else
-	return false;
-#endif
+	if (!__ndmpart_rootfs_name)
+		return false;
+
+	return !strcmp(mtd->name, *__ndmpart_rootfs_name);
 }
-
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-static int show_boot(struct seq_file *s, void *v)
-{
-	int ret, val;
-	char *name = s->private;
-
-	ret = u_state_get(name, &val);
-	if (ret < 0) {
-		pr_crit("di: unknown state name: \"%s\"\n", name);
-		return ret;
-	}
-
-	seq_printf(s, "%d\n", val);
-
-	return 0;
-}
-
-static int show_boot_current(struct seq_file *s, void *v)
-{
-	seq_printf(s, "%d\n", ndmpart_image_cur);
-
-	return 0;
-}
-
-static int boot_active_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_boot, DI_BOOT_ACTIVE);
-}
-
-static int boot_backup_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_boot, DI_BOOT_BACKUP);
-}
-
-static int boot_current_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_boot_current, NULL);
-}
-
-static int boot_fails_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_boot, DI_BOOT_FAILS);
-}
-
-static ssize_t commit_proc_write(struct file *file, const char __user *buffer,
-				 size_t count, loff_t *pos)
-{
-	const int ret = u_state_commit();
-
-	if (ret != 0) {
-		pr_crit("di: state commit failed (%i)\n", ret);
-		return ret;
-	}
-
-	return count;
-}
-
-static ssize_t boot_proc_write(const char __user *buffer, size_t count,
-			       const char *name, bool (*is_valid)(char c))
-{
-	char c;
-
-	if (is_valid == NULL)
-		return -EINVAL;
-
-	if (count > 0) {
-		if (get_user(c, buffer))
-			return -EFAULT;
-
-		if (is_valid(c))
-			u_state_set(name, c - '0');
-	}
-
-	return count;
-}
-
-static inline bool boot_active_is_valid(char c)
-{
-	return c >= '0' && c <= '2';
-}
-
-static ssize_t boot_active_proc_write(struct file *file,
-				      const char __user *buffer,
-				      size_t count, loff_t *pos)
-{
-	return boot_proc_write(buffer, count, DI_BOOT_ACTIVE,
-			       boot_active_is_valid);
-}
-
-static inline bool boot_backup_is_valid(char c)
-{
-	return c >= '1' && c <= '2';
-}
-
-static ssize_t boot_backup_proc_write(struct file *file,
-				      const char __user *buffer,
-				      size_t count, loff_t *pos)
-{
-	return boot_proc_write(buffer, count, DI_BOOT_BACKUP,
-			       boot_backup_is_valid);
-}
-
-static inline bool boot_fails_is_valid(char c)
-{
-	/* XXX: Force to '0'? */
-	return c >= '0' && c <= '2';
-}
-
-static ssize_t boot_fails_proc_write(struct file *file,
-				     const char __user *buffer,
-				     size_t count, loff_t *pos)
-{
-	return boot_proc_write(buffer, count, DI_BOOT_FAILS,
-			       boot_fails_is_valid);
-}
-
-static const struct file_operations fops_boot_active = {
-	.open = boot_active_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = boot_active_proc_write
-};
-
-static const struct file_operations fops_boot_backup = {
-	.open = boot_backup_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = boot_backup_proc_write
-};
-
-static const struct file_operations fops_boot_current = {
-	.open = boot_current_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release
-};
-
-static const struct file_operations fops_boot_fails = {
-	.open = boot_fails_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = boot_fails_proc_write
-};
-
-static const struct file_operations fops_commit = {
-	.write = commit_proc_write,
-	.llseek = noop_llseek
-};
-#endif
 
 static struct mtd_part_parser ndm_parser = {
-	.parse_fn = create_mtd_partitions,
-	.name = "ndmpart",
+	.parse_fn	= create_mtd_partitions,
+	.name		= "ndmpart"
 };
 
 static int __init ndm_parser_init(void)
 {
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-	struct proc_dir_entry *proc_dir, *entry;
-
-	ndmpart_di_is_enabled = di_is_enabled();
-	if (ndmpart_di_is_enabled) {
-		proc_dir = proc_mkdir("dual_image", NULL);
-		BUG_ON(proc_dir == NULL);
-
-		entry = proc_create(DI_BOOT_ACTIVE, 0644, proc_dir,
-				    &fops_boot_active);
-		BUG_ON(entry == NULL);
-
-		entry = proc_create(DI_BOOT_BACKUP, 0644, proc_dir,
-				    &fops_boot_backup);
-		BUG_ON(entry == NULL);
-
-		entry = proc_create("boot_current", 0644, proc_dir,
-				    &fops_boot_current);
-		BUG_ON(entry == NULL);
-
-		entry = proc_create(DI_BOOT_FAILS, 0644, proc_dir,
-				    &fops_boot_fails);
-		BUG_ON(entry == NULL);
-
-		entry = proc_create("commit", 0200, proc_dir, &fops_commit);
-		BUG_ON(entry == NULL);
-	}
-#endif
 	pr_info("registering the NDM partition parser...\n");
 
 	return register_mtd_parser(&ndm_parser);
@@ -1393,144 +1080,6 @@ static void __exit ndm_parser_exit(void)
 {
 	deregister_mtd_parser(&ndm_parser);
 }
-
-#ifdef CONFIG_MTD_NDM_DUAL_IMAGE
-static struct di_u_state u_state;
-static struct mtd_info *u_state_master;
-static uint32_t u_state_offset, u_state_size;
-
-static int u_state_init(struct mtd_info *m, uint32_t off, uint32_t size)
-{
-	int ret;
-	size_t len;
-
-	u_state_master = m;
-	u_state_offset = off;
-	u_state_size = size;
-
-	ret = mtd_read(m, off, sizeof(u_state), &len, (void *)&u_state);
-	if (ret != 0 || len != sizeof(u_state)) {
-		pr_err("di: MTD read failed at 0x%012x\n", off);
-		return -EIO;
-	}
-
-	if (ntohl(u_state.magic) != DI_U_STATE_MAGIC) {
-		pr_err("di: unknown magic 0x%08x\n", ntohl(u_state.magic));
-		return -EINVAL;
-	}
-
-	if (u_state.version != DI_U_STATE_VERSION) {
-		pr_err("di: unknown version %d\n", (int)u_state.version);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int u_state_get(const char *name, int *val)
-{
-	if (name == NULL || val == NULL)
-		return -EINVAL;
-
-	if (!strcmp(name, DI_BOOT_ACTIVE))
-		*val = u_state.boot_active;
-	else if (!strcmp(name, DI_BOOT_BACKUP))
-		*val = u_state.boot_backup;
-	else if (!strcmp(name, DI_BOOT_FAILS))
-		*val = u_state.boot_fails;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int u_state_set(const char *name, int val)
-{
-	if (name == NULL)
-		return -EINVAL;
-
-	if (!strcmp(name, DI_BOOT_ACTIVE))
-		u_state.boot_active = val;
-	else if (!strcmp(name, DI_BOOT_BACKUP))
-		u_state.boot_backup = val;
-	else if (!strcmp(name, DI_BOOT_FAILS))
-		u_state.boot_fails = val;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int u_state_commit(void)
-{
-	struct di_u_state u;
-	size_t len, buf_size;
-	int ret = mtd_read(u_state_master, u_state_offset, sizeof(u),
-			   &len, (u8 *)&u);
-
-	if (ret != 0)
-		return ret;
-
-	if (len != sizeof(u))
-		return -EIO;
-
-	if (memcmp(&u, &u_state, sizeof(u)) == 0)
-		return 0;
-
-	if (u_state_master->type == MTD_NORFLASH) {
-		buf_size = sizeof(u_state);
-		ret = mtd_write_retry(u_state_master, u_state_offset,
-				      buf_size, &len, (u8 *)&u_state);
-	} else {
-		void *buf;
-
-		buf_size = ALIGN(sizeof(u_state), u_state_master->writesize);
-		buf = kmalloc(buf_size, GFP_KERNEL);
-
-		if (buf == NULL)
-			return -ENOMEM;
-
-		memset(buf, 0xff, buf_size);
-		memcpy(buf, &u_state, sizeof(u_state));
-
-		ret = mtd_write_retry(u_state_master, u_state_offset,
-				      buf_size, &len, buf);
-		kfree(buf);
-	}
-
-	if (ret == 0 && len != buf_size)
-		ret = -EIO;
-
-	return ret;
-}
-
-static bool di_is_enabled(void)
-{
-#if defined(CONFIG_ARCH_VEXPRESS)
-	/* QEMU */
-	return true;
-#elif defined(CONFIG_OF_FLATTREE)
-	const unsigned char *val;
-	void *fdt = initial_boot_params;
-	const int off = fdt_path_offset(fdt, "/chosen");
-
-	if (off < 0)
-		return false;
-
-	val = fdt_getprop(fdt, off, "dualimage", NULL);
-	if (val	&& *val)
-		return true;
-
-#elif defined(CONFIG_MIPS)
-	extern int env_dual_image;
-
-	if (env_dual_image > 0)
-		return true;
-#endif
-
-	return false;
-}
-#endif
 
 module_init(ndm_parser_init);
 module_exit(ndm_parser_exit);

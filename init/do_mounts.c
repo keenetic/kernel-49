@@ -221,7 +221,7 @@ static int match_dev_by_boot_partition(struct device *dev, const void *data)
 	disk_np = bp->rootdisk_np;
 
 	while (disk_np) {
-		const struct device *part_dev = dev;
+		struct device *part_dev = dev;
 
 		while (part_dev) {
 			if (dev_of_node(part_dev) == disk_np)

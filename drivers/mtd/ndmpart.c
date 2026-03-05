@@ -47,15 +47,6 @@
 #include "ndmpart_di.h"
 #include "ndmpart_upd.h"
 
-#ifndef SQUASHFS_MAGIC
-#define SQUASHFS_MAGIC			0x73717368
-#endif
-
-#define NDMS_MAGIC			0x736D646E
-#define CONFIG_MAGIC			cpu_to_be32(0x2e6e646d)
-#define CONFIG_MAGIC_V1			cpu_to_be32(0x1f8b0801)
-
-#define KERNEL_MAGIC			be32_to_cpu(0x27051956)
 #define ROOTFS_MAGIC			SQUASHFS_MAGIC
 
 #define PART_SIZE_UNKNOWN		(~0)
@@ -427,8 +418,7 @@ static u32 part_rootfs_offset(struct mtd_info *master, u32 begin, u32 size)
 		if (mtd_read(master, off, sizeof(magic), &len, (u8 *)&magic))
 			continue;
 
-		if (le32_to_cpu(magic) == ROOTFS_MAGIC ||
-		    le32_to_cpu(magic) == NDMS_MAGIC)
+		if (le32_to_cpu(magic) == ROOTFS_MAGIC)
 			return off;
 	}
 

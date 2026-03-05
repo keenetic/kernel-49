@@ -15,7 +15,7 @@ obj-$(CONFIG_MTD_AFS_PARTS)	+= afs.o
 obj-$(CONFIG_MTD_AR7_PARTS)	+= ar7part.o
 obj-$(CONFIG_MTD_BCM63XX_PARTS)	+= bcm63xxpart.o
 obj-$(CONFIG_MTD_BCM47XX_PARTS)	+= bcm47xxpart.o
-obj-$(CONFIG_MTD_NDM_PARTS)	+= ndmpart.o
+obj-$(CONFIG_MTD_NDM_PARTS)	+= ndmpart.o ndmpart_upd.o
 obj-$(CONFIG_MTD_NDM_DUAL_IMAGE)+= ndmpart_di.o
 
 # 'Users' - code which presents functionality to userspace.

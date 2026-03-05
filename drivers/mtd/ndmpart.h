@@ -93,6 +93,10 @@
 #define PART_RSV_SIZE_NAND		(PART_FIP_SIZE_NAND - PART_UST_SIZE_NAND)
 #endif
 
+#define NDMPART_NAME_PRELOADER		"Preloader"
+#define NDMPART_NAME_ATF		"ATF"
+#define NDMPART_NAME_U_BOOT		"U-Boot"
+
 #if defined(CONFIG_MTD_NAND_MT7621)
 #define NAND_BB_MODE_SKIP
 int get_partition_range(int blk, uint32_t bshift, int *blk_start, int *blk_end);

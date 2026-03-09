@@ -27,6 +27,7 @@
 
 #define pr_fmt(fmt)				  KBUILD_MODNAME ": " fmt
 
+#include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -121,8 +122,8 @@ enum part {
 
 struct part_dsc {
 	const char	*name;
-	uint32_t	 offset;
-	uint32_t	 size;
+	u32		 offset;
+	u32		 size;
 	bool		 skip;
 	bool		 read_only;
 };
@@ -251,15 +252,14 @@ static struct part_dsc parts[PART_MAX] = {
 	}
 };
 
-static inline uint32_t parts_offset_end(enum part part)
+static inline u32 parts_offset_end(enum part part)
 {
 	return parts[part].offset + parts[part].size;
 }
 
-static uint32_t parts_size_default_get(enum part part,
-				       struct mtd_info *master)
+static u32 parts_size_default_get(enum part part, struct mtd_info *master)
 {
-	uint32_t size = PART_SIZE_UNKNOWN;
+	u32 size = PART_SIZE_UNKNOWN;
 #if !defined(CONFIG_ARCH_VEXPRESS)
 	bool is_nor = master->type == MTD_NORFLASH;
 #endif
@@ -432,12 +432,12 @@ static int create_mtd_partitions(struct mtd_info *m,
 {
 	int i, j, parts_nr = 0;
 	u8 di_current = NDMPART_DI_IMAGE_FIRST;
-	uint32_t u_state_offset = NDMPART_DI_NO_OFFSET;
-	uint32_t offs_uboot = 0;
-	uint32_t flash_size_lim = 0;
+	u32 u_state_offset = NDMPART_DI_NO_OFFSET;
+	u32 offs_uboot = 0;
+	u32 flash_size_lim = 0;
 	struct mtd_partition *mp = NULL;
 #ifdef PLACE_OS_ON_MTD
-	uint32_t off;
+	u32 off;
 	bool use_storage = CONFIG_MTD_NDM_STORAGE_SIZE ? true : false;
 #endif
 	bool use_dump = CONFIG_MTD_NDM_DUMP_SIZE ? true : false;
@@ -569,7 +569,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 				      parts[PART_FIRMWARE_1].offset;
 
 	if (di_current == NDMPART_DI_IMAGE_FIRST) {
-		uint32_t s_beg, s_size;
+		u32 s_beg, s_size;
 
 		s_beg = parts[PART_FIRMWARE_1].offset;
 		s_size = parts[PART_FIRMWARE_1].size;
@@ -654,7 +654,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 		}
 
 		if (di_current == NDMPART_DI_IMAGE_SECOND) {
-			uint32_t s_beg, s_size;
+			u32 s_beg, s_size;
 
 			s_beg = parts[PART_FIRMWARE_2].offset;
 			s_size = parts[PART_FIRMWARE_2].size;
@@ -725,11 +725,11 @@ static int create_mtd_partitions(struct mtd_info *m,
 }
 
 #ifdef NAND_BB_MODE_SKIP
-int get_partition_range(int blk, uint32_t bshift,
+int get_partition_range(int blk, u32 bshift,
 			int *blk_start, int *blk_end)
 {
 	int i, blk_end_last;
-	uint64_t offs, size;
+	u64 offs, size;
 
 	for (i = 0; i < PART_MAX; i++) {
 		if (parts[i].skip)
@@ -781,7 +781,7 @@ int get_partition_range(int blk, uint32_t bshift,
 	return -ENOENT;
 }
 
-bool is_nobbm_partition(uint64_t offs)
+bool is_nobbm_partition(u64 offs)
 {
 #ifdef PLACE_OS_ON_MTD
 	size_t i;

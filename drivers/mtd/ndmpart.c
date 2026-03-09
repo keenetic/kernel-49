@@ -96,8 +96,6 @@ enum part {
 	PART_DUMP,		/* optional */
 	PART_STORAGE_A,		/* optional */
 #else
-	/* PART_CONFIG_1 will be removed */
-	PART_CONFIG_1,
 	PART_DUMP,		/* optional */
 #endif
 	/* Image 2 */
@@ -111,9 +109,6 @@ enum part {
 	PART_FIRMWARE_2,	/* optional */
 	PART_CONFIG_2,		/* optional */
 	PART_STORAGE_B,		/* optional */
-#else
-	/* PART_CONFIG_2 will be removed */
-	PART_CONFIG_2,		/* optional */
 #endif
 	/* Pseudo */
 	PART_FULL,
@@ -188,10 +183,6 @@ static struct part_dsc parts[PART_MAX] = {
 		.skip		= true
 	},
 #else
-	/* PART_CONFIG_1 will be removed */
-	[PART_CONFIG_1] = {
-		.name		= "Config"
-	},
 	[PART_DUMP] = {
 		.name		= "Dump",
 		.skip		= true
@@ -235,12 +226,6 @@ static struct part_dsc parts[PART_MAX] = {
 	},
 	[PART_STORAGE_B] = {
 		.name		= "Storage_B",
-		.skip		= true
-	},
-#else
-	/* PART_CONFIG_2 will be removed */
-	[PART_CONFIG_2] = {
-		.name		= "Config_2",
 		.skip		= true
 	},
 #endif
@@ -346,9 +331,11 @@ static u32 parts_size_default_get(enum part part, struct mtd_info *master)
 	case PART_RF_EEPROM:
 		size = is_nor ? PART_E2P_SIZE_NOR : PART_E2P_SIZE_NAND;
 		break;
+#ifdef PLACE_OS_ON_MTD
 	case PART_CONFIG_1:
 		size = master->erasesize * 4;
 		break;
+#endif
 	case PART_U_STATE:
 		size = is_nor ? PART_UST_SIZE_NOR : PART_UST_SIZE_NAND;
 		break;
@@ -374,7 +361,9 @@ static u32 parts_size_default_get(enum part part, struct mtd_info *master)
 		break;
 	case PART_U_CONFIG:
 	case PART_RF_EEPROM:
+#ifdef PLACE_OS_ON_MTD
 	case PART_CONFIG_1:
+#endif
 		size = master->erasesize;
 #ifdef NAND_BB_MODE_SKIP
 		if (!is_nor)
@@ -595,16 +584,6 @@ static int create_mtd_partitions(struct mtd_info *m,
 			parts[PART_ROOTFS_1].skip = true;
 		}
 	}
-#else
-	/* PART_CONFIG_1 will be removed */
-	parts[PART_CONFIG_1].size = parts_size_default_get(PART_CONFIG_1, m);
-
-	if (use_dump)
-		parts[PART_CONFIG_1].offset = parts[PART_DUMP].offset -
-					      parts[PART_CONFIG_1].size;
-	else
-		parts[PART_CONFIG_1].offset = flash_size_lim -
-					      parts[PART_CONFIG_1].size;
 #endif
 
 	if (u_state_offset != NDMPART_DI_NO_OFFSET) {
@@ -620,12 +599,12 @@ static int create_mtd_partitions(struct mtd_info *m,
 		parts[PART_RF_EEPROM_RES].offset = parts_offset_end(PART_U_CONFIG_RES);
 		parts[PART_RF_EEPROM_RES].size = parts[PART_RF_EEPROM].size;
 
+#ifdef PLACE_OS_ON_MTD
 		parts[PART_CONFIG_1].name = "Config_1";
 		parts[PART_CONFIG_2].skip = false;
 		parts[PART_CONFIG_2].offset = u_state_offset + parts[PART_CONFIG_1].offset;
 		parts[PART_CONFIG_2].size = parts[PART_CONFIG_1].size;
 
-#ifdef PLACE_OS_ON_MTD
 		parts[PART_FIRMWARE_1].name = "Firmware_1";
 		parts[PART_KERNEL_1].name = "Kernel_1";
 		parts[PART_ROOTFS_1].name = "RootFS_1";

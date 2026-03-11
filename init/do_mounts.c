@@ -14,6 +14,7 @@
 #include <linux/fd.h>
 #include <linux/tty.h>
 #include <linux/suspend.h>
+#include <linux/reboot.h>
 #include <linux/root_dev.h>
 #include <linux/security.h>
 #include <linux/delay.h>
@@ -28,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/ramfs.h>
 #include <linux/shmem_fs.h>
+#include <linux/jiffies.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
@@ -43,6 +45,8 @@ int root_mountflags = MS_RDONLY | MS_SILENT;
 static char * __initdata root_device_name;
 static char __initdata saved_root_name[64];
 static int root_wait;
+
+#define ROOT_DEV_WAIT_SEC (5)
 
 dev_t ROOT_DEV;
 
@@ -705,11 +709,19 @@ void __init prepare_namespace(void)
 
 	/* wait for any asynchronous scanning to complete */
 	if ((ROOT_DEV == 0) && root_wait) {
-		printk(KERN_INFO "Waiting for root device %s...\n",
-			saved_root_name);
+		const unsigned long deadline = jiffies + ROOT_DEV_WAIT_SEC * HZ;
+
+		pr_info("Waiting for the root device %s in %u seconds...\n",
+			saved_root_name, ROOT_DEV_WAIT_SEC);
 		while (driver_probe_done() != 0 ||
-			(ROOT_DEV = name_to_dev_t(saved_root_name)) == 0)
+			(ROOT_DEV = name_to_dev_t(saved_root_name)) == 0) {
 			msleep(100);
+
+			if (time_after(jiffies, deadline)) {
+				pr_err("No root device found, rebooting...\n");
+				kernel_restart(NULL);
+			}
+		}
 		async_synchronize_full();
 	}
 

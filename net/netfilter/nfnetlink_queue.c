@@ -1017,7 +1017,8 @@ verdict_instance_lookup(struct nfnl_queue_net *q, u16 queue_num, u32 nlportid)
 	if (!queue)
 		return ERR_PTR(-ENODEV);
 
-	if (queue->peer_portid != nlportid)
+	if (!(queue->flags & NFQA_CFG_F_PERMISSIVE) &&
+		queue->peer_portid != nlportid)
 		return ERR_PTR(-EPERM);
 
 	return queue;

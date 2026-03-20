@@ -114,7 +114,8 @@ enum nfqnl_attr_config {
 #define NFQA_CFG_F_GSO				(1 << 2)
 #define NFQA_CFG_F_UID_GID			(1 << 3)
 #define NFQA_CFG_F_SECCTX			(1 << 4)
-#define NFQA_CFG_F_MAX				(1 << 5)
+#define NFQA_CFG_F_PERMISSIVE		(1 << 5)
+#define NFQA_CFG_F_MAX				(1 << 6)
 
 /* flags for NFQA_SKB_INFO */
 /* packet appears to have wrong checksums, but they are ok */

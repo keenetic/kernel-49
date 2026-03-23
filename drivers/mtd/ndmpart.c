@@ -261,9 +261,11 @@ static u32 parts_size_default_get(enum part part, struct mtd_info *master)
 	case PART_RF_EEPROM:
 		size = PART_E2P_SIZE;
 		break;
+#ifdef PLACE_OS_ON_MTD
 	case PART_CONFIG_1:
 		size = master->erasesize * 4;
 		break;
+#endif
 	case PART_U_STATE:
 		size = PART_UST_SIZE;
 		break;

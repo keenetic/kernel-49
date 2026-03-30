@@ -35,6 +35,44 @@ struct pericom_chip {
 
 static struct pericom_chip *g_pericom_chip[PERICOM_MAX_INSTANCES];
 
+static inline void __pericom_fill_ports(struct pericom_chip *chip)
+{
+	struct i2c_client *client = chip->client;
+	struct device *dev = &client->dev;
+	struct i2c_msg msgs[2];
+	int ret;
+	u8 cmd;
+
+	msgs[0].addr = client->addr;
+	msgs[0].flags = 0;
+	msgs[0].len = 1;
+	msgs[0].buf = &cmd;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = I2C_M_RD;
+	msgs[1].len = PERICOM_GPIO_PORTS;
+
+	/* sync out ports */
+	cmd = PERICOM_CMD_OUT(0);
+	msgs[1].buf = chip->port_o;
+	ret = i2c_transfer(client->adapter, msgs, 2);
+	if (ret < 0)
+		dev_warn(dev, "i2c cmd (%u) read failed (%d) from addr %x\n",
+			 cmd, ret, client->addr);
+
+	/* sync cfg ports */
+	cmd = PERICOM_CMD_CFG(0);
+	msgs[1].buf = chip->port_c;
+	ret = i2c_transfer(client->adapter, msgs, 2);
+	if (ret < 0)
+		dev_warn(dev, "i2c cmd (%u) read failed (%d) from addr %x\n",
+			 cmd, ret, client->addr);
+
+	/* sync input ports */
+	if (!chip->sync_input)
+		memcpy(chip->port_i, chip->port_o, PERICOM_GPIO_PORTS);
+}
+
 static int _pericom_get(struct pericom_chip *chip, unsigned int offset)
 {
 	struct i2c_client *client = chip->client;
@@ -61,8 +99,8 @@ static int _pericom_get(struct pericom_chip *chip, unsigned int offset)
 		if (ret < 0) {
 			struct device *dev = &client->dev;
 
-			dev_dbg(dev, "i2c read failed (%d) from addr %x\n",
-				ret, client->addr);
+			dev_dbg(dev, "i2c cmd (%u) read failed (%d) from addr %x\n",
+				cmd, ret, client->addr);
 		}
 	}
 
@@ -101,8 +139,8 @@ static int _pericom_set(struct pericom_chip *chip, unsigned int offset, int valu
 
 	ret = i2c_transfer(client->adapter, msgs, 1);
 	if (ret < 0) {
-		dev_dbg(&client->dev, "i2c write failed (%d) to addr %x\n",
-			ret, client->addr);
+		dev_dbg(&client->dev, "i2c cmd (%u) write failed (%d) to addr %x\n",
+			buf[0], ret, client->addr);
 		return ret;
 	}
 
@@ -144,8 +182,8 @@ static int _pericom_set_dir(struct pericom_chip *chip, unsigned int offset, bool
 
 	ret = i2c_transfer(client->adapter, msgs, 1);
 	if (ret < 0) {
-		dev_dbg(&client->dev, "i2c write failed (%d) to addr %x\n",
-			ret, client->addr);
+		dev_dbg(&client->dev, "i2c cmd (%u) write failed (%d) to addr %x\n",
+			buf[0], ret, client->addr);
 		return ret;
 	}
 
@@ -333,28 +371,7 @@ static int pericom_gpio_probe(struct i2c_client *client,
 	chip->client = client;
 	chip->sync_input = of_property_read_bool(np, "gpio-sync-input");
 
-	/* cache input pins state */
-	if (!chip->sync_input) {
-		struct i2c_msg msgs[2];
-		u8 cmd = PERICOM_CMD_INP(0);
-
-		msgs[0].addr = client->addr;
-		msgs[0].flags = 0;
-		msgs[0].len = 1;
-		msgs[0].buf = &cmd;
-
-		msgs[1].addr = client->addr;
-		msgs[1].flags = I2C_M_RD;
-		msgs[1].len = PERICOM_GPIO_PORTS;
-		msgs[1].buf = chip->port_i;
-
-		ret = i2c_transfer(client->adapter, msgs, 2);
-		if (ret < 0)
-			dev_warn(dev, "i2c read failed (%d) from addr %x\n",
-				 ret, client->addr);
-		else
-			memcpy(chip->port_o, chip->port_i, PERICOM_GPIO_PORTS);
-	}
+	__pericom_fill_ports(chip);
 
 	chip->gpio.label		 = client->name;
 	chip->gpio.owner		 = THIS_MODULE;

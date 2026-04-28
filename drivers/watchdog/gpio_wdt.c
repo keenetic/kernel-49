@@ -12,13 +12,19 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
+#ifdef CONFIG_OF
+#include <linux/of_gpio.h>
+#else
+#include "gpio_wdt.h"
+#endif
 
 #define SOFT_TIMEOUT_MIN	1
 #define SOFT_TIMEOUT_DEF	60
 #define SOFT_TIMEOUT_MAX	0xffff
+
+#define HW_MARGIN_DEFAULT	 10000
 
 enum {
 	HW_ALGO_TOGGLE,
@@ -28,8 +34,8 @@ enum {
 struct gpio_wdt_priv {
 	int			gpio;
 	bool			active_low;
-	bool			state;
 	bool			always_running;
+	bool			state;
 	bool			armed;
 	unsigned int		hw_algo;
 	unsigned int		hw_margin;
@@ -38,13 +44,91 @@ struct gpio_wdt_priv {
 	struct watchdog_device	wdd;
 };
 
+static inline int
+gpio_wdt_load_settings(struct gpio_wdt_priv *priv, struct device *dev)
+{
+	unsigned int hw_margin = HW_MARGIN_DEFAULT;
+#ifdef CONFIG_OF
+	enum of_gpio_flags flags;
+	const char *algo;
+	unsigned long f = 0;
+	int ret;
+
+	priv->gpio = of_get_gpio_flags(dev->of_node, 0, &flags);
+	if (!gpio_is_valid(priv->gpio))
+		return priv->gpio;
+
+	priv->active_low = flags & OF_GPIO_ACTIVE_LOW;
+
+	ret = of_property_read_string(dev->of_node, "hw_algo", &algo);
+	if (ret)
+		return ret;
+
+	if (!strcmp(algo, "toggle")) {
+		priv->hw_algo = HW_ALGO_TOGGLE;
+		f = GPIOF_IN;
+	} else if (!strcmp(algo, "level")) {
+		priv->hw_algo = HW_ALGO_LEVEL;
+		f = priv->active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+	} else {
+		return -EINVAL;
+	}
+
+	/* Disallow values lower than 2 and higher than 65535 ms */
+	ret = of_property_read_u32(dev->of_node, "hw_margin_ms", &hw_margin);
+	if (ret || hw_margin < 2 || hw_margin > 65535)
+		hw_margin = HW_MARGIN_DEFAULT;
+
+	priv->always_running = of_property_read_bool(dev->of_node,
+						     "always-running");
+
+	ret = devm_gpio_request_one(dev, priv->gpio, f, dev_name(dev));
+	if (ret)
+		return ret;
+#else
+	priv->gpio = CONFIG_GPIO_WATCHDOG_LINE;
+	if (priv->gpio < 0 || priv->gpio >= MT762X_MAX_PINS)
+		return -EINVAL;
+
+	priv->hw_algo = HW_ALGO_TOGGLE;
+	priv->active_low = false;
+	priv->always_running = true;
+#endif
+
+	/* Use safe value (1/2 of real timeout) */
+	priv->hw_margin = msecs_to_jiffies(hw_margin / 2);
+
+	return 0;
+}
+
+static inline void _gpio_set_value(int gpio, bool one)
+{
+#ifdef CONFIG_OF
+	gpio_set_value_cansleep(gpio, one);
+#else
+	mt762x_gpio_set_value(gpio, one);
+#endif
+}
+
+static inline void _gpio_set_direction(struct gpio_wdt_priv *priv, bool out)
+{
+#ifdef CONFIG_OF
+	if (out)
+		gpio_direction_output(priv->gpio, priv->state);
+	else
+		gpio_direction_input(priv->gpio);
+#else
+	/* set pin mode & direction from u-boot */
+#endif
+}
+
 static void gpio_wdt_disable(struct gpio_wdt_priv *priv)
 {
-	gpio_set_value_cansleep(priv->gpio, !priv->active_low);
+	_gpio_set_value(priv->gpio, !priv->active_low);
 
 	/* Put GPIO back to tristate */
 	if (priv->hw_algo == HW_ALGO_TOGGLE)
-		gpio_direction_input(priv->gpio);
+		_gpio_set_direction(priv, false);
 }
 
 static void gpio_wdt_hwping(unsigned long data)
@@ -66,13 +150,13 @@ static void gpio_wdt_hwping(unsigned long data)
 	case HW_ALGO_TOGGLE:
 		/* Toggle output pin */
 		priv->state = !priv->state;
-		gpio_set_value_cansleep(priv->gpio, priv->state);
+		_gpio_set_value(priv->gpio, priv->state);
 		break;
 	case HW_ALGO_LEVEL:
 		/* Pulse */
-		gpio_set_value_cansleep(priv->gpio, !priv->active_low);
+		_gpio_set_value(priv->gpio, !priv->active_low);
 		udelay(1);
-		gpio_set_value_cansleep(priv->gpio, priv->active_low);
+		_gpio_set_value(priv->gpio, priv->active_low);
 		break;
 	}
 }
@@ -80,7 +164,7 @@ static void gpio_wdt_hwping(unsigned long data)
 static void gpio_wdt_start_impl(struct gpio_wdt_priv *priv)
 {
 	priv->state = priv->active_low;
-	gpio_direction_output(priv->gpio, priv->state);
+	_gpio_set_direction(priv, true);
 	priv->last_jiffies = jiffies;
 	gpio_wdt_hwping((unsigned long)&priv->wdd);
 }
@@ -141,10 +225,6 @@ static const struct watchdog_ops gpio_wdt_ops = {
 static int gpio_wdt_probe(struct platform_device *pdev)
 {
 	struct gpio_wdt_priv *priv;
-	enum of_gpio_flags flags;
-	unsigned int hw_margin;
-	unsigned long f = 0;
-	const char *algo;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -153,43 +233,9 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	priv->gpio = of_get_gpio_flags(pdev->dev.of_node, 0, &flags);
-	if (!gpio_is_valid(priv->gpio))
-		return priv->gpio;
-
-	priv->active_low = flags & OF_GPIO_ACTIVE_LOW;
-
-	ret = of_property_read_string(pdev->dev.of_node, "hw_algo", &algo);
+	ret = gpio_wdt_load_settings(priv, &pdev->dev);
 	if (ret)
 		return ret;
-	if (!strcmp(algo, "toggle")) {
-		priv->hw_algo = HW_ALGO_TOGGLE;
-		f = GPIOF_IN;
-	} else if (!strcmp(algo, "level")) {
-		priv->hw_algo = HW_ALGO_LEVEL;
-		f = priv->active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-	} else {
-		return -EINVAL;
-	}
-
-	ret = devm_gpio_request_one(&pdev->dev, priv->gpio, f,
-				    dev_name(&pdev->dev));
-	if (ret)
-		return ret;
-
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "hw_margin_ms", &hw_margin);
-	if (ret)
-		return ret;
-	/* Disallow values lower than 2 and higher than 65535 ms */
-	if (hw_margin < 2 || hw_margin > 65535)
-		return -EINVAL;
-
-	/* Use safe value (1/2 of real timeout) */
-	priv->hw_margin = msecs_to_jiffies(hw_margin / 2);
-
-	priv->always_running = of_property_read_bool(pdev->dev.of_node,
-						     "always-running");
 
 	watchdog_set_drvdata(&priv->wdd, priv);
 
@@ -226,16 +272,20 @@ static int gpio_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id gpio_wdt_dt_ids[] = {
 	{ .compatible = "linux,wdt-gpio", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, gpio_wdt_dt_ids);
+#endif
 
 static struct platform_driver gpio_wdt_driver = {
 	.driver	= {
 		.name		= "gpio-wdt",
+#ifdef CONFIG_OF
 		.of_match_table	= gpio_wdt_dt_ids,
+#endif
 	},
 	.probe	= gpio_wdt_probe,
 	.remove	= gpio_wdt_remove,

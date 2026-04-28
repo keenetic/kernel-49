@@ -114,11 +114,18 @@ config DA9062_WATCHDOG
 
 config GPIO_WATCHDOG
 	tristate "Watchdog device controlled through GPIO-line"
-	depends on OF_GPIO
+	depends on OF_GPIO || RALINK_MT7621 || RALINK_MT7628
 	select WATCHDOG_CORE
 	help
 	  If you say yes here you get support for watchdog device
 	  controlled through GPIO-line.
+
+config GPIO_WATCHDOG_LINE
+	int "GPIO line number"
+	depends on GPIO_WATCHDOG
+	depends on RALINK_MT7621 || RALINK_MT7628
+	help
+	  GPIO-line number of MT762x SoC
 
 config GPIO_WATCHDOG_ARCH_INITCALL
 	bool "Register the watchdog as early as possible"

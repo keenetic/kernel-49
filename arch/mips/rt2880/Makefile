@@ -29,6 +29,10 @@ obj-$(CONFIG_MIPS_CMP) += malta-amon.o
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MTD_NAND_MT7621) += dev-nand.o
 
+ifdef CONFIG_GPIO_WATCHDOG
+obj-y += dev-gpio_wdt.o
+endif
+
 ifdef CONFIG_USB_EHCI_HCD_PLATFORM
 obj-y += dev-ehci_ohci.o uphy.o
 endif

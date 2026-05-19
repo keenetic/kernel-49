@@ -31,6 +31,7 @@
 
 #include "xhci.h"
 #include "xhci-mtk.h"
+#include "xhci-mtk-test/xhci-mtk-test.h"
 
 #ifdef XHCI_MTK_HOST_MIPS
 #include <soc/ralink/dev_xhci.h>
@@ -832,6 +833,8 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	if (ret)
 		goto dealloc_usb2_hcd;
 
+	hqa_create_attr(dev);
+
 	return 0;
 
 dealloc_usb2_hcd:
@@ -868,6 +871,8 @@ static int xhci_mtk_remove(struct platform_device *dev)
 	struct xhci_hcd_mtk *mtk = platform_get_drvdata(dev);
 	struct usb_hcd	*hcd = mtk->hcd;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+
+	hqa_remove_attr(&dev->dev);
 
 	pm_runtime_put_noidle(&dev->dev);
 	pm_runtime_disable(&dev->dev);

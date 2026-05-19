@@ -187,6 +187,12 @@ struct xhci_hcd_mtk {
 	int wakeup_src;
 	bool lpm_support;
 	bool p0_speed_fixup;
+#ifdef CONFIG_USB_XHCI_MTK_DEBUGFS
+	int test_mode;
+	size_t hqa_size;
+	char *hqa_buf;
+	u32 hqa_pos;
+#endif
 };
 
 static inline struct xhci_hcd_mtk *hcd_to_mtk(struct usb_hcd *hcd)

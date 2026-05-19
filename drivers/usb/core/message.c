@@ -934,6 +934,7 @@ int usb_get_device_descriptor(struct usb_device *dev, unsigned int size)
 	kfree(desc);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(usb_get_device_descriptor);
 
 /**
  * usb_get_status - issues a GET_STATUS call

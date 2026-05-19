@@ -15,6 +15,18 @@ xhci-hcd-y += xhci-ring.o xhci-hub.o xhci-dbg.o
 xhci-hcd-y += xhci-trace.o
 ifneq ($(CONFIG_USB_XHCI_MTK), )
 	xhci-hcd-y += xhci-mtk-sch.o
+ifneq ($(CONFIG_USB_XHCI_MTK_DEBUGFS), )
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-test.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-unusual.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-intr-en.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-vrt-vref.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-term-vref.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-hstx-srctrl.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-discth.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-chgdt-en.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-reg.o
+	xhci-hcd-y += xhci-mtk-test/xhci-mtk-preemphasic.o
+endif
 endif
 
 xhci-plat-hcd-y := xhci-plat.o

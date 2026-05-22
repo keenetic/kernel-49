@@ -27,6 +27,17 @@ static SPINAND_OP_VARIANTS(update_cache_variants,
 		SPINAND_PROG_LOAD_X4(false, 0, NULL, 0),
 		SPINAND_PROG_LOAD(false, 0, NULL, 0));
 
+static SPINAND_OP_VARIANTS(read_cache_variants_x2,
+		SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_OP(true, 0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_OP(false, 0, 1, NULL, 0));
+
+static SPINAND_OP_VARIANTS(write_cache_variants_x1,
+		SPINAND_PROG_LOAD(true, 0, NULL, 0));
+
+static SPINAND_OP_VARIANTS(update_cache_variants_x1,
+		SPINAND_PROG_LOAD(false, 0, NULL, 0));
+
 static int unim_64_ooblayout_ecc(struct mtd_info *mtd, int section,
 				 struct mtd_oob_region *region)
 {
@@ -98,9 +109,9 @@ static const struct spinand_info unim_spinand_table[] = {
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x14),
 		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
 		     NAND_ECCREQ(8, 512),
-		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
-					      &write_cache_variants,
-					      &update_cache_variants),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants_x2,
+					      &write_cache_variants_x1,
+					      &update_cache_variants_x1),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&unim_64_ooblayout,
 				     unim_8_ecc_get_status)),

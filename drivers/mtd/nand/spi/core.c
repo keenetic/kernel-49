@@ -1352,8 +1352,10 @@ int spinand_match_and_init(struct spinand_device *spinand,
 			continue;
 
 #ifdef CONFIG_SPI_NAND_CASN
-		if (spinand->use_casn)
+		if (spinand->use_casn) {
+			spinand->flags = table[i].flags;
 			return 0;
+		}
 #endif
 
 		nand->memorg = table[i].memorg;
@@ -1646,7 +1648,10 @@ static int spinand_init_via_casn(struct spinand_device *spinand,
 
 	nand->eccreq.strength = be32_to_cpu(casn->ecc_strength);
 	nand->eccreq.step_size = be32_to_cpu(casn->ecc_step_size);
-	spinand->flags = casn->flags;
+
+	/* save flags from table, CASN flags use 8 bit length */
+	spinand->flags &= ~0xff;
+	spinand->flags |= casn->flags;
 
 	if (spinand->flags & SPINAND_SUP_ADV_ECC_STATUS) {
 		spinand->eccinfo = (struct spinand_ecc_info) {
@@ -1829,26 +1834,32 @@ static int spinand_detect(struct spinand_device *spinand)
 		sanitize_string(model, sizeof(model));
 
 		spinand_dump_casn(spinand, casn + sel);
-
-		ret = spinand_init_via_casn(spinand, casn + sel);
-		if (ret) {
-			spinand->use_casn = false;
-			dev_err(dev, "Initilize spinand via CASN failed: %d\n", ret);
-		}
 	}
 
-	kfree(casn);
-
 	ret = spinand_reset_op(spinand);
-	if (ret)
+	if (ret) {
+		kfree(casn);
 		return ret;
+	}
 
 	ret = spinand_id_detect(spinand);
 	if (ret && !spinand->use_casn) {
 		dev_err(dev, "CASN page doesn't exist and unknown raw ID %*phN\n",
 			SPINAND_MAX_ID_LEN, spinand->id.data);
+		kfree(casn);
 		return ret;
 	}
+
+	if (spinand->use_casn) {
+		ret = spinand_init_via_casn(spinand, casn + sel);
+		if (ret) {
+			dev_err(dev, "Initilize spinand via CASN failed: %d\n", ret);
+			kfree(casn);
+			return ret;
+		}
+	}
+
+	kfree(casn);
 
 	/* Since spinand_id_detect returns unsupported if ID probe fails, we should reset this flag. */
 	ret = 0;

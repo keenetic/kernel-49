@@ -35,8 +35,9 @@ static SPINAND_OP_VARIANTS(read_cache_variants_x2,
 static SPINAND_OP_VARIANTS(write_cache_variants_x1,
 		SPINAND_PROG_LOAD(true, 0, NULL, 0));
 
+/* Program load random data (opcode 0x84) is broken on UNIM */
 static SPINAND_OP_VARIANTS(update_cache_variants_x1,
-		SPINAND_PROG_LOAD(false, 0, NULL, 0));
+		SPINAND_PROG_LOAD(true, 0, NULL, 0));
 
 static int unim_64_ooblayout_ecc(struct mtd_info *mtd, int section,
 				 struct mtd_oob_region *region)
@@ -95,7 +96,8 @@ static const struct spinand_info unim_spinand_table[] = {
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants_x2,
 					      &write_cache_variants_x1,
 					      &update_cache_variants_x1),
-		     SPINAND_HAS_QE_BIT,
+		     SPINAND_HAS_QE_BIT | SPINAND_PP_BROKEN_LOAD_RANDOM |
+		     SPINAND_SKIP_X4_MODES,
 		     SPINAND_ECCINFO(&unim_64_ooblayout,
 				     unim_8_ecc_get_status)),
 };

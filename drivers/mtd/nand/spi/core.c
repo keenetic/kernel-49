@@ -1465,6 +1465,9 @@ static int spinand_set_read_op_variants(struct spinand_device *spinand,
 	if (!read_ops)
 		return -ENOMEM;
 
+	if (spinand->flags & SPINAND_SKIP_X4_MODES)
+		goto skip_x4;
+
 	if (FIELD_GET(SDR_READ_1_4_4, sdr_read_cap)) {
 		read_ops[i] = (struct spi_mem_op)
 			SPINAND_CASN_PAGE_READ_FROM_CACHE_QUADIO_OP(
@@ -1483,6 +1486,7 @@ static int spinand_set_read_op_variants(struct spinand_device *spinand,
 		i++;
 	}
 
+skip_x4:
 	if (FIELD_GET(SDR_READ_1_2_2, sdr_read_cap)) {
 		read_ops[i] = (struct spi_mem_op)
 			SPINAND_CASN_PAGE_READ_FROM_CACHE_DUALIO_OP(
@@ -1519,9 +1523,9 @@ static int spinand_set_read_op_variants(struct spinand_device *spinand,
 		i++;
 	}
 
-	casn_read_cache_variants = (struct spinand_op_variants){
+	casn_read_cache_variants = (struct spinand_op_variants) {
 		.ops = read_ops,
-		.nops = hweight16(sdr_read_cap),
+		.nops = i,
 	};
 
 	op = spinand_select_op_variant(spinand, &casn_read_cache_variants);
@@ -1550,6 +1554,9 @@ static int spinand_set_write_op_variants(struct spinand_device *spinand,
 	if (!write_ops)
 		return -ENOMEM;
 
+	if (spinand->flags & SPINAND_SKIP_X4_MODES)
+		goto skip_x4;
+
 	if (FIELD_GET(SDR_WRITE_1_1_4, casn->sdr_write_cap)) {
 		write_ops[i] = (struct spi_mem_op)
 			SPINAND_CASN_PROG_LOAD_X4(
@@ -1558,6 +1565,7 @@ static int spinand_set_write_op_variants(struct spinand_device *spinand,
 		i++;
 	}
 
+skip_x4:
 	if (FIELD_GET(SDR_WRITE_1_1_1, casn->sdr_write_cap)) {
 		write_ops[i] = (struct spi_mem_op)
 			SPINAND_CASN_PROG_LOAD(
@@ -1566,9 +1574,9 @@ static int spinand_set_write_op_variants(struct spinand_device *spinand,
 		i++;
 	}
 
-	casn_write_cache_variants = (struct spinand_op_variants){
+	casn_write_cache_variants = (struct spinand_op_variants) {
 		.ops = write_ops,
-		.nops = hweight8(casn->sdr_write_cap),
+		.nops = i,
 	};
 
 	op = spinand_select_op_variant(spinand, &casn_write_cache_variants);
@@ -1590,6 +1598,7 @@ static int spinand_set_update_op_variants(struct spinand_device *spinand,
 	struct spi_mem_op *update_ops;
 	const struct spi_mem_op *op;
 	int i = 0;
+	bool reset_cache = false;
 
 	update_ops = devm_kzalloc(dev, sizeof(struct spi_mem_op) *
 				  hweight8(casn->sdr_update_cap),
@@ -1597,24 +1606,32 @@ static int spinand_set_update_op_variants(struct spinand_device *spinand,
 	if (!update_ops)
 		return -ENOMEM;
 
+	if (spinand->flags & SPINAND_PP_BROKEN_LOAD_RANDOM)
+		reset_cache = true;
+
+	if (spinand->flags & SPINAND_SKIP_X4_MODES)
+		goto skip_x4;
+
 	if (FIELD_GET(SDR_UPDATE_1_1_4, casn->sdr_update_cap)) {
 		update_ops[i] = (struct spi_mem_op)
 			SPINAND_CASN_PROG_LOAD_X4(
-				false, casn->sdr_update_1_1_4.addr_nbytes, 0,
-				NULL, 0);
-		i++;
-	}
-	if (FIELD_GET(SDR_UPDATE_1_1_1, casn->sdr_update_cap)) {
-		update_ops[i] = (struct spi_mem_op)
-			SPINAND_CASN_PROG_LOAD(
-				false, casn->sdr_update_1_1_1.addr_nbytes, 0,
+				reset_cache, casn->sdr_update_1_1_4.addr_nbytes, 0,
 				NULL, 0);
 		i++;
 	}
 
-	casn_update_cache_variants = (struct spinand_op_variants){
+skip_x4:
+	if (FIELD_GET(SDR_UPDATE_1_1_1, casn->sdr_update_cap)) {
+		update_ops[i] = (struct spi_mem_op)
+			SPINAND_CASN_PROG_LOAD(
+				reset_cache, casn->sdr_update_1_1_1.addr_nbytes, 0,
+				NULL, 0);
+		i++;
+	}
+
+	casn_update_cache_variants = (struct spinand_op_variants) {
 		.ops = update_ops,
-		.nops = hweight8(casn->sdr_update_cap),
+		.nops = i,
 	};
 
 	op = spinand_select_op_variant(spinand, &casn_update_cache_variants);

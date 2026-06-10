@@ -19,8 +19,13 @@
 #define MAX_BMT_SIZE			(250)
 #define MAX_RAW_BAD_BLOCK_SIZE		(250)
 
+#if defined(CONFIG_MACH_AN7583)
+#define POOL_GOOD_BLOCK_PERCENT(_b)	((_b) * 4 / 100)
+#define MAX_BMT_PERCENT(_b)		((_b) * 1 / 16)
+#else
 #define POOL_GOOD_BLOCK_PERCENT(_b)	((_b) * 8 / 100)
 #define MAX_BMT_PERCENT(_b)		((_b) * 1 / 10)
+#endif
 
 struct bmt_table_header {
 	char signature[3];

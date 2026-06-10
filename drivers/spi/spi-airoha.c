@@ -343,12 +343,17 @@ static int airoha_snand_nfi_init(struct airoha_snand *as)
 	return 0;
 }
 
+static inline void airoha_snand_nfi_reset(struct airoha_snand *as)
+{
+	write_reg_nfi(SPI_NFI_REGS_CON, 0x3);
+}
+
 static void airoha_snand_nfi_config(struct airoha_snand *as)
 {
 	u32 val;
 
 	/* reset nfi */
-	write_reg_nfi(SPI_NFI_REGS_CON, 0x3);
+	airoha_snand_nfi_reset(as);
 
 	/* disable AutoFDM, HW ECC, enable DMA burst */
 	write_reg_nfi_mask(SPI_NFI_REGS_CNFG, BIT(9) | BIT(8) | BIT(2), BIT(2));
@@ -603,7 +608,7 @@ static ssize_t airoha_snand_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	err = readl_poll_timeout(poll_reg, val, (val & BIT(25)), 0, NFI_TIMEOUT);
 	if (err) {
 		dev_err(as->dev, "READ FROM CACHE done timeout\n");
-		return err;
+		goto exit_error;
 	}
 
 	/*
@@ -616,7 +621,7 @@ static ssize_t airoha_snand_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	err = readl_poll_timeout(poll_reg, val, (val & BIT(6)), 0, NFI_TIMEOUT);
 	if (err) {
 		dev_err(as->dev, "AHB done timeout\n");
-		return err;
+		goto exit_error;
 	}
 
 	/* DMA read need delay for data ready from controller to DRAM */
@@ -630,6 +635,11 @@ static ssize_t airoha_snand_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	memcpy(buf, as->txrx_buf + offs, len);
 
 	return len;
+
+exit_error:
+	airoha_snand_nfi_reset(as);
+	airoha_spi_set_mode(as, SPI_CONTROLLER_MODE_MANUAL);
+	return err;
 }
 
 static ssize_t airoha_snand_dirmap_write(struct spi_mem_dirmap_desc *desc,
@@ -685,14 +695,14 @@ static ssize_t airoha_snand_dirmap_write(struct spi_mem_dirmap_desc *desc,
 	err = readl_poll_timeout(poll_reg, val, (val & BIT(6)), 0, NFI_TIMEOUT);
 	if (err) {
 		dev_err(as->dev, "AHB done timeout\n");
-		return err;
+		goto exit_error;
 	}
 
 	poll_reg = as->nfi_base + SPI_NFI_REGS_SNF_STA_CTL1;
 	err = readl_poll_timeout(poll_reg, val, (val & BIT(26)), 0, NFI_TIMEOUT);
 	if (err) {
 		dev_err(as->dev, "LOAD TO CACHE done timeout\n");
-		return err;
+		goto exit_error;
 	}
 
 	/*
@@ -704,6 +714,11 @@ static ssize_t airoha_snand_dirmap_write(struct spi_mem_dirmap_desc *desc,
 	airoha_spi_set_mode(as, SPI_CONTROLLER_MODE_MANUAL);
 
 	return len;
+
+exit_error:
+	airoha_snand_nfi_reset(as);
+	airoha_spi_set_mode(as, SPI_CONTROLLER_MODE_MANUAL);
+	return err;
 }
 
 static inline int airoha_snand_op_transfer(struct airoha_snand *as,

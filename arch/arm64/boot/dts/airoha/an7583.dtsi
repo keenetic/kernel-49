@@ -300,7 +300,7 @@
 	};
 
 	pcie1: pcie1@1fa92000 {
-		compatible = "airoha,an7583-pcie-g2";
+		compatible = "airoha,an7583-pcie2";
 		device_type = "pci";
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -333,8 +333,10 @@
 		compatible = "airoha,an7583-pcie-phy";
 		#phy-cells = <0>;
 		reg = <0x0 0x1fc7f000 0x0 0x1000>,
-		      <0x0 0x1fc7e000 0x0 0x1000>;
-		reg-names = "csr-1l", "pma";
+		      <0x0 0x1fc7e000 0x0 0x1000>,
+		      <0x0 0x1fc30044 0x0 0x20>,
+		      <0x0 0x1fc35030 0x0 0x20>;
+		reg-names = "csr-1l", "pma", "p0-xr-dtime", "rx-aeq";
 	};
 
 	pcie1_phy: pcie-qphy@1fa5a000 {
@@ -360,22 +362,10 @@
 
 	wed: wed@1fa02000 {
 		compatible = "en751221,wed";
-		wed_num = <2>;
-		pci_slot_map = <0>, <1>;
-		reg = <0x0 0x1fa02000 0x0 0xb00>,
-		      <0x0 0x1fa03000 0x0 0xb00>;
-		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
-	wed2: wed2@1fa03000 {
-		compatible = "en751221,wed2";
-		wed_num = <2>;
-		pci_slot_map = <0>, <1>;
-		reg = <0x0 0x1fa02000 0x0 0xb00>,
-		      <0x0 0x1fa03000 0x0 0xb00>;
-		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+		wed_num = <1>;
+		pci_slot_map = <0>;
+		reg = <0x0 0x1fa02000 0x0 0xb00>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	gdump@1fbf9000 {
@@ -481,7 +471,7 @@
 			     <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>;	// TDMA INTR7 194+16
 		airoha,scu = <&scu>;
 		airoha,sds = <&pon_sds>, <&eth_sds>, <&usb_sds>, <&pcie0_sds>, <&pcie1_sds>;
-		airoha,xfi = <&pon_xfi>, <&eth_xfi>, <&usb_xfi>, <&pcie0_xfi>, <&pcie1_xfi>;
+		airoha,xfi = <&pon_xfi>, <&eth_xfi>, <&usb_xfi>, <&pcie0_xfi>, <&pcie0_xfi>;
 	};
 
 	ptp: 1588v2ptp@1fb5e000 {
@@ -558,7 +548,7 @@
 		      <0x0 0x1fa64000 0x0 0x700>,
 		      <0x0 0x1fa66000 0x0 0x400>,
 		      <0x0 0x1fa6a000 0x0 0x400>,
-		      <0x0 0x1fa6e000 0x0 0x1100>;
+		      <0x0 0x1fa6e000 0x0 0x900>;
 		reg-names = "an", "pcs", "multi", "ra", "pxp", "pma";
 		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
 	};
@@ -583,7 +573,7 @@
 		      <0x0 0x1fa54000 0x0 0x700>,
 		      <0x0 0x1fa56000 0x0 0x400>,
 		      <0x0 0x1fa5a000 0x0 0x400>,
-		      <0x0 0x1fa5e000 0x0 0x1100>;
+		      <0x0 0x1fa5e000 0x0 0x900>;
 		reg-names = "an", "pcs", "multi", "ra", "pxp", "pma";
 		interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
 	};
@@ -606,11 +596,6 @@
 	pcie0_xfi: pcie0-xfi@1fa04000 {
 		compatible = "airoha,xfi-mac";
 		reg = <0x0 0x1fa04000 0x0 0x700>;
-	};
-
-	pcie1_xfi: pcie1-xfi@1fa07000 {
-		compatible = "airoha,xfi-mac";
-		reg = <0x0 0x1fa07000 0x0 0x700>;
 	};
 
 	airoha_trng@1faa1000 {
@@ -645,6 +630,7 @@
 		clocks = <&clk50m>;
 		clock-names = "sys_ck";
 		phys = <&u2port0 PHY_TYPE_USB2>,
+		       <&u2port1 PHY_TYPE_USB2>,
 		       <&u3port0 PHY_TYPE_USB3>;
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 	};
@@ -657,6 +643,11 @@
 
 		u2port0: usb0-phy@1fac0000 {
 			reg = <0x0 0x1fac0000 0x0 0x400>;
+			#phy-cells = <1>;
+		};
+
+		u2port1: usb0-phy@1fac1000 {
+			reg = <0x0 0x1fac1000 0x0 0x400>;
 			#phy-cells = <1>;
 		};
 

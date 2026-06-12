@@ -12,6 +12,10 @@
 
 extern u32 airoha_get_l2c_sram(void);
 
+#if defined(CONFIG_RA_HW_NAT_WHNAT)
+#define NPU_WIFI_OFFLOAD
+#endif
+
 #if defined(CONFIG_MACH_AN7583)
 #define NPU_V2_P
 #define NPU_WIFI_TX
@@ -44,13 +48,24 @@ extern u32 airoha_get_l2c_sram(void);
 #define HWF_BUF_SIZE_QDMA1	(HWF_DSCP_SRAM_QDMA1 * HWF_DSCP_SIZE)
 #define HWF_BUF_SIZE_QDMA2	(HWF_DSCP_SRAM_QDMA2 * HWF_DSCP_SIZE)
 
-#if IS_ENABLED(CONFIG_MT7916_AP) || defined(CONFIG_MACH_AN7552)
+#if defined(CONFIG_FIRST_IF_MT7916) || \
+    defined(CONFIG_MACH_AN7552)
 #define NPU_PKT_BUF_SIZE	0x1600000
+#elif defined(CONFIG_FIRST_IF_MT7992) || \
+      defined(CONFIG_FIRST_IF_MT7993)
+#define NPU_PKT_BUF_SIZE	0x1964000
 #else
 #define NPU_PKT_BUF_SIZE	0x2c00000
 #endif
+
 #define NPU_BA_NODE_SIZE	0x0200000
+
+#if defined(CONFIG_FIRST_IF_MT7990) || \
+    defined(CONFIG_MEMBLOCK_NPU_TX_58M)
 #define NPU_TX_PKT_BUF_SIZE	0x3a00000
+#else
+#define NPU_TX_PKT_BUF_SIZE	0x1a2c000
+#endif
 
 #define NPU_DMA_MASK		0xbfffffff
 
@@ -145,7 +160,7 @@ void reserve_memblocks_npu(void)
 	phys_addr_t pa;
 	u32 len;
 
-#ifdef CONFIG_RA_HW_NAT_WHNAT
+#ifdef NPU_WIFI_OFFLOAD
 	 /* NPU support phy address range ~0xbfffffff */
 	align = 64;
 	len = NPU_PKT_BUF_SIZE;
@@ -165,7 +180,7 @@ void reserve_memblocks_npu(void)
 	g_npu_ba_node_addr = (u32)pa;
 	pr_info("memblock: reserve %5uK for %s\n", len >> 10, "NPU wifi BA data");
 #endif
-#endif /* CONFIG_RA_HW_NAT_WHNAT */
+#endif /* NPU_WIFI_OFFLOAD */
 
 #ifdef CONFIG_MEMBLOCK_QDMA1
 	align = 64 << 10;

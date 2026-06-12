@@ -84,6 +84,7 @@ static struct bus_desc mtk_bus_desc[] = {
 	{ NULL, AIROHA_EIP93_BASE,   AIROHA_EIP93_SIZE   },
 	{ NULL, AIROHA_PERI1_BASE,   AIROHA_PERI1_SIZE   },
 	{ NULL, AIROHA_PCIEG3_BASE,  AIROHA_PCIEG3_SIZE  },
+	{ NULL, AIROHA_PEXTP_BASE,   AIROHA_PEXTP_SIZE   },
 };
 
 #else

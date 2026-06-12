@@ -514,6 +514,80 @@ err_phy_on:
 	return err;
 }
 
+static void scu_an7583_reset_perst(struct mtk_pcie_port *port, bool assert)
+{
+	u32 val, mask;
+
+	/* reset PCIe1 PERST */
+	mask = BIT(26);
+
+	val = readl(port->scu_base + CR_NP_SCU_PCIC);
+	if (assert)
+		val &= ~mask;
+	else
+		val |=  mask;
+	writel(val, port->scu_base + CR_NP_SCU_PCIC);
+}
+
+static void scu_an7583_reset_pcie(struct mtk_pcie_port *port, bool assert)
+{
+	u32 val, mask;
+
+	/* reset RC1 */
+	mask = BIT(27);
+
+	val = readl(port->scu_base + CR_NP_SCU_RSTCTRL1);
+	if (assert)
+		val |=  mask;
+	else
+		val &= ~mask;
+	writel(val, port->scu_base + CR_NP_SCU_RSTCTRL1);
+}
+
+static int mtk_pcie_an7583_power_up(struct mtk_pcie_port *port)
+{
+	struct device *dev = port->dev;
+	int err;
+
+	if (!port->scu_base)
+		return -EFAULT;
+
+	/* assert reset PCIe RC1 */
+	scu_an7583_reset_pcie(port, true);
+	msleep(100);
+
+	/* assert reset PCIe1 peripheral */
+	scu_an7583_reset_perst(port, true);
+	msleep(1);
+
+	err = phy_init(port->phy);
+	if (err) {
+		dev_err(dev, "failed to initialize PHY\n");
+		return err;
+	}
+
+	err = phy_power_on(port->phy);
+	if (err) {
+		dev_err(dev, "failed to power on PHY\n");
+		goto err_phy_on;
+	}
+
+	/* de-assert reset PCIe RC1 */
+	scu_an7583_reset_pcie(port, false);
+	msleep(10);
+
+	/* de-assert reset PCIe peripheral */
+	scu_an7583_reset_perst(port, false);
+	msleep(150);
+
+	return 0;
+
+err_phy_on:
+	phy_exit(port->phy);
+
+	return err;
+}
+
 static void mtk_pcie_power_down(struct mtk_pcie_port *port)
 {
 	phy_power_off(port->phy);
@@ -764,8 +838,13 @@ static const struct mtk_pcie_pdata pcie_soc_an7552 = {
 	.power_up = mtk_pcie_en7552_power_up,
 };
 
+static const struct mtk_pcie_pdata pcie_soc_an7583 = {
+	.power_up = mtk_pcie_an7583_power_up,
+};
+
 static const struct of_device_id mtk_pcie_of_match[] = {
 	{ .compatible = "airoha,an7552-pcie", .data = &pcie_soc_an7552 },
+	{ .compatible = "airoha,an7583-pcie2", .data = &pcie_soc_an7583 },
 	{},
 };
 

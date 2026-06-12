@@ -307,6 +307,7 @@
 		reg = <0x0 0x1fa92000 0x0 0x1000>;
 		reg-names = "pcie-mac";
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+		linux,pci-domain = <1>;
 		bus-range = <0x00 0xff>;
 		ranges = <0x02000000 0 0x24000000 0x0 0x24000000 0 0x4000000>;
 

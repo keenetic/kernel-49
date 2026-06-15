@@ -283,7 +283,7 @@
 		airoha,scu = <&scu>;
 
 		phys = <&pcie0_phy>;
-		phy-names = "pcie0-phy";
+		phy-names = "pcie-phy";
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 7>;
@@ -314,7 +314,7 @@
 		airoha,scu = <&scu>;
 
 		phys = <&pcie1_phy>;
-		phy-names = "pcie1-phy";
+		phy-names = "pcie-phy";
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 7>;

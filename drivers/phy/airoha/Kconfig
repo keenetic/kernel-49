@@ -10,6 +10,15 @@ config PHY_AN7552_PCIE
 	  This driver create the basic PHY instance and provides initialize
 	  callback for PCIe Gen2 port.
 
+config PHY_AN7583_PCIE
+	tristate "Airoha AN7583 PCIe Gen2 QPHY driver"
+	depends on MACH_AN7583 && OF
+	select GENERIC_PHY
+	help
+	  Say Y here to add support for Airoha PCIe QPHY driver.
+	  This driver create the basic PHY instance and provides initialize
+	  callback for second PCIe Gen2 port.
+
 config PHY_AIROHA_PCIE
 	tristate "Airoha PCIe Gen3 PHY driver"
 	depends on ARCH_AIROHA && OF
@@ -22,6 +31,14 @@ config PHY_AIROHA_PCIE
 config PHY_AIROHA_USB
 	tristate "Airoha USB PHY driver"
 	depends on ARCH_AIROHA && OF
+	select GENERIC_PHY
+	help
+	  Say 'Y' here to add support for Airoha USB driver,
+	  it supports multiple usb2.0 and usb3.0 ports
+
+config PHY_AN7583_USB
+	tristate "Airoha AN7583 USB QPHY driver"
+	depends on MACH_AN7583 && OF
 	select GENERIC_PHY
 	help
 	  Say 'Y' here to add support for Airoha USB driver,

@@ -6,7 +6,7 @@ if ARCH_AIROHA
 
 config MEMBLOCK_NPU_TX_58M
 	bool "Large preallocated TX buffer for NPU wifi offload"
-	depends on !CONFIG_MACH_AN7552
+	depends on !MACH_AN7552
 	default n
 	help
 	  Preallocate 58M memblock, this is default for Eagle.

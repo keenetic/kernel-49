@@ -27,6 +27,14 @@
 #define XT26XXXD_STATUS_ECC_8_CORRECTED		(3)
 #define XT26XXXD_STATUS_ECC_UNCOR_ERROR		(2)
 
+static SPINAND_OP_VARIANTS(read_cache_variants_g0xf,
+		SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_DUALIO_OP(0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_OP(true, 0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_OP(false, 0, 1, NULL, 0));
+
 static SPINAND_OP_VARIANTS(read_cache_variants,
 		SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
@@ -216,6 +224,16 @@ static const struct spinand_info xtx_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&xt26xxxd_ooblayout,
 				     xt26xxxd_ecc_get_status)),
+	SPINAND_INFO("XT26G01F",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x71),
+		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants_g0xf,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&xt26xxxd_ooblayout,
+				     xt26g0xc_ecc_get_status)),
 	SPINAND_INFO("XT26G11D",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x34),
 		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),

@@ -49,9 +49,6 @@ static void qp_reg_rw(void __iomem *qp_reg, u32 val, u32 msk, u32 ofs)
 {
 	u32 tmp = readl(qp_reg);
 
-	if (tmp == 0xdeadbeef)
-		return;
-
 	tmp &= ~(msk << ofs);
 	tmp |= ((val & msk) << ofs);
 	writel(tmp, qp_reg);
@@ -105,7 +102,8 @@ static inline void qp_base_init(struct airoha_qphy *qp)
 		{ QP_PMA, 0x408,          5,        0x7,  2 },
 		{ QP_PMA, 0x408,          1,        0x3,  6 },
 		{ QP_PMA, 0x408,          1,        0x1, 14 },
-		{ QP_PMA, 0x408,          1,        0x1, 27 },
+		{ QP_PMA, 0x408,          0,        0x1, 27 },
+
 		{ QP_PMA, 0x410,          1,        0x3,  3 },
 		{ QP_PMA, 0x408,          1,        0x1, 30 },
 		{ QP_PMA, 0x40c,      0x1fd,     0xffff,  0 },
@@ -231,7 +229,7 @@ static inline u32 qp_reconfig_pll(struct airoha_qphy *qp)
 		{ QP_PMA, 0x320,   1,  0x1, 13 },
 		{ QP_PMA, 0x408,   0,  0x1, 14 },
 		{ QP_ANA, 0x03c,   1,  0x1, 14 },
-		{ QP_ANA, 0x03c,   3,  0x3, 16 },
+		{ QP_ANA, 0x03c,   3,  0x7, 16 },
 	};
 	u32 i;
 
@@ -260,8 +258,8 @@ static inline void qp_enable_tx_pll(struct airoha_qphy *qp)
 {
 	static const struct qp_reg_entry QP_TX_PLL_TBL[] = {
 		/* PLL reset to default */
-		{ QP_PMA, 0x03c, 0, 0x1, 14 },
-		{ QP_PMA, 0x03c, 0, 0x3, 16 },
+		{ QP_ANA, 0x03c, 0, 0x1, 14 },
+		{ QP_ANA, 0x03c, 0, 0x7, 16 },
 		{ QP_PMA, 0x31c, 0, 0x1,  4 },
 		{ QP_PMA, 0x31c, 0, 0x1,  5 },
 

@@ -21,7 +21,7 @@ config PHY_AN7583_PCIE
 
 config PHY_AIROHA_PCIE
 	tristate "Airoha PCIe Gen3 PHY driver"
-	depends on ARCH_AIROHA && OF
+	depends on MACH_AN7581 && OF
 	select GENERIC_PHY
 	help
 	  Say Y here to add support for Airoha PCIe PHY driver.
@@ -31,6 +31,7 @@ config PHY_AIROHA_PCIE
 config PHY_AIROHA_USB
 	tristate "Airoha USB PHY driver"
 	depends on ARCH_AIROHA && OF
+	depends on !MACH_AN7583
 	select GENERIC_PHY
 	help
 	  Say 'Y' here to add support for Airoha USB driver,

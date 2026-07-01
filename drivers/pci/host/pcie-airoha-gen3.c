@@ -474,9 +474,6 @@ static bool scu_an7581_reset_pcie(struct mtk_pcie_port *port, bool assert)
 {
 	u32 val, scu_ofs, mask;
 
-	if (!port->scu_base)
-		return false;
-
 	switch (port->id) {
 	case 0:
 		/* reset PCIe0 & PCIe1 IP */
@@ -505,9 +502,6 @@ static bool scu_an7581_reset_pcie(struct mtk_pcie_port *port, bool assert)
 static bool scu_an7581_reset_perst(struct mtk_pcie_port *port, bool assert)
 {
 	u32 val, mask;
-
-	if (!port->scu_base)
-		return false;
 
 	switch (port->id) {
 	case 0:
@@ -579,6 +573,9 @@ static int mtk_pcie_en7581_power_up(struct mtk_pcie_port *port)
 	struct device *dev = port->dev;
 	int err;
 
+	if (!port->scu_base)
+		return -EFAULT;
+
 	/* assert reset PCIe IP */
 	if (scu_an7581_reset_pcie(port, true))
 		msleep(100);
@@ -620,12 +617,9 @@ err_phy_on:
 	return err;
 }
 
-static bool scu_an7583_reset_pcie(struct mtk_pcie_port *port, bool hb, bool assert)
+static void scu_an7583_reset_pcie(struct mtk_pcie_port *port, bool hb, bool assert)
 {
 	u32 val, mask;
-
-	if (!port->scu_base)
-		return false;
 
 	if (hb)
 		mask = BIT(29);	/* reset PCIe0 HB */
@@ -638,16 +632,11 @@ static bool scu_an7583_reset_pcie(struct mtk_pcie_port *port, bool hb, bool asse
 	else
 		val &= ~mask;
 	writel(val, port->scu_base + CR_NP_SCU_RSTCTRL1);
-
-	return true;
 }
 
-static bool scu_an7583_reset_perst(struct mtk_pcie_port *port, bool assert)
+static void scu_an7583_reset_perst(struct mtk_pcie_port *port, bool assert)
 {
 	u32 val, mask;
-
-	if (!port->scu_base)
-		return false;
 
 	/* reset PCIe0 PERST */
 	mask = BIT(29);
@@ -658,13 +647,18 @@ static bool scu_an7583_reset_perst(struct mtk_pcie_port *port, bool assert)
 	else
 		val |=  mask;
 	writel(val, port->scu_base + CR_NP_SCU_PCIC);
-
-	return true;
 }
 
 static inline void mac_an7583_p0_init(struct mtk_pcie_port *port)
 {
 	u32 val;
+
+	if (isAN7583CT || isAN7567CT || isAN7553CT) {
+		/* disable P0 Gen3 */
+		val = readl_relaxed(port->base + PCIE_SETTING_REG);
+		val &= ~PCIE_G3_SUPPORTED;
+		writel_relaxed(val, port->base + PCIE_SETTING_REG);
+	}
 
 	/* skip eq phase 2/3 */
 	val = readl_relaxed(port->base + PCIE_PHY_MAC_CFG_REG);
@@ -690,20 +684,22 @@ static int mtk_pcie_en7583_power_up(struct mtk_pcie_port *port)
 	struct device *dev = port->dev;
 	int err;
 
+	if (!port->scu_base)
+		return -EFAULT;
+
 	/* reset PCIe0 HB */
-	if (scu_an7583_reset_pcie(port, true, true)) {
-		msleep(100);
-		scu_an7583_reset_pcie(port, true, false);
-		msleep(100);
-	}
+	scu_an7583_reset_pcie(port, true, true);
+	msleep(20);
+	scu_an7583_reset_pcie(port, true, false);
+	msleep(100);
 
 	/* assert reset PCIe0 IP */
-	if (scu_an7583_reset_pcie(port, false, true))
-		msleep(100);
+	scu_an7583_reset_pcie(port, false, true);
+	msleep(100);
 
 	/* assert reset PCIe0 peripheral */
-	if (scu_an7583_reset_perst(port, true))
-		msleep(1);
+	scu_an7583_reset_perst(port, true);
+	msleep(1);
 
 	err = phy_init(port->phy);
 	if (err) {
@@ -724,8 +720,8 @@ static int mtk_pcie_en7583_power_up(struct mtk_pcie_port *port)
 	msleep(10);
 
 	/* de-assert reset PCIe0 peripheral */
-	if (scu_an7583_reset_perst(port, false))
-		msleep(100);
+	scu_an7583_reset_perst(port, false);
+	msleep(100);
 
 	return 0;
 

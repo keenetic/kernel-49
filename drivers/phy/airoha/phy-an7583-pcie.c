@@ -372,43 +372,33 @@ static void read_efuse_cal_data(struct airoha_qphy *qp)
 	airoha_efuse_free(mem);
 }
 
-static void __iomem *phy_map_resource_byname(struct device *dev,
-					     const char *name)
-{
-	struct device_node *np = dev->of_node;
-	struct resource res;
-	int index;
-
-	index = of_property_match_string(np, "reg-names", name);
-	if (index < 0 || of_address_to_resource(np, index, &res))
-		return ERR_PTR(-ENODEV);
-
-	return devm_ioremap_resource(dev, &res);
-}
-
 static int airoha_pcie_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct phy_provider *provider;
 	struct airoha_qphy *qp;
+	struct resource *res;
 
 	qp = devm_kzalloc(dev, sizeof(*qp), GFP_KERNEL);
 	if (!qp)
 		return -ENOMEM;
 
-	qp->top[QP_DIG] = phy_map_resource_byname(dev, "dig");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dig");
+	qp->top[QP_DIG] = devm_ioremap_resource(dev, res);
 	if (IS_ERR(qp->top[QP_DIG])) {
 		dev_err(dev, "failed to remap %s regs\n", "dig");
 		return PTR_ERR(qp->top[QP_DIG]);
 	}
 
-	qp->top[QP_ANA] = phy_map_resource_byname(dev, "ana");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ana");
+	qp->top[QP_ANA] = devm_ioremap_resource(dev, res);
 	if (IS_ERR(qp->top[QP_ANA])) {
 		dev_err(dev, "failed to remap %s regs\n", "ana");
 		return PTR_ERR(qp->top[QP_ANA]);
 	}
 
-	qp->top[QP_PMA] = phy_map_resource_byname(dev, "pma");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pma");
+	qp->top[QP_PMA] = devm_ioremap_resource(dev, res);
 	if (IS_ERR(qp->top[QP_PMA])) {
 		dev_err(dev, "failed to remap %s regs\n", "pma");
 		return PTR_ERR(qp->top[QP_PMA]);

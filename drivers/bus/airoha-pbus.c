@@ -49,7 +49,7 @@
 #define PBUS_TOUT_EN			(0x40000000)
 
 #define SCREG_WR1_PID(v)		((v) & 0xf)
-#define SCREG_WR1_PID_EXT(v)		(((v) >> 3) & 0x1)
+#define SCREG_WR1_PID_EXT(v)		(((v) >> 3) & 0x10)
 #define SCREG_WR1_SYS_HCLK(v)		(((v) >> 10) & 0x3ff)
 
 /* CHIP SCU */

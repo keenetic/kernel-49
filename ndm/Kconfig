@@ -13,6 +13,9 @@ source "ndm/Kconfig.ppe"
 endmenu
 endif
 
+comment "xPON options"
+source "ndm/Kconfig.pon"
+
 comment "Wireless options"
 source "ndm/Kconfig.wifi"
 

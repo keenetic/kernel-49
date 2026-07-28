@@ -1,0 +1,26 @@
+config ANSOC_PON
+	bool "Airoha SoC xPON support"
+	depends on (MACH_AN7552 || MACH_AN7581 || MACH_AN7583)
+
+if ANSOC_PON
+
+config ANSOC_COMBO_PON
+	bool "Support Combo-PON design"
+	depends on MACH_AN7583
+	default n
+
+config LDDLA_EN7571
+	bool "Support EN7571N laser diode driver"
+	default y
+
+config LDDLA_EN7572
+	bool "Support EN7572A/EN7573A laser diode driver"
+	depends on !MACH_AN7552
+	default n
+
+config LDDLA_AN8901
+	bool "Support AN8901/2 (aka EN7572B/EN7573B) laser diode driver"
+	depends on !MACH_AN7552
+	default n
+
+endif

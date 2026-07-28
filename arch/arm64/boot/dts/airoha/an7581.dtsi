@@ -532,6 +532,7 @@
 		airoha,scu = <&scu>;
 		airoha,sds = <&pon_sds>, <&eth_sds>, <&usb_sds>, <&pcie0_sds>, <&pcie1_sds>;
 		airoha,xfi = <&pon_xfi>, <&eth_xfi>, <&usb_xfi>, <&pcie0_xfi>, <&pcie1_xfi>;
+		airoha,pon = <&pon_mac>;
 	};
 
 	ptp: 1588v2ptp@1fb5e000 {
@@ -544,21 +545,23 @@
 			     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;	// 131+16= 147 [3]xfi_mac_pon_ptp
 	};
 
-	xpon_mac: xpon@1fb64000 {
+	pon_mac: xpon@1fb64000 {
 		compatible = "econet,ecnt-xpon";
 		reg = <0x0 0x1fb64000 0x0 0x3e8>,
 		      <0x0 0x1fb66000 0x0 0x23c>,
 		      <0x0 0x1fb65000 0x0 0xff8>;
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,	// XPON MAC INT 26+16
 			     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;	// DYINGGASP INT 18+16
+		airoha,phy = <&pon_phy>;
 	};
 
 	pon_phy: pon_phy@1faf0000 {
 		compatible = "econet,ecnt-pon_phy";
-		reg = <0x0 0x1faf0000 0x0 0x1fff>,		// PON_PHY_ASIC_RG range
-		      <0x0 0x1fa2ff24 0x0 0x4>,			// PON_PHY_FPGA_RG_TX_OFF
-		      <0x0 0x1faf3000 0x0 0xfff>,		// PON_PHY_ASIC_RG range2
-		      <0x0 0x1faf4000 0x0 0xfff>;		// PON_PHY_ASIC_RG range3
+		reg = <0x0 0x1faf0000 0x0 0x1300>,
+		      <0x0 0x1fa8a000 0x0 0x174>,
+		      <0x0 0x1fa8b000 0x0 0x960>;
+		reg-names = "csr", "pxp", "pma";
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	pon_sds: pon-serdes@1fa80000 {

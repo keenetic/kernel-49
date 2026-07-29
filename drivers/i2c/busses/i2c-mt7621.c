@@ -19,6 +19,8 @@
 #include <linux/of_platform.h>
 #include <linux/reset.h>
 
+#include <soc/ralink/dev_i2c.h>
+
 #define REG_SM0CFG2_REG		0x28
 #define REG_SM0CTL0_REG		0x40
 #define REG_SM0CTL1_REG		0x44
@@ -35,11 +37,11 @@
 #define SM0CTL0_ODRAIN		BIT(31)
 #define SM0CTL0_CLK_DIV_MASK	(0x7ff << 16)
 #define SM0CTL0_CLK_DIV_MAX	0x7ff
-#define SM0CTL0_CS_STATUS       BIT(4)
-#define SM0CTL0_SCL_STATE       BIT(3)
-#define SM0CTL0_SDA_STATE       BIT(2)
-#define SM0CTL0_EN              BIT(1)
-#define SM0CTL0_SCL_STRETCH     BIT(0)
+#define SM0CTL0_CS_STATUS	BIT(4)
+#define SM0CTL0_SCL_STATE	BIT(3)
+#define SM0CTL0_SDA_STATE	BIT(2)
+#define SM0CTL0_EN		BIT(1)
+#define SM0CTL0_SCL_STRETCH	BIT(0)
 
 /* REG_SM0CTL1_REG */
 #define SM0CTL1_ACK_MASK	(0xff << 16)
@@ -55,15 +57,6 @@
 
 /* timeout waiting for I2C devices to respond */
 #define TIMEOUT_MS		1000
-
-#define MT7621_I2C_BASE_ADDR		0x1E000900
-#define MT7621_I2C_SIZE				0x100
-#define MT7621_I2C_IRQ				39
-
-struct mtk_i2c_platform_data {
-	u32 bus_freq;
-	u32 clk_src;
-};
 
 struct mtk_i2c {
 	void __iomem *base;
@@ -275,12 +268,11 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	struct i2c_adapter *adap;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct mtk_i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i2c->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
@@ -331,61 +323,11 @@ static struct platform_driver mtk_i2c_driver = {
 	.probe		= mtk_i2c_probe,
 	.remove		= mtk_i2c_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
-		.name	= "i2c-mt7621",
+		.name	= MTK_I2C_DRV_NAME,
 	},
 };
 
-static struct resource mt7621_i2c_resources[] = {
-	{
-		.start = MT7621_I2C_BASE_ADDR,
-		.end   = MT7621_I2C_BASE_ADDR + MT7621_I2C_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-{
-		.start = MT7621_I2C_IRQ,
-		.end   = MT7621_I2C_IRQ,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct mtk_i2c_platform_data mt7621_i2c_pdata = {
-	.bus_freq = 400000,
-	.clk_src  = 50000000,
-};
-
-static struct platform_device mt7621_i2c_device = {
-	.name          = "i2c-mt7621",
-	.id            = -1,
-	.num_resources = ARRAY_SIZE(mt7621_i2c_resources),
-	.resource      = mt7621_i2c_resources,
-	.dev = {
-		.platform_data = &mt7621_i2c_pdata,
-	},
-};
-
-static int __init i2c_mtk_init (void)
-{
-	int ret;
-
-	ret = platform_device_register(&mt7621_i2c_device);
-	if (ret)
-		return ret;
-
-	ret = platform_driver_register(&mtk_i2c_driver);
-	if (ret)
-		platform_device_unregister(&mt7621_i2c_device);
-
-	return ret;
-}
-module_init(i2c_mtk_init);
-
-static void __exit i2c_mtk_exit (void)
-{
-	platform_driver_unregister(&mtk_i2c_driver);
-	platform_device_unregister(&mt7621_i2c_device);
-}
-module_exit(i2c_mtk_exit);
+module_platform_driver(mtk_i2c_driver);
 
 MODULE_AUTHOR("Steven Liu");
 MODULE_DESCRIPTION("MT7621 I2C host driver");

@@ -33,6 +33,10 @@ ifdef CONFIG_GPIO_WATCHDOG
 obj-y += dev-gpio_wdt.o
 endif
 
+ifdef CONFIG_I2C_MT7621
+obj-y += dev-i2c.o
+endif
+
 ifdef CONFIG_USB_EHCI_HCD_PLATFORM
 obj-y += dev-ehci_ohci.o uphy.o
 endif

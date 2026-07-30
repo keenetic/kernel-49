@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2024 AIROHA Inc
+*/
+
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -149,9 +154,15 @@
 
 			trips {
 				cpu_passive: cpu-passive {
-					temperature = <125000>;
-					hysteresis = <0>;
+					temperature = <95000>;
+					hysteresis = <1000>;
 					type = "passive";
+				};
+
+				cpu_critical: cpu-critical {
+					temperature = <120000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 
@@ -768,7 +779,7 @@
 		reg = <0x0 0x1fa0e000 0x0 0x1000>,
 		      <0x0 0x1fa0c000 0x0 0x60>;
 		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
-		bus-width = <4>;
+		bus-width = <8>;
 		max-frequency = <52000000>;
 		disable-wp;
 		cap-mmc-highspeed;
@@ -799,7 +810,7 @@
 
 	pwm: pwm@1fbf0234 {
 		compatible = "airoha,airoha-pwm";
-		reg = <0x0 0x1fbf0234 0x0 0x20>,
+		reg = <0x0 0x1fbf0234 0x0 0x2c>,
 		      <0x0 0x1fbf0268 0x0 0x4>,
 		      <0x0 0x1fbf0298 0x0 0x24>;
 	};

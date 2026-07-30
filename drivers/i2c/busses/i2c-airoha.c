@@ -81,8 +81,10 @@ static void airoha_i2c_reset(struct airoha_i2c *i2c)
 	 * Don't set SM0CTL0_ODRAIN as its bit meaning is inverted. To
 	 * configure open-drain mode, this bit needs to be cleared.
 	 */
-	iowrite32(((i2c->clk_div << 16) & SM0CTL0_CLK_DIV_MASK) | SM0CTL0_EN |
-		  SM0CTL0_SCL_STRETCH, i2c->base + REG_SIFMCTL0_REG);
+	iowrite32(((i2c->clk_div << 16) & SM0CTL0_CLK_DIV_MASK) | SM0CTL0_EN,
+		  i2c->base + REG_SIFMCTL0_REG);
+
+	iowrite32(1, i2c->base + REG_PINTEN_REG);
 }
 
 static void airoha_i2c_dump_reg(struct airoha_i2c *i2c)

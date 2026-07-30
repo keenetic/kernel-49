@@ -98,6 +98,10 @@ enum {
 	SKB_BUFID_STATE_ABNORMAL1,	// err state when freeing skb(setting to BUF_IN_POOL)
 	SKB_BUFID_STATE_ABNORMAL2,	// err state when filling skb to Refill ring(setting to BUF_IN_RING)
 	SKB_BUFID_STATE_ABNORMAL3,	// err state when checking skb from rxdmad_c ring(setting to BUF_FROM_RING)
+	TX_SLOW_DDONE_RETRY_COUNT,
+	TX_DDONE_RETRY_COUNT,
+	TX_FULL_SLOW_DESC_NEXT,
+	TX_FULL_DESC_NEXT,
 
 	OFFLOAD_COUNTER_BOTTOM
 };

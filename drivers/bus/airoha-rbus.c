@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2024 AIROHA Inc
+*/
+
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -5,7 +10,7 @@
 #if defined(CONFIG_MACH_AN7552) || \
     defined(CONFIG_MACH_AN7581) || \
     defined(CONFIG_MACH_AN7583)
-#define EMI_CLK_ASIC			(0x21C00000)	/* 566 MHz */
+#define EMI_CLK_ASIC			(0x21C00000)	/* 540 MHz */
 #else
 #error Airoha SoC not defined
 #endif

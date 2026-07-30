@@ -146,7 +146,7 @@ static void airoha_cpufreq_ready(struct cpufreq_policy *policy)
 
 static int airoha_cpufreq_init(struct cpufreq_policy *policy)
 {
-	struct cpufreq_frequency_table *freq_table;
+	struct cpufreq_frequency_table *freq_table = NULL;
 	struct airoha_cpu_dvfs_info *info;
 	int ret;
 

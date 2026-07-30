@@ -653,7 +653,7 @@ static inline void mac_an7583_p0_init(struct mtk_pcie_port *port)
 {
 	u32 val;
 
-	if (isAN7583CT || isAN7567CT || isAN7553CT) {
+	if (isAN7583CT || isAN7567CT || isAN7553CT || isAN7550CT) {
 		/* disable P0 Gen3 */
 		val = readl_relaxed(port->base + PCIE_SETTING_REG);
 		val &= ~PCIE_G3_SUPPORTED;

@@ -1,5 +1,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2024 AIROHA Inc
+*/
+
 /*
  * Airoha BMT algorithm
  */
@@ -633,7 +638,7 @@ static int bmt_init(struct mtd_info *mtd)
 		pbbt[k++] = i;
 	}
 
-	while (k != system_blks) {
+	while (k != system_blks && k > 0) {
 		pbbt[k] = pbbt[k-1] + 1;
 		k++;
 	}

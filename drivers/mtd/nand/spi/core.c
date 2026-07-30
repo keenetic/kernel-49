@@ -1116,6 +1116,8 @@ static int spinand_check_casn(struct spinand_device *spinand,
 	 * first. If none of the copies is available, try to recover.
 	 */
 	for (i = 0; i < CASN_PAGE_V1_COPIES; i++) {
+		*sel = i;
+
 		if (be32_to_cpu(casn[i].signature) != CASN_SIGNATURE) {
 			ret = -EINVAL;
 			continue;
@@ -1134,7 +1136,6 @@ static int spinand_check_casn(struct spinand_device *spinand,
 		if (ret < 0)
 			continue;
 
-		*sel = i;
 		break;
 	}
 
@@ -1157,7 +1158,7 @@ static int spinand_check_casn(struct spinand_device *spinand,
 			return -EBADMSG;
 		}
 
-		ret = spinand_check_casn_validity(spinand, casn + i);
+		ret = spinand_check_casn_validity(spinand, casn);
 		if (ret < 0)
 			return ret;
 
@@ -1280,7 +1281,7 @@ static void spinand_manufacturer_cleanup(struct spinand_device *spinand)
 {
 	/* Release manufacturer private data */
 	if (spinand->manufacturer && spinand->manufacturer->ops->cleanup)
-		return spinand->manufacturer->ops->cleanup(spinand);
+		spinand->manufacturer->ops->cleanup(spinand);
 }
 
 static const struct spi_mem_op *

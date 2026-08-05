@@ -176,6 +176,9 @@ static long rdm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		for (i = ARRAY_SIZE(mtk_bus_desc) - 1; i >= 0; i--) {
 			struct bus_desc *bd = &mtk_bus_desc[i];
 
+			if (bd->size == 0)
+				continue;
+
 			if (register_bus >= bd->base) {
 				offset = register_bus - bd->base;
 				if (offset > bd->size - 4)

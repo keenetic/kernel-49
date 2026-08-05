@@ -474,6 +474,9 @@ static bool scu_an7581_reset_pcie(struct mtk_pcie_port *port, bool assert)
 {
 	u32 val, scu_ofs, mask;
 
+	if (!port->scu_base)
+		return false;
+
 	switch (port->id) {
 	case 0:
 		/* reset PCIe0 & PCIe1 IP */
@@ -502,6 +505,9 @@ static bool scu_an7581_reset_pcie(struct mtk_pcie_port *port, bool assert)
 static bool scu_an7581_reset_perst(struct mtk_pcie_port *port, bool assert)
 {
 	u32 val, mask;
+
+	if (!port->scu_base)
+		return false;
 
 	switch (port->id) {
 	case 0:
@@ -572,9 +578,6 @@ static int mtk_pcie_en7581_power_up(struct mtk_pcie_port *port)
 {
 	struct device *dev = port->dev;
 	int err;
-
-	if (!port->scu_base)
-		return -EFAULT;
 
 	/* assert reset PCIe IP */
 	if (scu_an7581_reset_pcie(port, true))

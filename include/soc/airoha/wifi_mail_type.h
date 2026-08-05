@@ -8,6 +8,14 @@
 
 #define MAX_PER_ENTRY		128
 
+#if defined(CONFIG_MACH_AN7581)
+#define SERDES_PORT_CNT		6
+#elif defined(CONFIG_MACH_AN7583)
+#define SERDES_PORT_CNT		5
+#else
+#define SERDES_PORT_CNT		1
+#endif
+
 enum {
 	WIFI_MAIL_FUNCTION_SET_WAIT_PCIE_ADDR = 0,
 	WIFI_MAIL_FUNCTION_SET_WAIT_DESC,
@@ -39,6 +47,7 @@ enum {
 	WIFI_MAIL_FUNCTION_SET_WAIT_INODE_STOP_ACTION,
 	WIFI_MAIL_FUNCTION_SET_WAIT_INODE_PCIE_SWAP,
 	WIFI_MAIL_FUNCTION_SET_WAIT_RATELIMIT_CTRL,
+	WIFI_MAIL_FUNCTION_SET_WAIT_ARHT_CHIP_INFO,
 	WIFI_MAIL_FUNCTION_SET_WAIT_MAX_NUM
 };
 
@@ -135,6 +144,12 @@ enum {
 	P0_P1
 };
 
+struct arht_chip_info {
+	int serdes_cfg[SERDES_PORT_CNT];
+	int mdc_address_base;
+	int phy_tx_gpio;
+};
+
 struct wifi_mail_data {
 	u32 interface_id:4;
 	u32 func_type:4;
@@ -168,6 +183,7 @@ struct wifi_mail_data {
 		struct inode_cfg_info cfg_info;
 		u32 dir;
 		u32 dma_addr;
+		struct arht_chip_info chip_info;
 	} wifi_mail_private;
 };
 

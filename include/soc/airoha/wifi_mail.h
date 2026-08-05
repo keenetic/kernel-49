@@ -435,6 +435,31 @@ WIFI_MAIL_API_SET_WAIT_DRIVER_MODEL(u32 intf_id, u32 driver_model)
 }
 
 static inline int
+WIFI_MAIL_API_SET_WAIT_ARHT_CHIP_INFO(int *serdes_cfg, int size, int phy_tx_gpio)
+{
+	struct wifi_mail_data *md;
+	dma_addr_t pa;
+	int i;
+
+	if (size != SERDES_PORT_CNT)
+		return NPU_MAILBOX_ERROR;
+
+	md = wifi_mail_alloc(0, &pa, GFP_KERNEL);
+	if (!md)
+		return NPU_MAILBOX_ERROR;
+
+	md->func_type = SET_WAIT;
+	md->func_id = WIFI_MAIL_FUNCTION_SET_WAIT_ARHT_CHIP_INFO;
+
+	md->wifi_mail_private.chip_info.phy_tx_gpio = phy_tx_gpio;
+
+	for (i = 0; i < SERDES_PORT_CNT; i++)
+		md->wifi_mail_private.chip_info.serdes_cfg[i] = serdes_cfg[i];
+
+	return wifi_mail_send(md, pa, true);
+}
+
+static inline int
 WIFI_MAIL_API_GET_WAIT_DBG_COUNTER(u32 intf_id, struct dbg_counter *dc)
 {
 	struct wifi_mail_data *md;
@@ -521,6 +546,32 @@ WIFI_MAIL_API_GET_WAIT_RXDESC_BASE(u32 intf_id, struct npu_info *ni)
 		goto mail_free;
 
 	ni->info = md->wifi_mail_private.ni.info;
+
+mail_free:
+	wifi_mail_free(md, pa);
+
+	return res;
+}
+
+static inline int
+WIFI_MAIL_API_GET_WAIT_MDC_LOCK_ADDRESS(struct npu_info *ni)
+{
+	struct wifi_mail_data *md;
+	dma_addr_t pa;
+	int res;
+
+	md = wifi_mail_alloc(0, &pa, GFP_KERNEL);
+	if (!md)
+		return NPU_MAILBOX_ERROR;
+
+	md->func_type = GET_WAIT;
+	md->func_id = WIFI_MAIL_FUNCTION_GET_WAIT_MDC_LOCK_ADDRESS;
+
+	res = wifi_mail_send(md, pa, false);
+	if (res != NPU_MAILBOX_SUCCESS)
+		goto mail_free;
+
+	ni->info = md->wifi_mail_private.chip_info.mdc_address_base;
 
 mail_free:
 	wifi_mail_free(md, pa);

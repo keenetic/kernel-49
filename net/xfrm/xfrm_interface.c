@@ -237,7 +237,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 			return -EPERM;
 	}
 
-	xfrmi_scrub_packet(skb, xnet);
+	xfrmi_scrub_packet(skb, true);
 
 	tstats = this_cpu_ptr(dev->tstats);
 
@@ -306,7 +306,7 @@ xfrmi_xmit2(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 		return -EMSGSIZE;
 	}
 
-	xfrmi_scrub_packet(skb, !net_eq(xi->net, dev_net(dev)));
+	xfrmi_scrub_packet(skb, true);
 	skb_dst_set(skb, dst);
 	skb->dev = tdev;
 

@@ -492,15 +492,16 @@ static int create_mtd_partitions(struct mtd_info *m,
 	}
 
 	if (u_state_offset != NDMPART_DI_NO_OFFSET) {
-		const int ret = ndmpart_di_init(m, flash_size_lim);
-
-		if (ret < 0)
-			return ret;
+		int ret;
 
 		/* early fill partition info for NAND */
 		parts[PART_U_STATE].offset = u_state_offset;
 		parts[PART_U_STATE].size = parts_size_default_get(PART_U_STATE, m);
 		parts[PART_U_STATE].skip = false;
+
+		ret = ndmpart_di_init(m, u_state_offset, flash_size_lim);
+		if (ret < 0)
+			return ret;
 
 		di_current = (u8)ret;
 	}

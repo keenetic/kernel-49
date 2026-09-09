@@ -99,8 +99,8 @@
 
 #if defined(CONFIG_MTD_NAND_MT7621)
 #define NAND_BB_MODE_SKIP
-int get_partition_range(int blk, uint32_t bshift, int *blk_start, int *blk_end);
-bool is_nobbm_partition(uint64_t offs);
+int get_partition_range(int blk, u32 bshift, int *blk_start, int *blk_end);
+bool is_nobbm_partition(u64 offs);
 #endif
 
 bool is_mtd_partition_rootfs(struct mtd_info *mtd);

@@ -12,7 +12,7 @@
 #ifdef CONFIG_MTD_NDM_DUAL_IMAGE
 
 u32 ndmpart_di_u_state_offset(struct mtd_info *mtd);
-int ndmpart_di_init(struct mtd_info *mtd, u32 flash_size_limit);
+int ndmpart_di_init(struct mtd_info *mtd, u32 offset, u32 flash_size_limit);
 void ndmpart_di_fini(void);
 
 #else /* CONFIG_MTD_NDM_DUAL_IMAGE */
@@ -22,7 +22,8 @@ static inline u32 ndmpart_di_u_state_offset(struct mtd_info *mtd)
 	return NDMPART_DI_NO_OFFSET;
 }
 
-static inline int ndmpart_di_init(struct mtd_info *mtd, u32 flash_size_limit)
+static inline int ndmpart_di_init(struct mtd_info *mtd, u32 offset,
+				  u32 flash_size_limit)
 {
 	return -EOPNOTSUP;
 }

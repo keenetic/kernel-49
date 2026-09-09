@@ -313,7 +313,7 @@ static struct mtd_notifier __mn = {
 };
 static DEFINE_MUTEX(__mn_mutex);
 
-int ndmpart_di_init(struct mtd_info *mtd, u32 flash_size_limit)
+int ndmpart_di_init(struct mtd_info *mtd, u32 offset, u32 flash_size_limit)
 {
 	struct ndmpart_di *di = &__di;
 	NDMPART_DI_PROC_DECLARE_RW(boot_active);
@@ -321,15 +321,8 @@ int ndmpart_di_init(struct mtd_info *mtd, u32 flash_size_limit)
 	NDMPART_DI_PROC_DECLARE_RO(boot_current);
 	NDMPART_DI_PROC_DECLARE_RW(boot_fails);
 	NDMPART_DI_PROC_DECLARE_WO(commit);
-	u32 offset;
 	size_t len;
 	int ret;
-
-	offset = ndmpart_di_u_state_offset(mtd);
-	if (offset == NDMPART_DI_NO_OFFSET) {
-		pr_err("not supported\n");
-		return -EOPNOTSUPP;
-	}
 
 	if (offset < flash_size_limit) {
 		pr_err("invalid flash size limit (0x%08x / 0x%08x)\n",

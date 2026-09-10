@@ -1655,7 +1655,9 @@ int tcp_v4_rcv(struct sk_buff *skb)
 
 #if IS_ENABLED(CONFIG_RA_HW_NAT)
 #if defined(MTK_NETSYS_V2) || defined(AIROHA_NPU_V2)
-	if (IS_MAGIC_TAG_LRO_PATH(skb) && FOE_SKB_IS_READY_BIND(skb)) {
+	if (skb->len > (th->doff << 2) &&
+	    IS_MAGIC_TAG_LRO_PATH(skb) &&
+	    FOE_SKB_IS_READY_BIND(skb)) {
 		typeof(lro_prebind_hook) lro_prebind;
 
 		lro_prebind = rcu_dereference(lro_prebind_hook);
